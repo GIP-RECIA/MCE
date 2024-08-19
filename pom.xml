@@ -86,6 +86,36 @@
 		</resources>
 		<plugins>
 			<plugin>
+				<groupId>com.mycila</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>4.5</version>
+				<configuration>
+					<strictCheck>true</strictCheck>
+					<licenseSets>
+						<licenseSet>
+						<header>etc/header.template</header>
+						<includes>
+							<include>src/**/*.java</include>
+						</includes>
+						<excludes>
+							<exclude>**/dist/**</exclude>
+						</excludes>
+						</licenseSet>
+					</licenseSets>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jasig.maven</groupId>
+				<artifactId>notice-maven-plugin</artifactId>
+				<version>2.0.0</version>
+				<configuration>
+					<noticeTemplate>etc/NOTICE.template</noticeTemplate>
+					<licenseMapping>
+						<param>etc/license-mappings.xml</param>
+					</licenseMapping>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
