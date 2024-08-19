@@ -1,0 +1,35 @@
+server:
+    port: 8090
+
+spring:
+    application: 
+        name: mce-project
+    
+    datasource:
+        url: jdbc:mariadb://
+        username: 
+        password: 
+
+    jpa:
+        show-sql: true 
+        hibernate:
+            naming:
+                implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+                physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        properties:
+            hibernate:
+                format_sql: true
+        
+
+    ldap:
+        urls:
+            - ldap://
+        username: 
+        password: 
+
+# management:
+#   endpoints:
+#     web:
+#       exposure:
+#         include:
+#         - '*'
