@@ -25,7 +25,9 @@ This project includes:
   AssertJ fluent assertions under Apache License, Version 2.0
   Byte Buddy (without dependencies) under Apache License, Version 2.0
   Byte Buddy agent under Apache License, Version 2.0
+  ClassGraph under The MIT License (MIT)
   ClassMate under Apache License, Version 2.0
+  Eclipse Compiler for Java(TM) under Eclipse Public License - v 2.0
   H2 Database Engine under MPL 2.0 or EPL 1.0
   Hamcrest under BSD License 3
   HdrHistogram under Public Domain, per Creative Commons CC0 or BSD-2-Clause
@@ -47,6 +49,7 @@ This project includes:
   Jakarta Persistence API under Eclipse Public License v. 2.0 or Eclipse Distribution License v. 1.0
   Jakarta XML Binding API under Eclipse Distribution License - v 1.0
   Java Annotation Indexer under Apache License, Version 2.0
+  javax.inject under The Apache Software License, Version 2.0
   javax.transaction API under EPL 2.0 or GPL2 w/ CPE
   JAXB Runtime under Eclipse Distribution License - v 1.0
   JBoss Logging 3 under Apache License, version 2.0
@@ -60,6 +63,7 @@ This project includes:
   JUnit Jupiter Params under Eclipse Public License v2.0
   JUnit Platform Commons under Eclipse Public License v2.0
   JUnit Platform Engine API under Eclipse Public License v2.0
+  lang under The Apache Software License, Version 2.0
   LatencyUtils under Public Domain, per Creative Commons CC0
   Logback Classic Module under Eclipse Public License - v 1.0 or GNU Lesser General Public License
   Logback Core Module under Eclipse Public License - v 1.0 or GNU Lesser General Public License
@@ -74,6 +78,11 @@ This project includes:
   org.xmlunit:xmlunit-core under The Apache Software License, Version 2.0
   project ':json-path' under The Apache Software License, Version 2.0
   Project Lombok under The MIT License
+  Querydsl - APT support under Apache License, Version 2.0
+  Querydsl - Codegen module under Apache License, Version 2.0
+  Querydsl - Codegen utils under Apache License, Version 2.0
+  Querydsl - Core module under Apache License, Version 2.0
+  Querydsl - JPA support under Apache License, Version 2.0
   SLF4J API Module under MIT License
   SnakeYAML under Apache License, Version 2.0
   Spring AOP under Apache License, Version 2.0
