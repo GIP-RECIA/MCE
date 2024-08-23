@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -34,6 +36,9 @@ public class PersonneRestController {
 
     @Autowired
     private PersonneService personneService;
+
+    @Autowired
+    private IUserDTOFactory userDTOFactory;
 
     @GetMapping("/")
     public ResponseEntity<PersonneDTO> getPersonneByUid() {
@@ -45,12 +50,23 @@ public class PersonneRestController {
         return new ResponseEntity<>(personne, HttpStatus.OK);
     }
 
-    @GetMapping("/ldap/")
+    @GetMapping("/ldap")
     public ResponseEntity<IExternalUser> getPersonLdap() {
         IExternalUser personne = personneService.getPersonLdap("uid");
         if (personne == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         return new ResponseEntity<>(personne, HttpStatus.OK);
+
+    }
+
+    @GetMapping("/mce")
+    public ResponseEntity<UserDTO> getMCE() {
+
+        UserDTO user = userDTOFactory.from("uid");
+        log.info("userDTO: {}", user);
+        if (user == null)
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(user, HttpStatus.OK);
 
     }
 
