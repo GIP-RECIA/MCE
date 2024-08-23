@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -29,12 +31,20 @@ public class PersonneService {
     @Autowired
     private APersonneRepository aPersonneRepository;
 
+    @Autowired
+    private LdapUserDaoImp userLdapDao;
+
     public PersonneDTO getPersonneByUid(String uid) {
         log.info("uid: {}", uid);
         PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
 
         log.info("getPersonne : {}", personne);
         return personne;
+    }
+
+    public IExternalUser getPersonLdap(String uid) {
+        return userLdapDao.getUserByUid(uid);
+
     }
 
 }

@@ -25,9 +25,15 @@ This project includes:
   AssertJ fluent assertions under Apache License, Version 2.0
   Byte Buddy (without dependencies) under Apache License, Version 2.0
   Byte Buddy agent under Apache License, Version 2.0
+  Checker Qual under The MIT License
   ClassGraph under The MIT License (MIT)
   ClassMate under Apache License, Version 2.0
   Eclipse Compiler for Java(TM) under Eclipse Public License - v 2.0
+  error-prone annotations under Apache 2.0
+  FindBugs-jsr305 under The Apache Software License, Version 2.0
+  Guava InternalFutureFailureAccess and InternalFutures under The Apache Software License, Version 2.0
+  Guava ListenableFuture only under The Apache Software License, Version 2.0
+  Guava: Google Core Libraries for Java under Apache License, Version 2.0
   H2 Database Engine under MPL 2.0 or EPL 1.0
   Hamcrest under BSD License 3
   HdrHistogram under Public Domain, per Creative Commons CC0 or BSD-2-Clause
@@ -36,6 +42,7 @@ This project includes:
   Hibernate Validator Engine under Apache License 2.0
   HikariCP under The Apache Software License, Version 2.0
   istack common utility code runtime under Eclipse Distribution License - v 1.0
+  J2ObjC Annotations under Apache License, Version 2.0
   Jackson datatype: jdk8 under The Apache Software License, Version 2.0
   Jackson datatype: JSR310 under The Apache Software License, Version 2.0
   Jackson-annotations under The Apache Software License, Version 2.0

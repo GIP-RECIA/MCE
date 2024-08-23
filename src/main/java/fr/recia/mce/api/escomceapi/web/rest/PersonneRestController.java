@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +43,15 @@ public class PersonneRestController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
         return new ResponseEntity<>(personne, HttpStatus.OK);
+    }
+
+    @GetMapping("/ldap/")
+    public ResponseEntity<IExternalUser> getPersonLdap() {
+        IExternalUser personne = personneService.getPersonLdap("uid");
+        if (personne == null)
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(personne, HttpStatus.OK);
+
     }
 
 }

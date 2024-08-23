@@ -25,10 +25,12 @@ import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereEnfant;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Getter
+@Setter
 public class PersonneDTO extends Personne {
 
     private APersonne aPersonneBase;
