@@ -15,6 +15,8 @@
  */
 package fr.recia.mce.api.escomceapi.db.repositories;
 
+import java.util.Collection;
+
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -31,4 +33,12 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
             "WHERE a.uid = :uid")
     PersonneDTO getPersonneByUid(final String uid);
 
+    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, ce, s, l) " +
+            "from APersonne a, CerbereEnfant ce, AStructure s , Login l " +
+            "where ce.aPersonneByIdParent.id = :parent " +
+            "and ce.aPersonneByIdEnfant.id = a.id " +
+            "and a.id = l.aPersonneByAPersonneLogin " +
+            "and s.id = a.aStructure "
+            + "and ( a.etat != 'Delete' or a.dateModification < a.dateAcquittement)")
+    Collection<PersonneDTO> findAllEnfantOf(Long parent);
 }

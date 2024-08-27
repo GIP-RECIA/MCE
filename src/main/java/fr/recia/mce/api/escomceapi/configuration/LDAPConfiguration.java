@@ -43,6 +43,7 @@ public class LDAPConfiguration {
                 ldapProperties.getUserBranch().getGroupAttribute(),
                 ldapProperties.getUserBranch().getEleveRelation(),
                 ldapProperties.getUserBranch().getEleveTuteurEntr(),
+                ldapProperties.getUserBranch().getTuteurEleves(),
                 ldapProperties.getUserBranch().getOtherBackendAttributes(),
                 ldapProperties.getUserBranch().getOtherDisplayedAttributes(),
                 ldapProperties.getUserBranch().getBaseDN());
