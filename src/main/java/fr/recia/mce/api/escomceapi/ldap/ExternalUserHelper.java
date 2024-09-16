@@ -43,6 +43,10 @@ public class ExternalUserHelper {
 
     private String userTuteurEleveAttribute;
 
+    private String userEleveEnseignement;
+
+    private String userCodeMatiereEnseignement;
+
     private Set<String> otherUserAttributes;
 
     private Set<String> otherUserDisplayedAttributes;
@@ -60,6 +64,8 @@ public class ExternalUserHelper {
         set.add(userEleveRelationAttribute);
         set.add(userEleveTuteurAttribute);
         set.add(userTuteurEleveAttribute);
+        set.add(userEleveEnseignement);
+        set.add(userCodeMatiereEnseignement);
         set.addAll(otherUserAttributes);
         set.addAll(otherUserDisplayedAttributes);
         return set;

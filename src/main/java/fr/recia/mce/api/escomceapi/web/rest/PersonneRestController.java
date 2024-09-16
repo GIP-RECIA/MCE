@@ -27,12 +27,17 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
+import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
+import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,6 +54,12 @@ public class PersonneRestController {
 
     @Autowired
     private IRelationEleveService iRelationEleveService;
+
+    @Autowired
+    private FonctionService fonctionService;
+
+    @Autowired
+    private IClasseGroupeService classeGroupeService;
 
     @GetMapping("/")
     public ResponseEntity<PersonneDTO> getPersonneByUid() {
@@ -121,4 +132,30 @@ public class PersonneRestController {
 
     }
 
+    @GetMapping("/GENERALE/{id}")
+    public ResponseEntity<InfoGeneralDTO> getInfoGenerales(@PathVariable Long id) {
+        List<FonctionDTO> listFonctions;
+
+        Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
+
+        listFonctions = new ArrayList<>(fonctions);
+        log.info("listFonctions : {}", listFonctions);
+
+        InfoGeneralDTO infoGenerales = new InfoGeneralDTO(listFonctions, null);
+
+        return new ResponseEntity<>(infoGenerales, HttpStatus.OK);
+
+    }
+
+    @GetMapping("/sections/{id}")
+    public ResponseEntity<ClasseGroupeDTO> getSectionCG(@PathVariable String id) {
+        IExternalUser p = personneService.getPersonLdap(id);
+
+        ClasseGroupeDTO classes = classeGroupeService.calculCG(p);
+        log.info("classeDTO: {}", classes);
+        if (classes == null)
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(classes, HttpStatus.OK);
+
+    }
 }

@@ -63,6 +63,10 @@ public class CustomLdapProperties {
 
         private String tuteurEleves;
 
+        private String eleveEnseignements;
+
+        private String codeMatiereEnseignement;
+
         @NonNull
         private Set<String> otherDisplayedAttributes = new HashSet<>();
 

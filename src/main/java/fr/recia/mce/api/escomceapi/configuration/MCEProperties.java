@@ -24,6 +24,7 @@ import org.springframework.validation.annotation.Validated;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MCEProperties {
 
     private CustomLdapProperties ldap = new CustomLdapProperties();
+    private ServiceProperties service = new ServiceProperties();
 
     @PostConstruct
     private void init() throws JsonProcessingException {
@@ -45,6 +47,7 @@ public class MCEProperties {
     public String toString() {
         return "{\n\"MCEProperties\":{"
                 + ",\n\t \"ldap\":" + ldap
+                + ",\n\t \"service\":" + service
                 + "\n\t}\n}";
     }
 
