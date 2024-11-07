@@ -24,6 +24,7 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereEnfant;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,8 @@ public class PersonneDTO extends Personne {
     private StructureDTO structureDto;
 
     private String mailFromLdap;
+
+    private IExternalUser extUser;
 
     public PersonneDTO(final APersonne aPersonne) {
         this(aPersonne, aPersonne.getAStructure());

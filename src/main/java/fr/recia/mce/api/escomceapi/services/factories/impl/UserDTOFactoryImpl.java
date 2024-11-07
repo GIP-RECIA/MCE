@@ -16,23 +16,34 @@
 package fr.recia.mce.api.escomceapi.services.factories.impl;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import javax.validation.constraints.NotNull;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
+import fr.recia.mce.api.escomceapi.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
+import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.factories.EnumOnglet;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,15 +51,29 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @Transactional(readOnly = true)
+@Getter
 public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
-    @Getter
     private transient APersonneRepository daoPersonne;
 
     @Autowired
-    @Getter
+    private transient FonctionRepository fonctionRepository;
+
+    @Autowired
     private transient IExternalUserDao extDao;
+
+    @Autowired
+    private IClasseGroupeService classeGroupeService;
+
+    private IExternalUser externalUser;
+    private PersonneDTO personneDTO;
+
+    @Autowired
+    private SoffitHolder soffitHolder;
+
+    @Autowired
+    private CacheManager cacheManager;
 
     @Override
     public APersonne from(@NotNull UserDTO dtObject) {
@@ -68,9 +93,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         if (extModel != null && withInternal) {
             // Optional<APersonne> optionalAPersonne =
             // daoPersonne.findById(extModel.getId());
-            PersonneDTO optionalAPersonne = daoPersonne.getPersonneByUid(extModel.getId());
-            optionalAPersonne.setMailFromLdap(extModel.getEmail());
-            model = optionalAPersonne;
+            personneDTO = getUserByUid(extModel.getId());
+            personneDTO.setMailFromLdap(extModel.getEmail());
+            model = personneDTO;
         }
         return from(model, extModel);
     }
@@ -93,17 +118,17 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public UserDTO from(@NotNull PersonneDTO model) {
 
         log.debug("Model to DTO of {}", model);
-        IExternalUser extUser = getExtDao().getUserByUid(model.getUid());
-        return from(model, extUser);
+        externalUser = getUserLdap(model.getUid());
+        return from(model, externalUser);
     }
 
     @Override
     public UserDTO from(@NotNull String uid) {
 
         log.debug("from uid to DTO of {}", uid);
-        IExternalUser extUser = getExtDao().getUserByUid(uid);
+        externalUser = getUserLdap(uid);
 
-        return from(extUser, true);
+        return from(externalUser, true);
     }
 
     private List<String> listMenuTab(String code) {
@@ -118,8 +143,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 break;
             case ELEVE:
                 menu.add(EnumOnglet.GENERALE.name());
-                menu.add(EnumOnglet.PARENT_ELEVE.name());
                 menu.add(EnumOnglet.SERVICE.name());
+                menu.add(EnumOnglet.PARENT_ELEVE.name());
                 break;
             case PARENT:
                 menu.add(EnumOnglet.SERVICE.name());
@@ -136,4 +161,117 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         return menu;
     }
+
+    @Cacheable(cacheNames = "personneDBCache", key = "#uid")
+    private PersonneDTO getUserByUid(String uid) {
+        log.info("uid: {}", uid);
+        PersonneDTO personne = null;
+
+        Cache cache = cacheManager.getCache("personneDBCache");
+        PersonneDTO getPersonne = cache.get(uid, PersonneDTO.class);
+        if (!Objects.isNull(getPersonne)) {
+            log.info("Loading personneDB cache...");
+            return getPersonne;
+        }
+
+        try {
+            log.info("Calcul personDB");
+            personne = daoPersonne.getPersonneByUid(uid);
+            cache.putIfAbsent(uid, personne);
+
+            if (personne != null) {
+                loadLdapUser(personne, uid);
+            }
+
+        } catch (Exception e) {
+            log.error("error : {}", e);
+        }
+
+        log.info("getPersonne : {}", personne);
+        return personne;
+    }
+
+    @Cacheable(cacheNames = "personneLDAPCache", key = "#uid")
+    private IExternalUser getUserLdap(String uid) {
+        IExternalUser userLdap = null;
+
+        Cache cache = cacheManager.getCache("personneLDAPCache");
+
+        IExternalUser getUser = cache.get(uid, IExternalUser.class);
+        if (!Objects.isNull(getUser)) {
+            log.info("Loading personneLDAP cache...");
+            return getUser;
+        }
+
+        try {
+            log.info("Calcul personLDAP");
+            userLdap = getExtDao().getUserByUid(uid);
+            cache.putIfAbsent(uid, userLdap);
+
+        } catch (Exception e) {
+            log.error("error : {}", e);
+
+        }
+        return userLdap;
+
+    }
+
+    private void loadLdapUser(PersonneDTO personne, String uid) {
+        IExternalUser u = getUserLdap(uid);
+        personne.setExtUser(u);
+    }
+
+    public PersonneDTO retrievePersonnebyUid(String uid) {
+        return this.getUserByUid(uid);
+    }
+
+    @Override
+    public InfoGeneralDTO showGeneralInfo() {
+
+        if (personneDTO == null) {
+            log.debug("user is null");
+            return null;
+        }
+
+        InfoGeneralDTO infoGeneral = null;
+
+        List<FonctionDTO> listFonctions;
+
+        Long id = personneDTO.getAPersonneBase().getId();
+        log.info("id user: {}", id);
+
+        Collection<FonctionDTO> fonctions = fonctionRepository.findAllFonction(id);
+
+        listFonctions = new ArrayList<>(fonctions);
+        log.info("listFonctions : {}", listFonctions);
+
+        ClasseGroupeDTO classes = classeGroupeService.calculCG(personneDTO.getExtUser());
+
+        infoGeneral = new InfoGeneralDTO(listFonctions, classes);
+
+        return infoGeneral;
+    }
+
+    private boolean isSubOk() {
+
+        final boolean isOk = soffitHolder.getSub() != null && !soffitHolder.getSub().startsWith("guest");
+        if (!isOk)
+            log.info("User is guest : sub {}", soffitHolder.getSub());
+
+        return isOk;
+    }
+
+    @Override
+    public UserDTO getCurrentUser() {
+
+        if (!isSubOk())
+            return null;
+        final UserDTO user = from(soffitHolder.getSub());
+
+        if (user == null)
+            log.info("No user found with sub: {}", soffitHolder.getSub());
+
+        return user;
+    }
+
 }

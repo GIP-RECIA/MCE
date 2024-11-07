@@ -30,6 +30,7 @@ This project includes:
   ClassGraph under The MIT License (MIT)
   ClassMate under Apache License, Version 2.0
   Eclipse Compiler for Java(TM) under Eclipse Public License - v 2.0
+  Ehcache under The Apache Software License, Version 2.0
   error-prone annotations under Apache 2.0
   FindBugs-jsr305 under The Apache Software License, Version 2.0
   Guava InternalFutureFailureAccess and InternalFutures under The Apache Software License, Version 2.0
@@ -69,6 +70,7 @@ This project includes:
   JSON library from Android SDK under Apache License 2.0
   JSON Small and Fast Parser under The Apache Software License, Version 2.0
   JSONassert under The Apache Software License, Version 2.0
+  JSR107 API and SPI under Apache License, Version 2.0
   JUL to SLF4J bridge under MIT License
   JUnit Jupiter (Aggregator) under Eclipse Public License v2.0
   JUnit Jupiter API under Eclipse Public License v2.0
@@ -103,6 +105,7 @@ This project includes:
   Spring Beans under Apache License, Version 2.0
   Spring Commons Logging Bridge under Apache License, Version 2.0
   Spring Context under Apache License, Version 2.0
+  Spring Context Support under Apache License, Version 2.0
   Spring Core under Apache License, Version 2.0
   Spring Data Core under Apache License, Version 2.0
   Spring Data JPA under Apache License, Version 2.0
@@ -121,6 +124,7 @@ This project includes:
   spring-boot-starter under Apache License, Version 2.0
   spring-boot-starter-actuator under Apache License, Version 2.0
   spring-boot-starter-aop under Apache License, Version 2.0
+  spring-boot-starter-cache under Apache License, Version 2.0
   spring-boot-starter-data-jpa under Apache License, Version 2.0
   spring-boot-starter-data-ldap under Apache License, Version 2.0
   spring-boot-starter-jdbc under Apache License, Version 2.0

@@ -13,25 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.web.dto;
+package fr.recia.mce.api.escomceapi.configuration;
 
-import java.util.List;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Configuration;
 
-import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
-import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class InfoGeneralDTO {
-
-    private List<FonctionDTO> listFonctions;
-
-    private ClasseGroupeDTO sectionClassesGroupes;
+@Configuration
+@EnableCaching
+public class CacheConfig {
 
 }

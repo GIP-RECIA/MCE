@@ -13,25 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.web.dto;
+package fr.recia.mce.api.escomceapi.configuration;
 
-import java.util.List;
+import org.ehcache.event.CacheEvent;
+import org.ehcache.event.CacheEventListener;
 
-import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
-import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class InfoGeneralDTO {
-
-    private List<FonctionDTO> listFonctions;
-
-    private ClasseGroupeDTO sectionClassesGroupes;
-
+@Slf4j
+public class CacheEventLogger implements CacheEventListener<Object, Object> {
+    @Override
+    public void onEvent(CacheEvent<?, ?> cacheEvent) {
+        log.info("CacheEvent = {} , Key = {} , OldValue = {} , NewValue = {}", cacheEvent.getType(),
+                cacheEvent.getKey(), cacheEvent.getOldValue(), cacheEvent.getNewValue());
+    }
 }
