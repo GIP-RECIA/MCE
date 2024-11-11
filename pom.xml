@@ -108,7 +108,7 @@
 		<dependency>
 			<groupId>org.jasig.portal</groupId>
 			<artifactId>uPortal-soffit-renderer</artifactId>
-			<version>5.13.1</version>
+			<version>5.17.0</version>
 		</dependency>
 	</dependencies>
 
