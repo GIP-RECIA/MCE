@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
+import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.ClasseGroupe;
@@ -38,6 +39,7 @@ import fr.recia.mce.api.escomceapi.services.beans.SubSectionEleve;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionProf;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
+import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +63,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
     @Autowired
     private ExternalUserHelper extUserHelper;
+
+    @Autowired
+    private IStructureService structureService;
 
     private final Map<String, ClasseGroupe> bufferUid2mapClasses2 = new HashMap<>();
 
@@ -109,6 +114,8 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             // Get or create the ClasseGroupe object
             ClasseGroupe existingGroup = cgMap.getOrDefault(key,
                     new ClasseGroupe(key, new ArrayList<>(), new ArrayList<>()));
+            IExternalStructure struct = structureService.findStructureBySiren(key);
+            existingGroup.setNameEtab(struct.getName());
 
             if (classes.containsKey(key)) {
                 existingGroup.getClasses().addAll(classes.get(key));
@@ -147,8 +154,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                 ens.setCg(sourceData);
                 matListCG.add(ens);
             });
+            IExternalStructure struct = structureService.findStructureBySiren(siren);
 
-            mapListSectionProf.put(siren, matListCG);
+            mapListSectionProf.put(struct.getName(), matListCG);
         });
         sectionProf.setEtabs(mapListSectionProf);
 
@@ -209,8 +217,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         List<String> grp = new ArrayList<>();
 
         // Set the name (only if it hasn't been set yet)
-        if (sourceData.getNameEtab() == null) {
-            sourceData.setNameEtab(siren);
+        if (sourceData.getNameEtab() != null) {
+            IExternalStructure struct = structureService.findStructureBySiren(siren);
+            sourceData.setNameEtab(struct.getName());
         }
 
         // Check if it’s a class or a group and add to respective lists

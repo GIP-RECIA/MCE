@@ -17,8 +17,7 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-
+import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -40,5 +39,30 @@ public class UserDTO {
     private String avatar;
     private String etat;
     private List<String> listMenu;
+    private InfoGeneralDTO fonctionClassesGroupe;
+    private List<RelationEleveContact> parentEleve;
+    private List<RelationEleveContact> relationEleve;
+    private List<RelationEleveContact> apprentis;
+
+    public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String userMail, Date bod,
+            String avatar, String etat, List<String> listMenu) {
+        this.id = id;
+        this.uid = uid;
+        this.userName = userName;
+        this.identifiant = identifiant;
+        this.etab = etab;
+        this.userMail = userMail;
+        this.bod = bod;
+        this.avatar = avatar;
+        this.etat = etat;
+        this.listMenu = listMenu;
+    }
+
+    @Override
+    public String toString() {
+        return "UserDTO [id=" + id + ", uid=" + uid + ", userName=" + userName + ", identifiant=" + identifiant
+                + ", etab=" + etab + ", userMail=" + userMail + ", bod=" + bod + ", avatar=" + avatar + ", etat=" + etat
+                + ", listMenu=" + listMenu + "]";
+    }
 
 }

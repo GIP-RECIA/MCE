@@ -38,4 +38,6 @@ public interface IUserDTOFactory {
     InfoGeneralDTO showGeneralInfo();
 
     UserDTO getCurrentUser();
+
+    IExternalUser retrievePersonLdap(final String uid);
 }

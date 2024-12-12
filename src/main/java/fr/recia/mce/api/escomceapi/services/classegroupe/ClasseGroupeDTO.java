@@ -30,8 +30,6 @@ import java.util.Map;
 @NoArgsConstructor
 public class ClasseGroupeDTO {
 
-    private Map<String, ClasseGroupe> sectionCG;
-
     private SubSectionEleve sectionEleve;
     private SubSectionProf sectionProf;
 

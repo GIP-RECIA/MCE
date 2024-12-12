@@ -16,6 +16,7 @@
 package fr.recia.mce.api.escomceapi.db.dto;
 
 import fr.recia.mce.api.escomceapi.db.beans.Structure;
+import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,6 +34,7 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
     private String siren;
 
     private String source;
+    private IExternalStructure struct;
 
     // public String getStructureName() {
     // String name = structure.getDisplayName();

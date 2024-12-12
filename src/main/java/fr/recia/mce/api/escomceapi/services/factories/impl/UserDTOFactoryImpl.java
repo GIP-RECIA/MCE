@@ -39,10 +39,14 @@ import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.services.FonctionService;
+import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.factories.EnumOnglet;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
+import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.Getter;
@@ -66,6 +70,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Autowired
     private IClasseGroupeService classeGroupeService;
 
+    @Autowired
+    private IRelationEleveService iRelationEleveService;
+
     private IExternalUser externalUser;
     private PersonneDTO personneDTO;
 
@@ -74,6 +81,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private CacheManager cacheManager;
+
+    @Autowired
+    private IStructureService structureService;
+
+    @Autowired
+    private FonctionService fonctionService;
 
     @Override
     public APersonne from(@NotNull UserDTO dtObject) {
@@ -102,12 +115,30 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Override
     public UserDTO from(PersonneDTO model, IExternalUser extModel) {
+
+        List<RelationEleveContact> respEleves;
+        List<RelationEleveContact> eleves;
+
+        structureService.getAllStructures();
+
         if (model != null && extModel != null) {
+            Collection<RelationEleveContact> respCol = iRelationEleveService.allRelationEleves(model.getUid());
+            if (respCol != null) {
+                respEleves = new ArrayList<>(respCol);
+            } else {
+                respEleves = null;
+            }
+
+            Collection<RelationEleveContact> elevesCol = iRelationEleveService
+                    .allEleveEnRelation(model.getAPersonneBase().getId());
+
+            eleves = new ArrayList<>(elevesCol);
+
             return new UserDTO(model.getAPersonneBase().getId(), model.getUid(), model.getDisplayName(),
                     model.getIdentifiant(),
                     model.getStructureDto().getDisplayName(),
                     model.getMailFixe(), model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
-                    listMenuTab(model.getAPersonneBase().getCategorie()));
+                    listMenuTab(model.getAPersonneBase().getCategorie()), showGeneralInfo(), respEleves, eleves, null);
 
         }
 
@@ -170,7 +201,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         Cache cache = cacheManager.getCache("personneDBCache");
         PersonneDTO getPersonne = cache.get(uid, PersonneDTO.class);
         if (!Objects.isNull(getPersonne)) {
-            log.info("Loading personneDB cache...");
+            log.info("Loading personneDB cache for user {}...", uid);
             return getPersonne;
         }
 
@@ -199,7 +230,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         IExternalUser getUser = cache.get(uid, IExternalUser.class);
         if (!Objects.isNull(getUser)) {
-            log.info("Loading personneLDAP cache...");
+            log.info("Loading personneLDAP cache for user {}...", uid);
             return getUser;
         }
 
@@ -226,6 +257,13 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     }
 
     @Override
+    public IExternalUser retrievePersonLdap(String uid) {
+        log.info("retrievePersonLdap: {}", uid);
+        return getUserLdap(uid);
+
+    }
+
+    @Override
     public InfoGeneralDTO showGeneralInfo() {
 
         if (personneDTO == null) {
@@ -240,7 +278,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         Long id = personneDTO.getAPersonneBase().getId();
         log.info("id user: {}", id);
 
-        Collection<FonctionDTO> fonctions = fonctionRepository.findAllFonction(id);
+        Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
 
         listFonctions = new ArrayList<>(fonctions);
         log.info("listFonctions : {}", listFonctions);

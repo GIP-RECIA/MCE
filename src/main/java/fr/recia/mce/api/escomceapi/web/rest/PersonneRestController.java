@@ -15,35 +15,23 @@
  */
 package fr.recia.mce.api.escomceapi.web.rest;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
-import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
-import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
-import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
-import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
-import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/personne")
+@RequestMapping("/api/personne/mce")
 public class PersonneRestController {
 
     @Autowired
@@ -52,16 +40,7 @@ public class PersonneRestController {
     @Autowired
     private IUserDTOFactory userDTOFactory;
 
-    @Autowired
-    private IRelationEleveService iRelationEleveService;
-
-    @Autowired
-    private FonctionService fonctionService;
-
-    @Autowired
-    private IClasseGroupeService classeGroupeService;
-
-    @GetMapping("/")
+    @GetMapping("/getuser")
     public ResponseEntity<PersonneDTO> getPersonneByUid() {
         PersonneDTO personne = personneService.getPersonneByUid("uid");
         log.info("personne: {}", personne);
@@ -80,82 +59,15 @@ public class PersonneRestController {
 
     }
 
-    @GetMapping("/mce")
+    @GetMapping("/")
     public ResponseEntity<UserDTO> getMCE() {
 
-        UserDTO user = userDTOFactory.from("uid");
+        UserDTO user = userDTOFactory.getCurrentUser();
+
         log.info("userDTO: {}", user);
         if (user == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         return new ResponseEntity<>(user, HttpStatus.OK);
-
-    }
-
-    @GetMapping("/RELATION_ELEVE/{id}")
-    public ResponseEntity<List<RelationEleveContact>> getRelationEleve(@PathVariable Long id) {
-        List<RelationEleveContact> eleves;
-
-        Collection<RelationEleveContact> elevesCol = iRelationEleveService.allEleveEnRelation(id);
-
-        eleves = new ArrayList<>(elevesCol);
-        log.info("eleves relation : {}", eleves);
-
-        return new ResponseEntity<>(eleves, HttpStatus.OK);
-
-    }
-
-    @GetMapping("/PARENT_ELEVE/{id}")
-    public ResponseEntity<List<RelationEleveContact>> getEleve2Contact(@PathVariable String id) {
-        List<RelationEleveContact> eleves;
-
-        Collection<RelationEleveContact> elevesCol = iRelationEleveService.allRelationEleves(id);
-        if (elevesCol == null)
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-
-        eleves = new ArrayList<>(elevesCol);
-        log.info("eleves relation : {}", eleves);
-
-        return new ResponseEntity<>(eleves, HttpStatus.OK);
-
-    }
-
-    @GetMapping("/APPRENTIS/{id}")
-    public ResponseEntity<List<RelationEleveContact>> getApprentis(@PathVariable String id) {
-        List<RelationEleveContact> eleves;
-
-        Collection<RelationEleveContact> elevesCol = iRelationEleveService.allApprentiEnRelation(id);
-
-        eleves = new ArrayList<>(elevesCol);
-        log.info("ContactToEleve : {}", eleves);
-
-        return new ResponseEntity<>(eleves, HttpStatus.OK);
-
-    }
-
-    @GetMapping("/GENERALE/{id}")
-    public ResponseEntity<InfoGeneralDTO> getInfoGenerales(@PathVariable Long id) {
-        List<FonctionDTO> listFonctions;
-
-        Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
-
-        listFonctions = new ArrayList<>(fonctions);
-        log.info("listFonctions : {}", listFonctions);
-
-        InfoGeneralDTO infoGenerales = new InfoGeneralDTO(listFonctions, null);
-
-        return new ResponseEntity<>(infoGenerales, HttpStatus.OK);
-
-    }
-
-    @GetMapping("/sections/{id}")
-    public ResponseEntity<ClasseGroupeDTO> getSectionCG(@PathVariable String id) {
-        IExternalUser p = personneService.getPersonLdap(id);
-
-        ClasseGroupeDTO classes = classeGroupeService.calculCG(p);
-        log.info("classeDTO: {}", classes);
-        if (classes == null)
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        return new ResponseEntity<>(classes, HttpStatus.OK);
 
     }
 }

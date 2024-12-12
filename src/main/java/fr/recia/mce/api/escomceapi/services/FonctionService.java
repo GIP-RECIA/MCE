@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
+import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -31,9 +32,20 @@ public class FonctionService {
     @Autowired
     private FonctionRepository fonctionRepository;
 
+    @Autowired
+    private IStructureService structureService;
+
     public Collection<FonctionDTO> getAllFonctionOfPersonne(Long id) {
         log.info("person_id: {}", id);
-        return fonctionRepository.findAllFonction(id);
+        Collection<FonctionDTO> foncts = fonctionRepository.findAllFonction(id);
+
+        for (FonctionDTO f : foncts) {
+            if (f.getStruct() == null) {
+                f.setStruct(structureService.findStructureBySiren(f.getSiren()));
+            }
+        }
+
+        return foncts;
     }
 
 }
