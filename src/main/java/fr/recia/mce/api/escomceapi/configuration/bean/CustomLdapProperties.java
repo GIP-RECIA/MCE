@@ -84,8 +84,6 @@ public class CustomLdapProperties {
 
         private String nameStruct;
 
-        private String siren;
-
         private String structureJointure;
 
         private String skin;
@@ -99,8 +97,17 @@ public class CustomLdapProperties {
         public StructureBranchProperties() {
             this.setBaseDN("ou=structures");
             this.setGroupAttribute("member");
-            this.setIdAttribute("cn");
-            this.setDisplayNameAttribute("cn");
+            this.setIdAttribute("ENTStructureSIREN");
+            this.setDisplayNameAttribute("ESCOStructureNomCourt");
+        }
+
+        @Override
+        public String toString() {
+            return "StructureBranchProperties [domaines=" + domaines + ", nameStruct=" + nameStruct
+                    + ", structureJointure=" + structureJointure + ", skin=" + skin + ", typeStruct=" + typeStruct
+                    + ", uai=" + uai + ", ville=" + ville + ", getBaseDN()=" + getBaseDN()
+                    + ", getDisplayNameAttribute()=" + getDisplayNameAttribute() + ", getGroupAttribute()="
+                    + getGroupAttribute() + ", getIdAttribute()=" + getIdAttribute() + "]";
         }
 
     }

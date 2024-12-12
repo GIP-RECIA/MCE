@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
+import fr.recia.mce.api.escomceapi.ldap.ExternalStructHelper;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -52,5 +53,22 @@ public class LDAPConfiguration {
         log.debug("LdapAttributes for user configured: {}", ldapUser);
 
         return ldapUser;
+    }
+
+    @Bean
+    public ExternalStructHelper externalStructHelper() {
+        final ExternalStructHelper ldapStruct = new ExternalStructHelper(
+                ldapProperties.getStructBranch().getIdAttribute(),
+                ldapProperties.getStructBranch().getNameStruct(),
+                ldapProperties.getStructBranch().getDisplayNameAttribute(),
+                ldapProperties.getStructBranch().getTypeStruct(),
+                ldapProperties.getStructBranch().getDomaines(),
+                ldapProperties.getStructBranch().getStructureJointure(),
+                ldapProperties.getStructBranch().getUai(),
+                ldapProperties.getStructBranch().getVille(),
+                ldapProperties.getStructBranch().getBaseDN());
+        log.debug("LdapAttributes for structure configured: {}", ldapStruct);
+
+        return ldapStruct;
     }
 }
