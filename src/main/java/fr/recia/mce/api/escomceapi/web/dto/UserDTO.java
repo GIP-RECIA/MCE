@@ -38,6 +38,8 @@ public class UserDTO {
     private Date bod;
     private String avatar;
     private String etat;
+    private Boolean mdp;
+    private List<String> userPublic;
     private List<String> listMenu;
     private InfoGeneralDTO fonctionClassesGroupe;
     private List<RelationEleveContact> parentEleve;

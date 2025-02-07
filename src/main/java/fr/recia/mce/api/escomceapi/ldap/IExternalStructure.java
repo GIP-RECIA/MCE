@@ -22,4 +22,6 @@ public interface IExternalStructure extends IExternalSubject {
     String getUai();
 
     String getType();
+
+    String[] getDomaines();
 }

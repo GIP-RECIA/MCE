@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.services.structure;
 
 import java.util.List;
 
+import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 
 public interface IStructureService {
@@ -24,5 +25,11 @@ public interface IStructureService {
     public List<IExternalStructure> getAllStructures();
 
     public IExternalStructure findStructureBySiren(final String siren);
+
+    public IExternalStructure findStructureByUai(final String uai);
+
+    boolean isReseauRecia(IExternalStructure str);
+
+    boolean isReseauRecia(PersonneDTO p);
 
 }

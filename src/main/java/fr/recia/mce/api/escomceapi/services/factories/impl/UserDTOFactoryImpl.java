@@ -30,10 +30,15 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
+import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.interceptor.bean.SoffitHolder;
@@ -76,6 +81,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private IExternalUser externalUser;
     private PersonneDTO personneDTO;
 
+    private ServiceProperties serviceProperties;
+
     @Autowired
     private SoffitHolder soffitHolder;
 
@@ -87,6 +94,10 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private FonctionService fonctionService;
+
+    public UserDTOFactoryImpl(MCEProperties mceProperties) {
+        this.serviceProperties = mceProperties.getService();
+    }
 
     @Override
     public APersonne from(@NotNull UserDTO dtObject) {
@@ -108,9 +119,135 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             // daoPersonne.findById(extModel.getId());
             personneDTO = getUserByUid(extModel.getId());
             personneDTO.setMailFromLdap(extModel.getEmail());
+
+            // TO DO : evalPublic
             model = personneDTO;
+
+            try {
+                EnumPublic ep = evalPublic(model);
+                log.info("ep user connecté : {}", ep.name());
+            } catch (Exception e) {
+                log.error("error.EnumPublic {} : ", e);
+            }
         }
         return from(model, extModel);
+    }
+
+    private EnumPublic evalPublic(final PersonneDTO personne) {
+
+        EnumPublic res = null;
+
+        DomSource ds = null;
+        StructureDTO structure = personne.getStructureDto();
+        boolean isLocalUser = false;
+        boolean isRegion = false;
+        String source = personne.getSource();
+
+        try {
+            ds = (structure).getDomSource();
+
+        } catch (Exception e) {
+            log.error("error getDomSource {}", e);
+        }
+
+        if (source != null) {
+            isLocalUser = source.startsWith("SarapisUi");
+            isRegion = source.endsWith("COLL-CVDL");
+        }
+
+        EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
+
+        switch (enumCat) {
+            case ELEVE:
+                switch (ds) {
+                    case CFA:
+                        res = EnumPublic.APPRENANT;
+                        break;
+                    case AC:
+                        res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
+                        break;
+                    case GIP:
+                    case LA:
+                    case COLL:
+                    default:
+                        res = EnumPublic.ELEVE;
+                }
+
+                break;
+
+            case PARENT:
+                switch (ds) {
+                    case AC:
+                        res = isLocalUser ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
+                        break;
+                    default:
+                        res = EnumPublic.PARENT;
+                }
+                break;
+
+            case PROF:
+                switch (ds) {
+                    case AC:
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                        break;
+                    case LA:
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                        break;
+                    case CFA:
+                    case GIP:
+                    case COLL:
+                    default:
+                        res = EnumPublic.PERSONNEL;
+                }
+                break;
+
+            case ENTREPRISE:
+            case TUTEUR:
+                res = EnumPublic.EXTERIEUR;
+                break;
+
+            case NON_PROF_COL_LOCAL:
+                if (isRegion) {
+                    res = EnumPublic.CVDL;
+                    break;
+                }
+            case NON_PROF_ETAB:
+                switch (ds) {
+                    case AC:
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                        break;
+                    case LA:
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                        break;
+                    case CFA:
+                    case GIP:
+                    case COLL:
+                    default:
+                        res = EnumPublic.PERSONNEL;
+                }
+                break;
+
+            case NON_PROF_ACAD:
+                switch (ds) {
+                    case AC:
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                        break;
+                    case LA:
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                        break;
+                    // $CASES-OMITTED$
+                    default:
+                        res = EnumPublic.AUTRE;
+                }
+                break;
+            case AUTRE:
+                res = EnumPublic.AUTRE;
+                break;
+        }
+
+        personne.setEnumPublic(res);
+
+        return res;
     }
 
     @Override
@@ -118,6 +255,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         List<RelationEleveContact> respEleves;
         List<RelationEleveContact> eleves;
+        Boolean passEditable = false;
+        Boolean eduConnect = false;
+        Boolean passEtab = false;
 
         structureService.getAllStructures();
 
@@ -134,10 +274,39 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             eleves = new ArrayList<>(elevesCol);
 
+            EnumPublic pub = model.getEnumPublic();
+            if (pub != null) {
+                if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
+                        || !model.getMailFixe().matches("[^@]+@ac-orleans-tours.fr")) {
+
+                    passEditable = pub.isConnectOk();
+                    eduConnect = pub.isEduconnect();
+                }
+
+                if (pub.isPassEtab()) {
+                    passEtab = structureService.isReseauRecia(model);
+
+                }
+
+            }
+
+            String userIdentifiant = Boolean.TRUE.equals(passEditable) ? model.getIdentifiant() : null;
+            List<String> userPublic = new ArrayList<>();
+
+            if (Boolean.TRUE.equals(eduConnect)) {
+                userPublic.add(this.serviceProperties.getCustomParams().getLienEdu());
+                if (Boolean.TRUE.equals(passEtab)) {
+                    userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
+                }
+            } else if (Boolean.TRUE.equals(passEtab)) {
+                userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
+            }
+
             return new UserDTO(model.getAPersonneBase().getId(), model.getUid(), model.getDisplayName(),
-                    model.getIdentifiant(),
+                    userIdentifiant,
                     model.getStructureDto().getDisplayName(),
                     model.getMailFixe(), model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
+                    passEditable, userPublic,
                     listMenuTab(model.getAPersonneBase().getCategorie()), showGeneralInfo(), respEleves, eleves, null);
 
         }
@@ -169,6 +338,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         switch (enumCat) {
             case PROF:
+            case NON_PROF_ACAD:
+            case NON_PROF_ETAB:
                 menu.add(EnumOnglet.GENERALE.name());
                 menu.add(EnumOnglet.SERVICE.name());
                 break;

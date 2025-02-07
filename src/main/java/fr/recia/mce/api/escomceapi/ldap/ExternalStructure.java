@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.ldap;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +38,8 @@ public class ExternalStructure implements IExternalStructure {
 
     private String type;
 
+    private String[] domaines;
+
     private Map<String, List<String>> attributes = new HashMap<>();
 
     @Override
@@ -52,6 +55,7 @@ public class ExternalStructure implements IExternalStructure {
     public String toString() {
         return "ExternalStructure [id=" + id + ", name=" + name + ", displayName=" + displayName + ", uai=" + uai
                 + ", type=" + type
+                + ", domaines=" + Arrays.toString(domaines)
                 + ", attributes=" + attributes + "]";
     }
 

@@ -67,6 +67,7 @@ public class LdapStructDaoImpl implements IExternalStructDao {
             structs = null;
             log.info("error structs null : {}", e);
         }
+        log.info("{} structures found.", structs.size());
 
         return structs;
     }

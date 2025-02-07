@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.db.beans;
 
 import java.util.Date;
 
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -36,7 +37,7 @@ public class Personne {
     // private EnumEtat etat;
     // private Structure structure;
     private String domaineDeConnexion;
-    // private EnumPublic enumPublic;
+    private EnumPublic enumPublic;
     // private InternetAddress internetAddress;
     private String codeConfirmation;
     // private EnumTypeConfirmation typeCode;
@@ -62,6 +63,10 @@ public class Personne {
     }
 
     public String lienParente() {
+        return null;
+    }
+
+    public String getSource() {
         return null;
     }
 }

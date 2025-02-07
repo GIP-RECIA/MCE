@@ -296,4 +296,12 @@ public class PersonneDTO extends Personne {
         return lien == null ? null : lien.intern();
     }
 
+    @Override
+    public String getSource() {
+        if (aPersonneBase != null) {
+            return aPersonneBase.getSource();
+        }
+        return null;
+    }
+
 }

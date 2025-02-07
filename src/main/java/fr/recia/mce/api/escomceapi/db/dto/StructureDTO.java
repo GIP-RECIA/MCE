@@ -15,13 +15,16 @@
  */
 package fr.recia.mce.api.escomceapi.db.dto;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
 import fr.recia.mce.api.escomceapi.db.beans.Structure;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class StructureDTO extends Structure {
 
     static private final Pattern P = Pattern.compile("(\\w+)-.+");
@@ -32,6 +35,7 @@ public class StructureDTO extends Structure {
         GIP,
         LA,
         REGION,
+        COLL,
         EF2S;
     }
 
@@ -76,6 +80,36 @@ public class StructureDTO extends Structure {
             super.setSiren(s);
         }
         return s;
+    }
+
+    public DomSource getDomSource() {
+        Matcher m;
+        if (domSource != null) {
+            return domSource;
+        }
+
+        String source = aStructure.getSource();
+        if (source != null) {
+
+            m = P.matcher(source);
+            if (m.matches()) {
+                try {
+                    domSource = DomSource.valueOf(m.group(1));
+                    return domSource;
+                } catch (Exception e) {
+                    log.error("error");
+                }
+            } else {
+
+                log.info("SOURCE_STRUCT_NO_DOM");
+            }
+
+        } else {
+            log.info("SOURCE_STRUCT_NULL");
+
+        }
+        return null;
+
     }
 
     @Override

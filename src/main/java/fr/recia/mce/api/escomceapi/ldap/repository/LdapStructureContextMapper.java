@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,9 @@ public class LdapStructureContextMapper implements ContextMapper<IExternalStruct
 
         structs.setType(context.getStringAttribute(externalStructHelper.getStructTypeAttribute()));
         attrs.put(externalStructHelper.getStructTypeAttribute(), Lists.newArrayList(structs.getType()));
+
+        structs.setDomaines(context.getStringAttributes(externalStructHelper.getStructDomainesAttribute()));
+        attrs.put(externalStructHelper.getStructDomainesAttribute(), Arrays.asList());
 
         // structs.setAttributes(attrs);
 

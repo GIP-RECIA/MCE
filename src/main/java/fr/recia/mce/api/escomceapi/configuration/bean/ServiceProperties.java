@@ -27,6 +27,7 @@ public class ServiceProperties {
 
     private ClasseCalculatorProperties classeProperties = new ClasseCalculatorProperties();
     private GrpPedagoCalculator grpPedagoProperties = new GrpPedagoCalculator();
+    private CustomParams customParams = new CustomParams();
 
     @Data
     @Validated
@@ -59,11 +60,22 @@ public class ServiceProperties {
 
     }
 
+    @Data
+    @Validated
+    public static class CustomParams {
+
+        private String lienEdu;
+        private String lienPassEtab;
+        private String domaineEtabRecia;
+
+    }
+
     @Override
     public String toString() {
         return "{\n\"ServiceProperties\":{"
                 + ",\n \"classeProperties\":" + classeProperties
                 + ",\n \"grpPedagoProperties\":" + grpPedagoProperties
+                + ",\n \"CustomParams\":" + customParams
                 + "\n}\n}";
     }
 
