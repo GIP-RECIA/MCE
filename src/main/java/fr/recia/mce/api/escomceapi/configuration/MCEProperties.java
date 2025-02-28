@@ -23,6 +23,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.SoffitProperties;
@@ -36,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MCEProperties {
 
+    private CorsProperties cors = new CorsProperties();
     private CustomLdapProperties ldap = new CustomLdapProperties();
     private ServiceProperties service = new ServiceProperties();
     private SoffitProperties soffit = new SoffitProperties();
@@ -48,6 +50,7 @@ public class MCEProperties {
     @Override
     public String toString() {
         return "{\n\"MCEProperties\":{"
+                + ",\n\t \"cors\":" + cors
                 + ",\n\t \"ldap\":" + ldap
                 + ",\n\t \"service\":" + service
                 + ",\n\t \"soffit\":" + soffit

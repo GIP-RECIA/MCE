@@ -1,7 +1,12 @@
 server:
     port: 8090
+    servlet:
+        context-path: /
 
 spring:
+    cache:
+        jcache:
+            config: "classpath:ehcache.xml"
     application: 
         name: mce-project
     
@@ -22,6 +27,7 @@ spring:
         
 
     ldap:
+        base:
         urls:
             - ldap://
         username: 
@@ -33,3 +39,65 @@ spring:
 #       exposure:
 #         include:
 #         - '*'
+
+app:
+    service:
+        classe-properties: 
+            ldap-attributs-classe:
+            regex-siren-and-classe: 
+            group-siren: 
+            group-classe: 
+            group-matiere: 
+        grp-pedago--properties: 
+            ldap-attributs-classe: 
+            regex-siren-and-classe: 
+            group-siren: 
+            group-classe: 
+            group-matiere: 
+        custom-params:
+            lien-edu: 
+            lien-pass-etab: 
+            domaine-etab-recia: 
+    ldap:
+        user-branch:
+            eleve-relation: 
+            eleve-tuteur-entr: 
+            tuteur-eleves: 
+            eleve-enseignements: 
+            code-matiere-enseignement: 
+            other-displayed-attributes: 
+            other-backend-attributes: 
+        struct-branch:
+            domaines: 
+            name-struct: 
+            structure-jointure: 
+            skin: 
+            type-struct: 
+            uai: 
+            ville: 
+    
+    soffit:
+        jwt-signature-key: 
+    
+    cors:
+        enable: true
+        allow-credentials: true
+        allowed-origins: >
+            http://localhost:5173
+        exposed-headers:
+            - x-auth-token
+            - x-requested-with
+            - x-xsrf-token
+        allowed-headers:
+            - content-type
+            - authorization
+            - x-com-persist
+            - X-Auth-Token
+            - x-auth-token
+            - x-requested-with
+            - x-xsrf-token
+        allowed-methods:
+            - GET
+            - PUT
+            - POST
+            - DELETE
