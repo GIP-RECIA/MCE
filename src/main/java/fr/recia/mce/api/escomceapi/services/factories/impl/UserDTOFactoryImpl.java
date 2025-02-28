@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import javax.validation.constraints.NotNull;
 
@@ -45,6 +46,7 @@ import fr.recia.mce.api.escomceapi.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
+import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
@@ -53,6 +55,7 @@ import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
+import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +97,11 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private FonctionService fonctionService;
+
+    @Autowired
+    private PasswordService passwordService;
+
+    private Pattern groupsWithSSHAPassword;
 
     public UserDTOFactoryImpl(MCEProperties mceProperties) {
         this.serviceProperties = mceProperties.getService();
@@ -246,6 +254,16 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         }
 
         personne.setEnumPublic(res);
+        groupsWithSSHAPassword = Pattern
+                .compile(this.serviceProperties.getCustomParams().getRegexGroupsWithSshaPass());
+
+        if (groupsWithSSHAPassword != null && ds == DomSource.GIP) {
+            List<String> attrs = personne.getExtUser().getAttribute("isMemberOf");
+            if (attrs != null) {
+                personne.setSSHAPass(attrs.stream().anyMatch(s -> groupsWithSSHAPassword.matcher(s).matches()));
+
+            }
+        }
 
         return res;
     }
@@ -481,6 +499,26 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             log.info("No user found with sub: {}", soffitHolder.getSub());
 
         return user;
+    }
+
+    @Override
+    public String changePassword(String uid, PasswordChangeRequest req) {
+
+        if (!isSubOk())
+            return "No authorization";
+
+        PersonneDTO user = this.getUserByUid(uid);
+        if (user == null)
+            throw new RuntimeException("User not found.");
+
+        try {
+            return passwordService.changePasswordLogic(user, req);
+
+        } catch (Exception e) {
+            throw new RuntimeException("error changePassword : {}", e);
+
+        }
+
     }
 
 }

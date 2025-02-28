@@ -132,9 +132,11 @@ public class PersonneDTO extends Personne {
     public String getMailFixe() {
         String mail = aPersonneBase.getEmail();
         if (mail == null) {
-            // add a condition only if its a student, isEleve()
-            log.info("mailfixe is null, then retrieve it from ldap");
-            mail = getMailFromLdap();
+            if (aPersonneBase.getCategorie().equals("Eleve")) {
+                // add a condition only if its a student, isEleve()
+                log.info("mailfixe is null, then retrieve it from ldap");
+                mail = getMailFromLdap();
+            }
         }
 
         return mail;

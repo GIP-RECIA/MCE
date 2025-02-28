@@ -27,8 +27,11 @@ import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Slf4j
 @RestController
@@ -78,6 +81,23 @@ public class PersonneRestController {
         if (enfant == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         return new ResponseEntity<>(enfant, HttpStatus.OK);
+    }
+
+    @PostMapping("/{uid}/change-password")
+    public ResponseEntity<String> changePass(@PathVariable String uid, @RequestBody PasswordChangeRequest request) {
+
+        String res = null;
+        log.info("testing *****");
+
+        try {
+            res = userDTOFactory.changePassword(uid, request);
+            log.info("result: {}", res);
+
+            return ResponseEntity.ok(res);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(res);
+        }
+
     }
 
 }

@@ -16,6 +16,7 @@ limitations under the License.
 
 This project includes:
   AntLR Parser Generator under BSD License
+  Apache Commons Codec under Apache License, Version 2.0
   Apache Commons Lang under Apache License, Version 2.0
   Apache Log4j API under Apache License, Version 2.0
   Apache Log4j to SLF4J Adapter under Apache License, Version 2.0
@@ -23,6 +24,7 @@ This project includes:
   ASM based accessors helper used by json-smart under The Apache Software License, Version 2.0
   AspectJ Weaver under Eclipse Public License - v 2.0
   AssertJ fluent assertions under Apache License, Version 2.0
+  Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs under Bouncy Castle Licence
   Bouncy Castle Provider under Bouncy Castle Licence
   Byte Buddy (without dependencies) under Apache License, Version 2.0
   Byte Buddy agent under Apache License, Version 2.0
@@ -64,6 +66,7 @@ This project includes:
   javax.transaction API under EPL 2.0 or GPL2 w/ CPE
   JAXB Runtime under Eclipse Distribution License - v 1.0
   JBoss Logging 3 under Apache License, version 2.0
+  jCIFS NG under LGPL
   JJWT :: API under Apache License, Version 2.0
   JJWT :: Extensions :: Jackson under Apache License, Version 2.0
   JJWT :: Impl under Apache License, Version 2.0

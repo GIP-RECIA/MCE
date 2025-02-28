@@ -67,6 +67,7 @@ public class ServiceProperties {
         private String lienEdu;
         private String lienPassEtab;
         private String domaineEtabRecia;
+        private String regexGroupsWithSshaPass;
 
     }
 
