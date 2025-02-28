@@ -67,7 +67,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
             final boolean autorite,
             final Map<String, RelationEleveContact> uid2relation) {
 
-        IExternalUser personne = personneService.getPersonLdap(eleve);
+        IExternalUser personne = personneService.retrievePersonLdap(eleve);
 
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
@@ -103,7 +103,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     private void analyse(final String eleve, final String ldapAttr,
             final Map<String, RelationEleveContact> uid2relation) {
 
-        IExternalUser personne = personneService.getPersonLdap(eleve);
+        IExternalUser personne = personneService.retrievePersonLdap(eleve);
 
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
@@ -161,7 +161,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
         for (Entry<String, RelationEleveContact> entry : uid2relation.entrySet()) {
             try {
-                IExternalUser u = personneService.getPersonLdap(entry.getKey());
+                IExternalUser u = personneService.retrievePersonLdap(entry.getKey());
                 String displayName = u.getDisplayName();
 
                 RelationEleveContact re = entry.getValue();
@@ -216,7 +216,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     @Override
     public List<RelationEleveContact> allApprentiEnRelation(String maitre) {
         List<RelationEleveContact> allApprenti = null;
-        IExternalUser personne = personneService.getPersonLdap(maitre);
+        IExternalUser personne = personneService.retrievePersonLdap(maitre);
 
         List<String> dnApprentis = personne.getAttribute(extUserHelper.getUserTuteurEleveAttribute());
 
@@ -229,7 +229,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                     if (m.matches()) {
                         String uid = m.group(1);
                         try {
-                            PersonneDTO eleve = aPersonneRepository.getPersonneByUid(uid);
+                            PersonneDTO eleve = personneService.retrievePersonnebyUid(uid);
                             RelationEleveContact re = new RelationEleveContact(SensRel.CONTACT2ELEVE);
                             // re.setContact(maitre);
                             re.setEleve(eleve);

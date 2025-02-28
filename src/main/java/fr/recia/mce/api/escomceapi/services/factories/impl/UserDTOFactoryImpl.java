@@ -18,16 +18,12 @@ package fr.recia.mce.api.escomceapi.services.factories.impl;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 import javax.validation.constraints.NotNull;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +43,7 @@ import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
+import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
@@ -90,9 +87,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private SoffitHolder soffitHolder;
 
     @Autowired
-    private CacheManager cacheManager;
-
-    @Autowired
     private IStructureService structureService;
 
     @Autowired
@@ -100,6 +94,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private PasswordService passwordService;
+
+    @Autowired
+    private PersonneService personneService;
 
     private Pattern groupsWithSSHAPassword;
 
@@ -125,7 +122,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         if (extModel != null && withInternal) {
             // Optional<APersonne> optionalAPersonne =
             // daoPersonne.findById(extModel.getId());
-            personneDTO = getUserByUid(extModel.getId());
+            personneDTO = personneService.retrievePersonnebyUid(extModel.getId());
             personneDTO.setMailFromLdap(extModel.getEmail());
 
             // TO DO : evalPublic
@@ -336,7 +333,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public UserDTO from(@NotNull PersonneDTO model) {
 
         log.debug("Model to DTO of {}", model);
-        externalUser = getUserLdap(model.getUid());
+        externalUser = personneService.retrievePersonLdap(model.getUid());
         return from(model, externalUser);
     }
 
@@ -344,7 +341,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public UserDTO from(@NotNull String uid) {
 
         log.debug("from uid to DTO of {}", uid);
-        externalUser = getUserLdap(uid);
+        externalUser = personneService.retrievePersonLdap(uid);
 
         return from(externalUser, true);
     }
@@ -380,76 +377,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         }
 
         return menu;
-    }
-
-    @Cacheable(cacheNames = "personneDBCache", key = "#uid")
-    private PersonneDTO getUserByUid(String uid) {
-        log.info("uid: {}", uid);
-        PersonneDTO personne = null;
-
-        Cache cache = cacheManager.getCache("personneDBCache");
-        PersonneDTO getPersonne = cache.get(uid, PersonneDTO.class);
-        if (!Objects.isNull(getPersonne)) {
-            log.info("Loading personneDB cache for user {}...", uid);
-            return getPersonne;
-        }
-
-        try {
-            log.info("Calcul personDB");
-            personne = daoPersonne.getPersonneByUid(uid);
-            cache.putIfAbsent(uid, personne);
-
-            if (personne != null) {
-                loadLdapUser(personne, uid);
-            }
-
-        } catch (Exception e) {
-            log.error("error : {}", e);
-        }
-
-        log.info("getPersonne : {}", personne);
-        return personne;
-    }
-
-    @Cacheable(cacheNames = "personneLDAPCache", key = "#uid")
-    private IExternalUser getUserLdap(String uid) {
-        IExternalUser userLdap = null;
-
-        Cache cache = cacheManager.getCache("personneLDAPCache");
-
-        IExternalUser getUser = cache.get(uid, IExternalUser.class);
-        if (!Objects.isNull(getUser)) {
-            log.info("Loading personneLDAP cache for user {}...", uid);
-            return getUser;
-        }
-
-        try {
-            log.info("Calcul personLDAP");
-            userLdap = getExtDao().getUserByUid(uid);
-            cache.putIfAbsent(uid, userLdap);
-
-        } catch (Exception e) {
-            log.error("error : {}", e);
-
-        }
-        return userLdap;
-
-    }
-
-    private void loadLdapUser(PersonneDTO personne, String uid) {
-        IExternalUser u = getUserLdap(uid);
-        personne.setExtUser(u);
-    }
-
-    public PersonneDTO retrievePersonnebyUid(String uid) {
-        return this.getUserByUid(uid);
-    }
-
-    @Override
-    public IExternalUser retrievePersonLdap(String uid) {
-        log.info("retrievePersonLdap: {}", uid);
-        return getUserLdap(uid);
-
     }
 
     @Override
@@ -507,7 +434,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         if (!isSubOk())
             return "No authorization";
 
-        PersonneDTO user = this.getUserByUid(uid);
+        PersonneDTO user = personneService.retrievePersonnebyUid(uid);
         if (user == null)
             throw new RuntimeException("User not found.");
 

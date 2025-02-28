@@ -48,7 +48,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI().substring(request.getContextPath().length());
 
         if (path.startsWith("/api")) {
-            List<String> excludedPaths = List.of("^/api/config$", "^/api/file/\\d+/resource/.+$");
+            List<String> excludedPaths = List.of("^/api/personne$");
             if (excludedPaths.stream().anyMatch(path::matches)) {
                 log.debug("Path {} start with /api but is excluded form SoffitInterceptor", path);
 

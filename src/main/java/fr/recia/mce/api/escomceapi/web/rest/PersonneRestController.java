@@ -46,7 +46,7 @@ public class PersonneRestController {
 
     @GetMapping("/getuser")
     public ResponseEntity<PersonneDTO> getPersonneByUid() {
-        PersonneDTO personne = personneService.getPersonneByUid("uid");
+        PersonneDTO personne = personneService.retrievePersonnebyUid("uid");
         log.info("personne: {}", personne);
         if (personne == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -56,7 +56,7 @@ public class PersonneRestController {
 
     @GetMapping("/ldap")
     public ResponseEntity<IExternalUser> getPersonLdap() {
-        IExternalUser personne = personneService.getPersonLdap("uid");
+        IExternalUser personne = personneService.retrievePersonLdap("uid");
         if (personne == null)
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         return new ResponseEntity<>(personne, HttpStatus.OK);

@@ -40,7 +40,5 @@ public interface IUserDTOFactory {
 
     UserDTO getCurrentUser();
 
-    IExternalUser retrievePersonLdap(final String uid);
-
     String changePassword(final String uid, final PasswordChangeRequest req);
 }
