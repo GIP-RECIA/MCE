@@ -178,4 +178,5 @@ public class PersonneRestController {
         }
         return uid;
     }
+
 }
