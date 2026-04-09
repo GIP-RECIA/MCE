@@ -43,7 +43,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
     public SoffitInterceptor(SoffitHolder soffitHolder) {
         this.soffitHolder = soffitHolder;
     }
-/*
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
@@ -53,7 +53,6 @@ public class SoffitInterceptor implements HandlerInterceptor {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn("No valid Bearer token found for path: {}", request.getRequestURI());
-            // On laisse passer si tu as permitAll() sur l'endpoint
             return true;
         }
 
@@ -91,14 +90,13 @@ public class SoffitInterceptor implements HandlerInterceptor {
 
         } catch (Exception e) {
             log.error("Failed to parse Soffit JWT", e);
-            // On ne bloque pas forcément, selon ta politique
         }
 
-        return true; // On laisse toujours passer pour l'instant
+        return true;
     }
-*/
 
 
+/*
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
@@ -143,5 +141,5 @@ public class SoffitInterceptor implements HandlerInterceptor {
         }
         return true;
     }
-
+*/
 }

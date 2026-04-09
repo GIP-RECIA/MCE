@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ldap.core.ContextMapper;
+import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.filter.AndFilter;
 import org.springframework.ldap.filter.EqualsFilter;
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
+import java.util.List;
 
 @Slf4j
 @Repository
@@ -72,13 +74,16 @@ public class LdapUserDaoImp implements IExternalUserDao {
     }
 
 
-    // todo test
+
     @Override
     public void updatePassword(String uid, String newHashedPassword) {
 
-        String dn = externalUserHelper.getUserIdAttribute()
-                + "=" + uid
-                + "," + externalUserHelper.getUserDNSubPath();
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .base(externalUserHelper.getUserDNSubPath())
+                .filter(filter);
 
         ModificationItem[] mods = new ModificationItem[]{
                 new ModificationItem(
@@ -86,9 +91,26 @@ public class LdapUserDaoImp implements IExternalUserDao {
                         new BasicAttribute("userPassword", newHashedPassword))
         };
 
+        // ContextMapper pour récupérer le DN réel de l'utilisateur
+        ContextMapper<String> dnMapper = ctx -> {
+            DirContextAdapter adapter = (DirContextAdapter) ctx;
+            return adapter.getDn().toString();
+        };
+
         try {
+            List<String> dns = ldapTemplate.search(query, dnMapper);
+
+            if (dns == null || dns.isEmpty()) {
+                log.error("Aucun utilisateur LDAP trouvé pour uid: {}", uid);
+                throw new RuntimeException("Utilisateur LDAP introuvable : " + uid);
+            }
+
+            String dn = dns.get(0);
+            log.debug("DN résolu pour uid={} : {}", uid, dn);
+
             ldapTemplate.modifyAttributes(dn, mods);
-            log.info("LDAP password updated for uid: {}", uid);
+            log.info("LDAP password updated for uid: {} at DN: {}", uid, dn);
+
         } catch (Exception e) {
             log.error("Failed to update LDAP password for uid {}: {}", uid, e.getMessage());
             throw new RuntimeException("LDAP password update failed", e);

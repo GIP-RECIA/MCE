@@ -15,11 +15,9 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
+import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
-import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserContextMapper;
-import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
 import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,7 +27,8 @@ import fr.recia.mce.api.escomceapi.utils.LdapPassword;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.transaction.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -41,57 +40,30 @@ public class PasswordService {
     @Autowired
     private APersonneRepository aPersonneRepository;
 
-
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String changePasswordLogic(PersonneDTO person, PasswordChangeRequest request) {
 
-        // Verify if oldPass is exists
         if (!oldPasswordExist(person.getAPersonneBase().getPassword())) {
             return "newPass error, must enter the old password.";
         }
-/*
-        // Verify old password
-        if (!testOldPass(person, request.getOldPass())) {
-            return "OldPass invalide.";
-        }
 
-        // Validate new password rules
-        if (!isAcceptable(request.getNewPass())) {
-            return "New password does not meet security requirements.";
-
-        }
-
-        // Confirm new password matches
-        if (!request.getConfirmPass().equals(request.getNewPass())) {
-            return "confirm pass is not correct";
-
-        }
-*/
-        // Update password
-        // TO DO : save to database and ldap
-
-        // SAUVEGARDE dans le LDAP
-
-        // Génère un salt aléatoire
         byte[] saltBytes = new byte[8];
         new java.security.SecureRandom().nextBytes(saltBytes);
         String salt = Base64.encodeBase64String(saltBytes);
 
-        // Hash du nouveau mot de passe au format LDAP {SSHA}...
         LdapPassword newLdapPassword = new LdapPassword(
-                request.getNewPass(),
-                salt,
-                LdapPassword.Algo.SSHA,
-                false);
+                request.getNewPass(), salt, LdapPassword.Algo.SSHA, false);
         String newHashedPassword = newLdapPassword.getCodageLdap();
 
-
         try {
-            // 1. Sauvegarde en base de données
-            person.setDbPassword(newHashedPassword);
-            aPersonneRepository.save(person.getAPersonneBase());
+            APersonne apersonne = aPersonneRepository.findById(person.getAPersonneBase().getId())
+                    .orElseThrow(() -> new RuntimeException("User not found in DB"));
 
-            // 2. Sauvegarde dans le LDAP via le DAO
+            apersonne.setPassword(newHashedPassword);
+            apersonne.setDateModification(new java.util.Date());
+
+            aPersonneRepository.saveAndFlush(apersonne);
+
             externalUserDao.updatePassword(person.getUid(), newHashedPassword);
 
             return "fin correct";
