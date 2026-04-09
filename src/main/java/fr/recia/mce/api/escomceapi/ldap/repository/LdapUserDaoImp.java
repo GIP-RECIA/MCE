@@ -28,6 +28,10 @@ import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.naming.directory.BasicAttribute;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.ModificationItem;
+
 @Slf4j
 @Repository
 public class LdapUserDaoImp implements IExternalUserDao {
@@ -65,6 +69,30 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
 
         return user;
+    }
+
+
+    // todo test
+    @Override
+    public void updatePassword(String uid, String newHashedPassword) {
+
+        String dn = externalUserHelper.getUserIdAttribute()
+                + "=" + uid
+                + "," + externalUserHelper.getUserDNSubPath();
+
+        ModificationItem[] mods = new ModificationItem[]{
+                new ModificationItem(
+                        DirContext.REPLACE_ATTRIBUTE,
+                        new BasicAttribute("userPassword", newHashedPassword))
+        };
+
+        try {
+            ldapTemplate.modifyAttributes(dn, mods);
+            log.info("LDAP password updated for uid: {}", uid);
+        } catch (Exception e) {
+            log.error("Failed to update LDAP password for uid {}: {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP password update failed", e);
+        }
     }
 
 }

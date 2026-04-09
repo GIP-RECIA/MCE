@@ -20,5 +20,5 @@ import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 public interface IExternalUserDao {
 
     IExternalUser getUserByUid(final String uid);
-
+    void updatePassword(final String uid, final String newHashedPassword);
 }

@@ -45,21 +45,42 @@ public class SecurityConfiguration {
         return new SoffitApiAuthenticationManager();
     }
 
+    private static final String[] SWAGGER_WHITELIST = {
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/webjars/**"
+    };
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(
-                mceProperties.getSoffit().getJwtSignatureKey());
+
+        final AbstractPreAuthenticatedProcessingFilter filter =
+                new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
         filter.setAuthenticationManager(authenticationManager());
+
         http.addFilter(filter);
 
         http.csrf(AbstractHttpConfigurer::disable);
 
         http.authorizeHttpRequests(authz -> authz
+                // Swagger + ressources statiques (accessible sans JWT)
+                .antMatchers(SWAGGER_WHITELIST).permitAll()
                 .antMatchers("/health-check").permitAll()
-                .antMatchers("/api/**").authenticated()
-                .anyRequest().denyAll());
 
-        http.sessionManagement().sessionFixation().newSession();
+                // TODO À supprimer ou restreindre une fois en production réelle
+                .antMatchers(
+                        "/api/personne/mce/getuser",
+                        "/api/password/**",
+                        "/api/personne/mce/**"
+                ).permitAll()
+
+                .antMatchers("/api/**").authenticated()
+
+                .anyRequest().denyAll()
+        );
+
+        http.sessionManagement(session -> session.sessionFixation().newSession());
 
         return http.build();
     }

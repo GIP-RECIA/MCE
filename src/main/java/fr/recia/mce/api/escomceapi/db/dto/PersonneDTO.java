@@ -176,7 +176,7 @@ public class PersonneDTO extends Personne {
      * 
      * @param password
      */
-    protected void setDbPassword(final String password) {
+    public void setDbPassword(final String password) {
         aPersonneBase.setPassword(password);
         setDateModification();
     }

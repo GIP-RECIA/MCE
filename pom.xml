@@ -135,6 +135,15 @@
 			<version>2.1.10</version>
 		</dependency>
 
+		<!-- Swagger / OpenAPI UI pour Spring Boot 2.7 -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-ui</artifactId>
+			<version>1.8.0</version>
+		</dependency>
+
+
+
 	</dependencies>
 
 	<build>

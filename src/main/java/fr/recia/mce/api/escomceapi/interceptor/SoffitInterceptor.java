@@ -36,11 +36,68 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SoffitInterceptor implements HandlerInterceptor {
 
+
     private final SoffitHolder soffitHolder;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SoffitInterceptor(SoffitHolder soffitHolder) {
         this.soffitHolder = soffitHolder;
     }
+/*
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+
+        String authHeader = request.getHeader("Authorization");
+
+        log.debug("Authorization header received: {}", authHeader);
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("No valid Bearer token found for path: {}", request.getRequestURI());
+            // On laisse passer si tu as permitAll() sur l'endpoint
+            return true;
+        }
+
+        String jwt = authHeader.replace("Bearer ", "").trim();
+
+        try {
+            // Décodage du payload (partie 2 du JWT)
+            String[] parts = jwt.split("\\.");
+            if (parts.length < 2) {
+                throw new IllegalArgumentException("JWT mal formé");
+            }
+
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            log.debug("JWT Payload: {}", payload);
+
+            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
+
+            String sub = (String) claims.get("sub");
+            Long exp = claims.get("exp") != null ? Long.valueOf(claims.get("exp").toString()) : null;
+
+            if (sub == null || sub.isBlank()) {
+                log.warn("No 'sub' claim found in token");
+                soffitHolder.setSub(null);
+            } else {
+                soffitHolder.setSub(sub);
+                log.info("User authenticated via Soffit - sub: {}", sub);
+            }
+
+            // Vérification expiration (optionnelle, le filtre le fait déjà)
+            if (exp != null && exp < Instant.now().getEpochSecond()) {
+                log.warn("Token has expired");
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to parse Soffit JWT", e);
+            // On ne bloque pas forcément, selon ta politique
+        }
+
+        return true; // On laisse toujours passer pour l'instant
+    }
+*/
+
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -86,4 +143,5 @@ public class SoffitInterceptor implements HandlerInterceptor {
         }
         return true;
     }
+
 }

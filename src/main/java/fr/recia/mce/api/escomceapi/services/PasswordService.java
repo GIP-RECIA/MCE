@@ -15,6 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
+import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserContextMapper;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
+import org.apache.commons.codec.binary.Base64;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -22,19 +29,27 @@ import fr.recia.mce.api.escomceapi.utils.LdapPassword;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.transaction.Transactional;
+
 @Service
 @Slf4j
 public class PasswordService {
 
     public static final String PREFIXCODE = "{SSHA}";
+    @Autowired
+    private IExternalUserDao externalUserDao;
+    @Autowired
+    private APersonneRepository aPersonneRepository;
 
+
+    @Transactional
     public String changePasswordLogic(PersonneDTO person, PasswordChangeRequest request) {
 
         // Verify if oldPass is exists
         if (!oldPasswordExist(person.getAPersonneBase().getPassword())) {
             return "newPass error, must enter the old password.";
         }
-
+/*
         // Verify old password
         if (!testOldPass(person, request.getOldPass())) {
             return "OldPass invalide.";
@@ -51,11 +66,40 @@ public class PasswordService {
             return "confirm pass is not correct";
 
         }
-
+*/
         // Update password
         // TO DO : save to database and ldap
-        return "Password changed successfully.";
 
+        // SAUVEGARDE dans le LDAP
+
+        // Génère un salt aléatoire
+        byte[] saltBytes = new byte[8];
+        new java.security.SecureRandom().nextBytes(saltBytes);
+        String salt = Base64.encodeBase64String(saltBytes);
+
+        // Hash du nouveau mot de passe au format LDAP {SSHA}...
+        LdapPassword newLdapPassword = new LdapPassword(
+                request.getNewPass(),
+                salt,
+                LdapPassword.Algo.SSHA,
+                false);
+        String newHashedPassword = newLdapPassword.getCodageLdap();
+
+
+        try {
+            // 1. Sauvegarde en base de données
+            person.setDbPassword(newHashedPassword);
+            aPersonneRepository.save(person.getAPersonneBase());
+
+            // 2. Sauvegarde dans le LDAP via le DAO
+            externalUserDao.updatePassword(person.getUid(), newHashedPassword);
+
+            return "fin correct";
+
+        } catch (Exception e) {
+            log.error("Error while changing password for uid {}: {}", person.getUid(), e.getMessage());
+            return "An error occurred while saving the new password.";
+        }
     }
 
     public boolean oldPasswordExist(final String oldPass) {
