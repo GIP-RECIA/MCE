@@ -1,4 +1,4 @@
-package fr.recia.mce.api.escomceapi.configuration;
+package fr.recia.mce.api.escomceapi.configuration.swagger;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

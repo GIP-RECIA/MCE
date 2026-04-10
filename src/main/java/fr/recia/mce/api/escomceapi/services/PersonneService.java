@@ -48,42 +48,14 @@ public class PersonneService {
     @Autowired
     private transient IExternalUserDao extDao;
 
-    // public PersonneDTO getPersonneByUid(String uid) {
-    // log.info("uid: {}", uid);
-    // PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
-
-    // log.info("getPersonne : {}", personne);
-    // return personne;
-    // }
-
-    // public IExternalUser getPersonLdap(String uid) {
-    // return userLdapDao.getUserByUid(uid);
-
-    // }
-
     @Cacheable(cacheNames = "personneDBCache", key = "#uid")
-    private PersonneDTO getUserByUid(String uid) {
-        log.info("uid: {}", uid);
-        PersonneDTO personne = null;
+    public PersonneDTO getUserByUid(String uid) {
+        log.info("Calcul personneDB pour uid: {}", uid);
 
-        Cache cache = cacheManager.getCache("personneDBCache");
-        PersonneDTO getPersonne = cache.get(uid, PersonneDTO.class);
-        if (!Objects.isNull(getPersonne)) {
-            log.info("Loading personneDB cache for user {}...", uid);
-            return getPersonne;
-        }
+        PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
 
-        try {
-            log.info("Calcul personDB");
-            personne = aPersonneRepository.getPersonneByUid(uid);
-            cache.putIfAbsent(uid, personne);
-
-            if (personne != null) {
-                loadLdapUser(personne, uid);
-            }
-
-        } catch (Exception e) {
-            log.error("error : {}", e);
+        if (personne != null) {
+            loadLdapUser(personne, uid);
         }
 
         log.info("getPersonne : {}", personne);

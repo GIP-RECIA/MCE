@@ -16,16 +16,15 @@
 package fr.recia.mce.api.escomceapi.web.rest;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
-import fr.recia.mce.api.escomceapi.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 
@@ -34,149 +33,147 @@ import javax.validation.Valid;
 @RequestMapping("/api/personne/mce")
 public class PersonneRestController {
 
-    @Autowired
-    private PersonneService personneService;
+    private final PersonneService personneService;
+    private final IUserDTOFactory userDTOFactory;
 
-    @Autowired
-    private IUserDTOFactory userDTOFactory;
-
-    @Autowired
-    private SoffitHolder soffitHolder;
-
-    /**
-     * Récupère l'UID de l'utilisateur actuellement connecté
-     * GET /api/personne/mce/id
-     */
-    @GetMapping("/id")
-    public ResponseEntity<String> getCurrentUserId() {
-        String uid = getCurrentUid();
-
-        if (uid == null || uid.isBlank()) {
-            log.warn("Aucun uid trouvé dans le SoffitHolder");
-            return new ResponseEntity<>("Aucun utilisateur authentifié", HttpStatus.UNAUTHORIZED);
-        }
-
-        log.debug("UID demandé : {}", uid);
-        return ResponseEntity.ok(uid);
+    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory) {
+        this.personneService = personneService;
+        this.userDTOFactory = userDTOFactory;
     }
 
     /**
-     * Récupère le PersonneDTO de l'utilisateur connecté
-     * GET /api/personne/mce/getuser
+     * Retourne l'UID de l'utilisateur actuellement authentifié.
+     *
+     * @param authentication l'objet Authentication injecté par Spring Security
+     * @return l'UID de l'utilisateur ou 401 si non authentifié
+     */
+    @GetMapping("/id")
+    public ResponseEntity<String> getCurrentUserId(Authentication authentication) {
+        String uid = getCurrentUid(authentication);
+        return uid != null
+                ? ResponseEntity.ok(uid)
+                : ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Aucun utilisateur authentifié");
+    }
+
+    /**
+     * Retourne les informations complètes d'une personne (PersonneDTO) pour l'utilisateur connecté.
+     *
+     * @param authentication l'objet Authentication
+     * @return PersonneDTO de l'utilisateur ou 401 si non authentifié
      */
     @GetMapping("/getuser")
-    public ResponseEntity<PersonneDTO> getPersonneByUid() {
-        String uid = getCurrentUid();
-
+    public ResponseEntity<PersonneDTO> getPersonneByUid(Authentication authentication) {
+        String uid = getCurrentUid(authentication);
         if (uid == null) {
-            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.debug("Récupération de la personne pour uid={}", uid);
         PersonneDTO personne = personneService.retrievePersonnebyUid(uid);
-
         if (personne == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return ResponseEntity.notFound().build();
         }
 
         log.info("Personne trouvée : {}", personne);
-        return new ResponseEntity<>(personne, HttpStatus.OK);
+        return ResponseEntity.ok(personne);
     }
 
     /**
-     * Récupère la fiche LDAP brute de l'utilisateur connecté
-     * GET /api/personne/mce/ldap
+     * Retourne la fiche LDAP brute de l'utilisateur connecté.
+     *
+     * @param authentication l'objet Authentication
+     * @return IExternalUser ou 401/404 selon le cas
      */
     @GetMapping("/ldap")
-    public ResponseEntity<IExternalUser> getPersonLdap() {
-        String uid = getCurrentUid();
+    public ResponseEntity<IExternalUser> getPersonLdap(Authentication authentication) {
+        String uid = getCurrentUid(authentication);
         if (uid == null) {
-            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         IExternalUser personne = personneService.retrievePersonLdap(uid);
-        if (personne == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-
-        return new ResponseEntity<>(personne, HttpStatus.OK);
+        return personne != null
+                ? ResponseEntity.ok(personne)
+                : ResponseEntity.notFound().build();
     }
 
     /**
-     * Retourne le UserDTO complet de l'utilisateur connecté
-     * GET /api/personne/mce/
+     * Retourne le UserDTO complet de l'utilisateur connecté.
+     *
+     * @param authentication l'objet Authentication
+     * @return UserDTO de l'utilisateur
      */
     @GetMapping("/")
-    public ResponseEntity<UserDTO> getMCE() {
+    public ResponseEntity<UserDTO> getMCE(Authentication authentication) {
+        String uid = getCurrentUid(authentication);
+        if (uid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
-        UserDTO user = userDTOFactory.getCurrentUser();
-
-        log.info("userDTO: {}", user);
-        if (user == null)
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        return new ResponseEntity<>(user, HttpStatus.OK);
-
+        UserDTO user = userDTOFactory.from(uid);
+        return user != null
+                ? ResponseEntity.ok(user)
+                : ResponseEntity.notFound().build();
     }
 
     /**
-     * Retourne le UserDTO d'un enfant/élève par son identifiant
-     * GET /api/personne/mce/{id}
+     * Retourne le UserDTO d'un enfant/élève par son identifiant.
+     *
+     * @param id identifiant de l'enfant
+     * @return UserDTO de l'enfant
      */
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String id) {
         UserDTO enfant = userDTOFactory.from(id);
-        if (enfant == null)
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        return new ResponseEntity<>(enfant, HttpStatus.OK);
+        return enfant != null
+                ? ResponseEntity.ok(enfant)
+                : ResponseEntity.notFound().build();
     }
 
     /**
-     * Change le mot de passe de l'utilisateur connecté
-     * POST /api/personne/mce/{uid}/change-password
+     * Change le mot de passe de l'utilisateur connecté.
+     *
+     * @param uid UID de l'utilisateur dont on veut changer le mot de passe
+     * @param request données du changement de mot de passe
+     * @param authentication authentification de l'utilisateur courant
      */
     @PostMapping("/{uid}/change-password")
     public ResponseEntity<String> changePass(
             @PathVariable String uid,
-            @Valid @RequestBody PasswordChangeRequest request) {
+            @Valid @RequestBody PasswordChangeRequest request,
+            Authentication authentication) {
 
-        String currentUid = getCurrentUid();
+        String currentUid = getCurrentUid(authentication);
         if (currentUid == null) {
-            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         if (!currentUid.equals(uid)) {
-            log.warn("L'utilisateur {} a tenté de modifier le mot de passe de {}", currentUid, uid);
-            return new ResponseEntity<>("Action non autorisée.", HttpStatus.FORBIDDEN);
+            log.warn("Tentative non autorisée de modification de mot de passe pour {}", uid);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Action non autorisée.");
         }
-
-        log.info("Changement de mot de passe demandé pour uid={}", uid);
 
         try {
             String result = userDTOFactory.changePassword(uid, request);
-            log.info("Résultat du changement de mot de passe pour uid={} : {}", uid, result);
-
-
             return ResponseEntity.ok(result);
-
         } catch (IllegalArgumentException e) {
-            log.warn("Argument invalide pour uid={} : {}", uid, e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            log.error("Erreur lors du changement de mot de passe pour uid={}", uid, e);
-            return new ResponseEntity<>("Erreur interne du serveur.", HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("Erreur lors du changement de mot de passe pour {}", uid, e);
+            return ResponseEntity.internalServerError().body("Erreur interne du serveur.");
         }
     }
 
     /**
-     * Méthode privée pour récupérer l'UID depuis le SoffitHolder
+     * Récupère l'UID de l'utilisateur à partir de l'objet Authentication.
+     *
+     * @param authentication l'authentication Spring Security
+     * @return l'UID ou null si l'utilisateur n'est pas authentifié
      */
-    private String getCurrentUid() {
-        String uid = soffitHolder.getSub();
-        if (uid == null || uid.isBlank()) {
-            log.warn("Aucun uid trouvé dans le SoffitHolder — token manquant ou expiré");
+    private String getCurrentUid(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
             return null;
         }
-        return uid;
+        return authentication.getName();
     }
 
 }

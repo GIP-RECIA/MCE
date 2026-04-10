@@ -38,7 +38,6 @@ import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
-import fr.recia.mce.api.escomceapi.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
@@ -82,9 +81,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private PersonneDTO personneDTO;
 
     private ServiceProperties serviceProperties;
-
-    @Autowired
-    private SoffitHolder soffitHolder;
 
     @Autowired
     private IStructureService structureService;
@@ -406,33 +402,10 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return infoGeneral;
     }
 
-    private boolean isSubOk() {
-
-        final boolean isOk = soffitHolder.getSub() != null && !soffitHolder.getSub().startsWith("guest");
-        if (!isOk)
-            log.info("User is guest : sub {}", soffitHolder.getSub());
-
-        return isOk;
-    }
-
-    @Override
-    public UserDTO getCurrentUser() {
-
-        if (!isSubOk())
-            return null;
-        final UserDTO user = from(soffitHolder.getSub());
-
-        if (user == null)
-            log.info("No user found with sub: {}", soffitHolder.getSub());
-
-        return user;
-    }
 
     @Override
     public String changePassword(String uid, PasswordChangeRequest req) {
 
-        if (!isSubOk())
-            return "No authorization";
 
         PersonneDTO user = personneService.retrievePersonnebyUid(uid);
         if (user == null)

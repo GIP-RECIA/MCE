@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.configuration;
+package fr.recia.mce.api.escomceapi.configuration.cache;
 
 import org.ehcache.event.CacheEvent;
 import org.ehcache.event.CacheEventListener;

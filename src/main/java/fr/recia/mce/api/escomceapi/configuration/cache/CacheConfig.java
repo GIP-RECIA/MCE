@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.interceptor.bean;
+package fr.recia.mce.api.escomceapi.configuration.cache;
 
-import lombok.Data;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Configuration;
 
-@Data
-public class SoffitHolder {
-
-    private String sub;
+@Configuration
+@EnableCaching
+public class CacheConfig {
 
 }

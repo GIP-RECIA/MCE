@@ -11,7 +11,7 @@
         </expiry>
         <listeners>
             <listener>
-                <class>fr.recia.mce.api.escomceapi.configuration.CacheEventLogger</class>
+                <class>fr.recia.mce.api.escomceapi.configuration.cache.CacheEventLogger</class>
                 <event-firing-mode>ASYNCHRONOUS</event-firing-mode>
                 <event-ordering-mode>UNORDERED</event-ordering-mode>
                 <events-to-fire-on>CREATED</events-to-fire-on>
@@ -34,7 +34,7 @@
         </expiry>
         <listeners>
             <listener>
-                <class>fr.recia.mce.api.escomceapi.configuration.CacheEventLogger</class>
+                <class>fr.recia.mce.api.escomceapi.configuration.cache.CacheEventLogger</class>
                 <event-firing-mode>ASYNCHRONOUS</event-firing-mode>
                 <event-ordering-mode>UNORDERED</event-ordering-mode>
                 <events-to-fire-on>CREATED</events-to-fire-on>
