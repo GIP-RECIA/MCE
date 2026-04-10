@@ -137,30 +137,24 @@ public class PersonneRestController {
      * @param authentication authentification de l'utilisateur courant
      */
     @PostMapping("/{uid}/change-password")
-    public ResponseEntity<String> changePass(
+    public ResponseEntity<Void> changePass(
             @PathVariable String uid,
             @Valid @RequestBody PasswordChangeRequest request,
             Authentication authentication) {
 
         String currentUid = getCurrentUid(authentication);
+
         if (currentUid == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new IllegalStateException("Utilisateur non authentifié");
         }
 
         if (!currentUid.equals(uid)) {
             log.warn("Tentative non autorisée de modification de mot de passe pour {}", uid);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Action non autorisée.");
+            throw new org.springframework.security.access.AccessDeniedException("Action non autorisée");
         }
 
-        try {
-            String result = userDTOFactory.changePassword(uid, request);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            log.error("Erreur lors du changement de mot de passe pour {}", uid, e);
-            return ResponseEntity.internalServerError().body("Erreur interne du serveur.");
-        }
+        userDTOFactory.changePassword(uid, request);
+        return ResponseEntity.ok().build();
     }
 
     /**

@@ -36,7 +36,6 @@ import java.util.Date;
 @Slf4j
 public class PasswordService {
 
-    public static final String PREFIXCODE = "{SSHA}";
     private static final int SALT_LENGTH = 8;
 
     @Autowired
@@ -45,85 +44,90 @@ public class PasswordService {
     @Autowired
     private APersonneRepository aPersonneRepository;
 
+    /**
+     * Change le mot de passe d’un utilisateur.
+     * <p>
+     * Cette opération est transactionnelle avec propagation REQUIRES_NEW afin d’isoler le changement
+     * de mot de passe des autres transactions en cours.
+     * </p>
+     *
+     * @param person  utilisateur concerné
+     * @param request  requête contenant ancien et nouveau mot de passe
+     * @throws IllegalArgumentException si la requête est invalide ou si l’ancien mot de passe est incorrect
+     * @throws RuntimeException en cas d’erreur technique lors de la mise à jour DB ou LDAP
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String changePassword(PersonneDTO person, PasswordChangeRequest request) {
-
+    public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         String uid = (person != null) ? person.getUid() : "UNKNOWN";
         log.info("Début changement mot de passe uid={}", uid);
 
-        // 1. Validation globale
-        String validationError = validateRequest(person, request);
-        if (validationError != null) {
-            return validationError;
-        }
+        validateRequest(person, request);
 
         String oldPassword = request.getOldPass();
         String newPassword = request.getNewPass();
 
-        // 2. Vérification ancien mot de passe
         if (!isOldPasswordValid(person, oldPassword)) {
             log.warn("Ancien mot de passe incorrect uid={}", uid);
-            return "Ancien mot de passe incorrect.";
+            throw new IllegalArgumentException("Ancien mot de passe incorrect");
         }
 
         try {
-            // 3. Génération du hash
             String hashedPassword = generateHashedPassword(newPassword);
-
-            // 4. Mise à jour
             updatePasswordInDatabase(person, hashedPassword);
             updatePasswordInLdap(uid, hashedPassword);
 
             log.info("Mot de passe changé avec succès uid={}", uid);
-            return "fin correct";
 
         } catch (Exception e) {
             log.error("Erreur changement mot de passe uid={} : {}", uid, e.getMessage(), e);
-            return "An error occurred while saving the new password.";
+            throw new RuntimeException("Erreur lors de la sauvegarde du mot de passe", e);
         }
     }
 
-
-    private String validateRequest(PersonneDTO person, PasswordChangeRequest request) {
+    /**
+     * Valide la requête de changement de mot de passe.
+     *
+     * @param person  utilisateur concerné
+     * @param request requête contenant ancien et nouveau mot de passe
+     * @throws IllegalArgumentException si les champs sont invalides
+     * @throws IllegalStateException si l'état du mot de passe stocké est incohérent
+     */
+    private void validateRequest(PersonneDTO person, PasswordChangeRequest request) {
 
         if (person == null || request == null) {
-            log.warn("Requête invalide (person ou request null)");
-            return "Requête invalide.";
+            throw new IllegalArgumentException("Requête invalide");
         }
 
-        String uid = person.getUid();
         String oldPassword = request.getOldPass();
         String newPassword = request.getNewPass();
 
         if (oldPassword == null || oldPassword.isBlank()) {
-            log.warn("Ancien mot de passe vide uid={}", uid);
-            return "Ancien mot de passe requis.";
+            throw new IllegalArgumentException("Ancien mot de passe requis");
         }
 
         if (newPassword == null || newPassword.isBlank()) {
-            log.warn("Nouveau mot de passe vide uid={}", uid);
-            return "Nouveau mot de passe requis.";
+            throw new IllegalArgumentException("Nouveau mot de passe requis");
         }
 
         if (oldPassword.equals(newPassword)) {
-            log.warn("Nouveau mot de passe identique uid={}", uid);
-            return "Le nouveau mot de passe doit être différent.";
+            throw new IllegalArgumentException("Le nouveau mot de passe doit être différent");
         }
 
         if (!isPasswordStrongEnough(newPassword)) {
-            log.warn("Mot de passe trop faible uid={}", uid);
-            return "Mot de passe trop faible.";
+            throw new IllegalArgumentException("Mot de passe trop faible");
         }
 
         if (!hasValidStoredPassword(person.getAPersonneBase().getPassword())) {
-            log.warn("Pas de mot de passe existant uid={}", uid);
-            return "Ancien mot de passe requis.";
+            throw new IllegalStateException("Ancien mot de passe requis");
         }
-
-        return null;
     }
 
-
+    /**
+     * Génère un mot de passe hashé au format LDAP SSHA.
+     *
+     * @param newPassword mot de passe en clair
+     * @return mot de passe encodé LDAP
+     */
     private String generateHashedPassword(String newPassword) {
         byte[] saltBytes = new byte[SALT_LENGTH];
         new SecureRandom().nextBytes(saltBytes);
@@ -139,14 +143,20 @@ public class PasswordService {
         return ldapPassword.getCodageLdap();
     }
 
-
+    /**
+     * Met à jour le mot de passe en base de données.
+     *
+     * @param person         utilisateur
+     * @param hashedPassword mot de passe hashé LDAP
+     * @throws IllegalStateException si l’utilisateur n’est pas trouvé
+     */
     private void updatePasswordInDatabase(PersonneDTO person, String hashedPassword) {
 
         APersonne apersonne = aPersonneRepository.findById(
                 person.getAPersonneBase().getId()
         ).orElseThrow(() -> {
             log.error("Utilisateur introuvable en base uid={}", person.getUid());
-            return new RuntimeException("User not found in DB");
+            return new IllegalStateException("User not found in DB");
         });
 
         apersonne.setPassword(hashedPassword);
@@ -155,17 +165,34 @@ public class PasswordService {
         aPersonneRepository.saveAndFlush(apersonne);
     }
 
+    /**
+     * Met à jour le mot de passe dans LDAP.
+     *
+     * @param uid             identifiant utilisateur
+     * @param hashedPassword  mot de passe hashé LDAP
+     */
     private void updatePasswordInLdap(String uid, String hashedPassword) {
         externalUserDao.updatePassword(uid, hashedPassword);
     }
 
-
+    /**
+     * Vérifie si un mot de passe stocké est exploitable.
+     *
+     * @param oldPass mot de passe stocké
+     * @return true si valide
+     */
     public boolean hasValidStoredPassword(final String oldPass) {
         return oldPass != null
                 && !oldPass.isBlank()
                 && !oldPass.startsWith("{SSHA}Active=");
     }
 
+    /**
+     * Vérifie la robustesse d’un mot de passe.
+     *
+     * @param passPlainText mot de passe en clair
+     * @return true si suffisamment robuste
+     */
     public static boolean isPasswordStrongEnough(final String passPlainText) {
         if (passPlainText == null) return false;
 
@@ -180,6 +207,13 @@ public class PasswordService {
         return pass.length() >= score;
     }
 
+    /**
+     * Vérifie si l’ancien mot de passe est correct.
+     *
+     * @param user      utilisateur
+     * @param passOld   mot de passe saisi
+     * @return true si valide
+     */
     private boolean isOldPasswordValid(final PersonneDTO user, String passOld) {
 
         if (passOld == null || passOld.isBlank()) {
@@ -196,10 +230,24 @@ public class PasswordService {
         return valid;
     }
 
+    /**
+     * Vérifie si un mot de passe est en clair.
+     *
+     * @param pass mot de passe
+     * @return true si en clair
+     */
     private static boolean isPlainTextPassword(final String pass) {
         return pass != null && !pass.startsWith("{");
     }
 
+    /**
+     * Vérifie un mot de passe contre celui stocké (LDAP ou DB).
+     *
+     * @param personne        utilisateur
+     * @param passClairATester mot de passe à tester
+     * @param passClairOk      autorisation des mots de passe en clair
+     * @return true si le mot de passe est valide
+     */
     public boolean verifyPassword(final PersonneDTO personne,
                                   final String passClairATester,
                                   final boolean passClairOk) {

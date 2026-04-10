@@ -404,21 +404,15 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
 
     @Override
-    public String changePassword(String uid, PasswordChangeRequest req) {
-
+    public void changePassword(String uid, PasswordChangeRequest req) {
 
         PersonneDTO user = personneService.retrievePersonnebyUid(uid);
-        if (user == null)
-            throw new RuntimeException("User not found.");
 
-        try {
-            return passwordService.changePassword(user, req);
-
-        } catch (Exception e) {
-            throw new RuntimeException("error changePassword : {}", e);
-
+        if (user == null) {
+            throw new IllegalStateException("User not found");
         }
 
+        passwordService.changePassword(user, req);
     }
 
 }
