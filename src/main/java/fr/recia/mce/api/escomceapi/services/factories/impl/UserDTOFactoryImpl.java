@@ -412,7 +412,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             throw new RuntimeException("User not found.");
 
         try {
-            return passwordService.changePasswordLogic(user, req);
+            return passwordService.changePassword(user, req);
 
         } catch (Exception e) {
             throw new RuntimeException("error changePassword : {}", e);

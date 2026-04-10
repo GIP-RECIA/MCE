@@ -1,154 +1,217 @@
-/*
- * Copyright (C) 2023 GIP-RECIA, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
-import org.apache.commons.codec.binary.Base64;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.utils.LdapPassword;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.codec.binary.Base64;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.util.Date;
+
 
 @Service
 @Slf4j
 public class PasswordService {
 
     public static final String PREFIXCODE = "{SSHA}";
+    private static final int SALT_LENGTH = 8;
+
     @Autowired
     private IExternalUserDao externalUserDao;
+
     @Autowired
     private APersonneRepository aPersonneRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String changePasswordLogic(PersonneDTO person, PasswordChangeRequest request) {
+    public String changePassword(PersonneDTO person, PasswordChangeRequest request) {
 
-        if (!oldPasswordExist(person.getAPersonneBase().getPassword())) {
-            return "newPass error, must enter the old password.";
+        String uid = (person != null) ? person.getUid() : "UNKNOWN";
+        log.info("Début changement mot de passe uid={}", uid);
+
+        // 1. Validation globale
+        String validationError = validateRequest(person, request);
+        if (validationError != null) {
+            return validationError;
         }
 
-        byte[] saltBytes = new byte[8];
-        new java.security.SecureRandom().nextBytes(saltBytes);
-        String salt = Base64.encodeBase64String(saltBytes);
+        String oldPassword = request.getOldPass();
+        String newPassword = request.getNewPass();
 
-        LdapPassword newLdapPassword = new LdapPassword(
-                request.getNewPass(), salt, LdapPassword.Algo.SSHA, false);
-        String newHashedPassword = newLdapPassword.getCodageLdap();
+        // 2. Vérification ancien mot de passe
+        if (!isOldPasswordValid(person, oldPassword)) {
+            log.warn("Ancien mot de passe incorrect uid={}", uid);
+            return "Ancien mot de passe incorrect.";
+        }
 
         try {
-            APersonne apersonne = aPersonneRepository.findById(person.getAPersonneBase().getId())
-                    .orElseThrow(() -> new RuntimeException("User not found in DB"));
+            // 3. Génération du hash
+            String hashedPassword = generateHashedPassword(newPassword);
 
-            apersonne.setPassword(newHashedPassword);
-            apersonne.setDateModification(new java.util.Date());
+            // 4. Mise à jour
+            updatePasswordInDatabase(person, hashedPassword);
+            updatePasswordInLdap(uid, hashedPassword);
 
-            aPersonneRepository.saveAndFlush(apersonne);
-
-            externalUserDao.updatePassword(person.getUid(), newHashedPassword);
-
+            log.info("Mot de passe changé avec succès uid={}", uid);
             return "fin correct";
 
         } catch (Exception e) {
-            log.error("Error while changing password for uid {}: {}", person.getUid(), e.getMessage());
+            log.error("Erreur changement mot de passe uid={} : {}", uid, e.getMessage(), e);
             return "An error occurred while saving the new password.";
         }
     }
 
-    public boolean oldPasswordExist(final String oldPass) {
-        if (oldPass.isBlank() || oldPass.startsWith("{SSHA}Active=")) {
-            return false;
+
+    private String validateRequest(PersonneDTO person, PasswordChangeRequest request) {
+
+        if (person == null || request == null) {
+            log.warn("Requête invalide (person ou request null)");
+            return "Requête invalide.";
         }
-        return true;
+
+        String uid = person.getUid();
+        String oldPassword = request.getOldPass();
+        String newPassword = request.getNewPass();
+
+        if (oldPassword == null || oldPassword.isBlank()) {
+            log.warn("Ancien mot de passe vide uid={}", uid);
+            return "Ancien mot de passe requis.";
+        }
+
+        if (newPassword == null || newPassword.isBlank()) {
+            log.warn("Nouveau mot de passe vide uid={}", uid);
+            return "Nouveau mot de passe requis.";
+        }
+
+        if (oldPassword.equals(newPassword)) {
+            log.warn("Nouveau mot de passe identique uid={}", uid);
+            return "Le nouveau mot de passe doit être différent.";
+        }
+
+        if (!isPasswordStrongEnough(newPassword)) {
+            log.warn("Mot de passe trop faible uid={}", uid);
+            return "Mot de passe trop faible.";
+        }
+
+        if (!hasValidStoredPassword(person.getAPersonneBase().getPassword())) {
+            log.warn("Pas de mot de passe existant uid={}", uid);
+            return "Ancien mot de passe requis.";
+        }
+
+        return null;
     }
 
-    public static boolean isAcceptable(final String passPlainText) {
-        if (passPlainText == null) {
-            return false;
-        }
-        /*
-         * pass doit faire au moins 12 caractères si tout type de caractère.
-         * 14 caractères si que des Maj, Min et Chiffre,
-         */
+
+    private String generateHashedPassword(String newPassword) {
+        byte[] saltBytes = new byte[SALT_LENGTH];
+        new SecureRandom().nextBytes(saltBytes);
+        String salt = Base64.encodeBase64String(saltBytes);
+
+        LdapPassword ldapPassword = new LdapPassword(
+                newPassword,
+                salt,
+                LdapPassword.Algo.SSHA,
+                false
+        );
+
+        return ldapPassword.getCodageLdap();
+    }
+
+
+    private void updatePasswordInDatabase(PersonneDTO person, String hashedPassword) {
+
+        APersonne apersonne = aPersonneRepository.findById(
+                person.getAPersonneBase().getId()
+        ).orElseThrow(() -> {
+            log.error("Utilisateur introuvable en base uid={}", person.getUid());
+            return new RuntimeException("User not found in DB");
+        });
+
+        apersonne.setPassword(hashedPassword);
+        apersonne.setDateModification(new Date());
+
+        aPersonneRepository.saveAndFlush(apersonne);
+    }
+
+    private void updatePasswordInLdap(String uid, String hashedPassword) {
+        externalUserDao.updatePassword(uid, hashedPassword);
+    }
+
+
+    public boolean hasValidStoredPassword(final String oldPass) {
+        return oldPass != null
+                && !oldPass.isBlank()
+                && !oldPass.startsWith("{SSHA}Active=");
+    }
+
+    public static boolean isPasswordStrongEnough(final String passPlainText) {
+        if (passPlainText == null) return false;
+
         String pass = passPlainText.trim();
         int score = 17;
-        if (pass.matches(".*\\W.*")) {
-            score = 15;
-        }
 
-        if (pass.matches(".*\\p{Lower}.*")) {
-            score--;
-        }
-        if (pass.matches(".*\\p{Upper}.*")) {
-            score--;
-        }
-        if (pass.matches(".*\\d.*")) {
-            score--;
-        }
+        if (pass.matches(".*\\W.*")) score = 15;
+        if (pass.matches(".*\\p{Lower}.*")) score--;
+        if (pass.matches(".*\\p{Upper}.*")) score--;
+        if (pass.matches(".*\\d.*")) score--;
+
         return pass.length() >= score;
     }
 
-    private boolean testOldPass(final PersonneDTO user, String passOld) {
-        boolean res = false;
+    private boolean isOldPasswordValid(final PersonneDTO user, String passOld) {
 
-        if (passOld.isBlank()) {
-            log.debug("erreur de passOld = null");
-
-        } else {
-            if (testPassword(user, passOld, false)) {
-                res = true;
-
-            } else {
-                log.debug("erreur de passOld invalide " + passOld);
-            }
+        if (passOld == null || passOld.isBlank()) {
+            log.debug("Ancien mot de passe vide uid={}", user.getUid());
+            return false;
         }
 
-        return res;
+        boolean valid = verifyPassword(user, passOld, false);
+
+        if (!valid) {
+            log.debug("Ancien mot de passe invalide uid={}", user.getUid());
+        }
+
+        return valid;
     }
 
-    private static boolean isPassClair(final String pass) {
-        return !pass.startsWith("{");
+    private static boolean isPlainTextPassword(final String pass) {
+        return pass != null && !pass.startsWith("{");
     }
 
-    public boolean testPassword(final PersonneDTO personne, final String passClairATester, final boolean passClairOk) {
-        LdapPassword lp = personne.getLdapPassword();
-        String passFromDao;
-        if (lp == null) {
-            passFromDao = personne.getAPersonneBase().getPassword();
-            if (passFromDao.isBlank()) {
-                log.error("pass null for user {}", personne.getIdentifiant(), "[360]");
+    public boolean verifyPassword(final PersonneDTO personne,
+                                  final String passClairATester,
+                                  final boolean passClairOk) {
+
+        LdapPassword ldapPassword = personne.getLdapPassword();
+        String passwordFromDb;
+
+        if (ldapPassword == null) {
+            passwordFromDb = personne.getAPersonneBase().getPassword();
+
+            if (passwordFromDb == null || passwordFromDb.isBlank()) {
+                log.error("Mot de passe null pour user {}", personne.getIdentifiant());
                 return false;
             }
-            if (isPassClair(passFromDao)) {
+
+            if (isPlainTextPassword(passwordFromDb)) {
                 if (!passClairOk) {
-                    log.error("pass invalide for user {}", personne.getIdentifiant(), "[365]");
+                    log.error("Mot de passe en clair non autorisé user {}", personne.getIdentifiant());
                     return false;
                 }
-                return passFromDao.equals(passClairATester);
+                return passwordFromDb.equals(passClairATester);
             }
-            lp = new LdapPassword(passFromDao);
-            personne.setLdapPassword(lp);
-        }
-        return lp.test(passClairATester);
-    }
 
+            ldapPassword = new LdapPassword(passwordFromDb);
+            personne.setLdapPassword(ldapPassword);
+        }
+
+        return ldapPassword.test(passClairATester);
+    }
 }
