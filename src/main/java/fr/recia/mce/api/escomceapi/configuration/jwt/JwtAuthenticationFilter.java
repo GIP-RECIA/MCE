@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package fr.recia.mce.api.escomceapi.configuration.jwt;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,7 +25,6 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.crypto.SecretKey;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -35,51 +32,21 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Base64;
 
-/**
- * Filtre d’authentification JWT personnalisé.
- *
- * Ce filtre intercepte chaque requête HTTP afin d’identifier l’utilisateur
- * et de l’enregistrer dans le SecurityContext Spring.
- *
- * Deux modes d’authentification sont supportés :
- *
- * 1. Header X-User-Id (priorité haute)
- *    - Utilisé pour les environnements de test ou internes
- *
- * 2. Authorization: Bearer JWT
- *    - Extraction du claim "sub" depuis un token JWT
- *    - Le token est uniquement décodé (Base64), sans vérification de signature
- *
- * Attention :
- * Ce mécanisme ne vérifie pas la signature du JWT et ne doit pas être utilisé
- * en production. Il est destiné à un usage de développement ou environnement contrôlé.
- *
- */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Value("${app.jwt.secret:}")
-    private String jwtSecret;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     /**
-     * Génère la clé de signature HMAC à partir de la configuration.
+     * Traite chaque requête HTTP et initialise l'authentification si un utilisateur est identifié.
      *
-     * @return clé de signature ou null si la configuration est invalide
-     */
-    private SecretKey getSigningKey() {
-        String secret = jwtSecret != null ? jwtSecret.trim() : "";
-        if (secret.length() < 32) {
-            log.error("JWT secret trop court ou absent");
-            return null;
-        }
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Intercepte la requête HTTP et initialise l’authentification utilisateur
-     * dans le contexte Spring Security si un utilisateur est identifié.
+     * @param request requête HTTP entrante
+     * @param response réponse HTTP
+     * @param filterChain chaîne de filtres
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -106,34 +73,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
 
-            log.info("Authentication réussie pour l'utilisateur : {}", username);
+            log.debug("Authentication réussie pour l'utilisateur : {}", username);
         } else {
-            log.debug("Aucune authentification trouvée pour {}", request.getRequestURI());
+            log.debug("Aucune authentification pour {}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);
     }
 
     /**
-     * Extrait l'identité utilisateur depuis la requête HTTP.
+     * Extrait l'identifiant utilisateur depuis la requête.
      *
-     * Priorité des sources :
-     * 1. Header X-User-Id
-     * 2. JWT Bearer (claim "sub")
+     * Priorité :
+     * - header "X-User-Id"
+     * - JWT Bearer (claim "sub")
      *
-     * Le JWT est décodé uniquement sans validation de signature.
-     *
-     * @param request requête HTTP entrante
-     * @return identifiant utilisateur ou null si non authentifié
+     * @param request requête HTTP
+     * @return identifiant utilisateur ou null si absent
      */
     private String extractUsername(HttpServletRequest request) {
 
+        // 1. Header prioritaire
         String xUserId = request.getHeader("X-User-Id");
         if (xUserId != null && !xUserId.trim().isEmpty()) {
-            log.info("Auth via X-User-Id : {}", xUserId.trim());
+            log.debug("Auth via X-User-Id : {}", xUserId.trim());
             return xUserId.trim();
         }
 
+        // 2. JWT Bearer
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -146,15 +113,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return null;
                 }
 
-                String payload = new String(
-                        java.util.Base64.getUrlDecoder().decode(chunks[1]),
-                        java.nio.charset.StandardCharsets.UTF_8
+                String payloadJson = new String(
+                        Base64.getUrlDecoder().decode(chunks[1]),
+                        StandardCharsets.UTF_8
                 );
 
-                String sub = payload.split("\"sub\":\"")[1].split("\"")[0];
+                JsonNode payload = objectMapper.readTree(payloadJson);
+                JsonNode subNode = payload.get("sub");
 
-                log.info("Auth via JWT (no verify) - sub = {}", sub);
-                return sub;
+                if (subNode != null) {
+                    String sub = subNode.asText();
+                    log.debug("Auth via JWT (no verify) - sub = {}", sub);
+                    return sub;
+                }
 
             } catch (Exception e) {
                 log.warn("JWT invalide : {}", e.getMessage());
