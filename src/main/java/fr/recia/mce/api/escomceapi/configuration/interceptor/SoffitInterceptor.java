@@ -43,7 +43,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
     public SoffitInterceptor(SoffitHolder soffitHolder) {
         this.soffitHolder = soffitHolder;
     }
-
+/*
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
@@ -95,8 +95,8 @@ public class SoffitInterceptor implements HandlerInterceptor {
         return true;
     }
 
+*/
 
-/*
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
@@ -141,5 +141,5 @@ public class SoffitInterceptor implements HandlerInterceptor {
         }
         return true;
     }
-*/
+
 }
