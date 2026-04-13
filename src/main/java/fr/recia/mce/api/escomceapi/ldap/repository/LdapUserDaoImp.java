@@ -15,7 +15,9 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
+import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
@@ -65,9 +67,12 @@ public class LdapUserDaoImp implements IExternalUserDao {
 
         try {
             user = ldapTemplate.searchForObject(query, mapper);
+        } catch (EmptyResultDataAccessException e) {
+            log.warn("Aucun utilisateur LDAP trouvé pour uid={}", uid);
+            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
         } catch (Exception e) {
-            user = null;
-            log.info("error user null : {}", e);
+            log.error("Erreur LDAP pour uid={} : {}", uid, e.getMessage(), e);
+            throw new RuntimeException("Erreur technique LDAP", e);
         }
 
         return user;

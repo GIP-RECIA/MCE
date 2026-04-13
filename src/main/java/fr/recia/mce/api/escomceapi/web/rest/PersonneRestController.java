@@ -19,6 +19,7 @@ import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
@@ -52,10 +53,7 @@ public class PersonneRestController {
      */
     @GetMapping("/id")
     public ResponseEntity<String> getCurrentUserId() {
-        String uid = getCurrentUid();
-        return uid != null
-                ? ResponseEntity.ok(uid)
-                : ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Aucun utilisateur authentifié");
+        return ResponseEntity.ok(getCurrentUid());
     }
 
     /**
@@ -66,16 +64,12 @@ public class PersonneRestController {
     @GetMapping("/getuser")
     public ResponseEntity<PersonneDTO> getPersonneByUid() {
         String uid = getCurrentUid();
-        if (uid == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
         PersonneDTO personne = personneService.retrievePersonnebyUid(uid);
+
         if (personne == null) {
-            return ResponseEntity.notFound().build();
+            throw new PersonneNotFoundException("Personne non trouvée pour l'uid : " + uid);
         }
 
-        log.info("Personne trouvée : {}", personne);
         return ResponseEntity.ok(personne);
     }
 
@@ -87,14 +81,13 @@ public class PersonneRestController {
     @GetMapping("/ldap")
     public ResponseEntity<IExternalUser> getPersonLdap() {
         String uid = getCurrentUid();
-        if (uid == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        IExternalUser user = personneService.retrievePersonLdap(uid);
+
+        if (user == null) {
+            throw new PersonneNotFoundException("Utilisateur LDAP non trouvé pour l'uid : " + uid);
         }
 
-        IExternalUser personne = personneService.retrievePersonLdap(uid);
-        return personne != null
-                ? ResponseEntity.ok(personne)
-                : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
     }
 
     /**
@@ -105,14 +98,13 @@ public class PersonneRestController {
     @GetMapping("/")
     public ResponseEntity<UserDTO> getMCE() {
         String uid = getCurrentUid();
-        if (uid == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        UserDTO user = userDTOFactory.from(uid);
+
+        if (user == null) {
+            throw new PersonneNotFoundException("Utilisateur non trouvé pour l'uid : " + uid);
         }
 
-        UserDTO user = userDTOFactory.from(uid);
-        return user != null
-                ? ResponseEntity.ok(user)
-                : ResponseEntity.notFound().build();
+        return ResponseEntity.ok(user);
     }
 
     /**
@@ -124,9 +116,12 @@ public class PersonneRestController {
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String id) {
         UserDTO enfant = userDTOFactory.from(id);
-        return enfant != null
-                ? ResponseEntity.ok(enfant)
-                : ResponseEntity.notFound().build();
+
+        if (enfant == null) {
+            throw new PersonneNotFoundException("Enfant non trouvé pour l'id : " + id);
+        }
+
+        return ResponseEntity.ok(enfant);
     }
 
     /**
@@ -142,17 +137,13 @@ public class PersonneRestController {
 
         String currentUid = getCurrentUid();
 
-        if (currentUid == null) {
-            throw new IllegalStateException("Utilisateur non authentifié");
-        }
-
         if (!currentUid.equals(uid)) {
-            log.warn("Tentative non autorisée de modification de mot de passe pour {}", uid);
-            throw new AccessDeniedException("Action non autorisée");
+            log.warn("Tentative de changement de mot de passe non autorisée pour uid={}", uid);
+            throw new AccessDeniedException("Vous ne pouvez modifier que votre propre mot de passe");
         }
 
         userDTOFactory.changePassword(uid, request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -162,8 +153,8 @@ public class PersonneRestController {
      */
     private String getCurrentUid() {
         String sub = soffitHolder.getSub();
-        if (sub == null || sub.isBlank()) {
-            return null;
+        if (sub == null || sub.isBlank() || "guest".equals(sub)) {
+            throw new AccessDeniedException("Utilisateur non authentifié");
         }
         return sub;
     }
