@@ -36,6 +36,27 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
+/**
+ * Filtre d’authentification JWT personnalisé.
+ *
+ * Ce filtre intercepte chaque requête HTTP afin d’identifier l’utilisateur
+ * et de l’enregistrer dans le SecurityContext Spring.
+ *
+ * Deux modes d’authentification sont supportés :
+ *
+ * 1. Header X-User-Id (priorité haute)
+ *    - Utilisé pour les environnements de test ou internes
+ *
+ * 2. Authorization: Bearer JWT
+ *    - Extraction du claim "sub" depuis un token JWT
+ *    - Le token est uniquement décodé (Base64), sans vérification de signature
+ *
+ * Attention :
+ * Ce mécanisme ne vérifie pas la signature du JWT et ne doit pas être utilisé
+ * en production. Il est destiné à un usage de développement ou environnement contrôlé.
+ *
+ * En production, il est recommandé d’utiliser Spring Security OAuth2 Resource Server.
+ */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -43,6 +64,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${app.jwt.secret:}")
     private String jwtSecret;
 
+    /**
+     * Génère la clé de signature HMAC à partir de la configuration.
+     *
+     * @return clé de signature ou null si la configuration est invalide
+     */
     private SecretKey getSigningKey() {
         String secret = jwtSecret != null ? jwtSecret.trim() : "";
         if (secret.length() < 32) {
@@ -52,14 +78,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Intercepte la requête HTTP et initialise l’authentification utilisateur
+     * dans le contexte Spring Security si un utilisateur est identifié.
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
         String username = extractUsername(request);
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
             User userDetails = new User(
                     username,
                     "",
@@ -67,9 +99,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             );
 
             UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
+
             log.info("Authentication réussie pour l'utilisateur : {}", username);
         } else {
             log.debug("Aucune authentification trouvée pour {}", request.getRequestURI());
@@ -79,25 +116,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Extrait l'identifiant utilisateur soit via X-User-Id soit via le sub du JWT Bearer
+     * Extrait l'identité utilisateur depuis la requête HTTP.
+     *
+     * Priorité des sources :
+     * 1. Header X-User-Id
+     * 2. JWT Bearer (claim "sub")
+     *
+     * Le JWT est décodé uniquement sans validation de signature.
+     *
+     * @param request requête HTTP entrante
+     * @return identifiant utilisateur ou null si non authentifié
      */
     private String extractUsername(HttpServletRequest request) {
 
-        // 1. Header custom
         String xUserId = request.getHeader("X-User-Id");
         if (xUserId != null && !xUserId.trim().isEmpty()) {
             log.info("Auth via X-User-Id : {}", xUserId.trim());
             return xUserId.trim();
         }
 
-        // 2. JWT Bearer
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7).trim();
 
             try {
-                // 🔥 Décodage simple du JWT (sans vérification de signature)
                 String[] chunks = token.split("\\.");
                 if (chunks.length < 2) {
                     log.warn("JWT mal formé");
@@ -109,7 +152,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         java.nio.charset.StandardCharsets.UTF_8
                 );
 
-                // Extraction du champ "sub"
                 String sub = payload.split("\"sub\":\"")[1].split("\"")[0];
 
                 log.info("Auth via JWT (no verify) - sub = {}", sub);
