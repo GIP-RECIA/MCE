@@ -46,10 +46,9 @@ public class PasswordService {
 
     /**
      * Change le mot de passe d’un utilisateur.
-     * <p>
+     *
      * Cette opération est transactionnelle avec propagation REQUIRES_NEW afin d’isoler le changement
      * de mot de passe des autres transactions en cours.
-     * </p>
      *
      * @param person  utilisateur concerné
      * @param request  requête contenant ancien et nouveau mot de passe
