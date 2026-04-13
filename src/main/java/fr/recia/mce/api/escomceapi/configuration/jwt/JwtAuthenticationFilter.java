@@ -55,7 +55,6 @@ import java.util.Collections;
  * Ce mécanisme ne vérifie pas la signature du JWT et ne doit pas être utilisé
  * en production. Il est destiné à un usage de développement ou environnement contrôlé.
  *
- * En production, il est recommandé d’utiliser Spring Security OAuth2 Resource Server.
  */
 @Component
 @Slf4j
