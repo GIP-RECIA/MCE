@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi;
+package fr.recia.mce.api.escomceapi.configuration.interceptor.bean;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import lombok.Data;
 
-@SpringBootTest
-class MceProjectApplicationTests {
+@Data
+public class SoffitHolder {
 
-	@Test
-	void contextLoads() {
-	}
+    private String sub;
 
 }

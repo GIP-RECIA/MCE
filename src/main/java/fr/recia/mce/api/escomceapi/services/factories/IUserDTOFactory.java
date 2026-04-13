@@ -38,5 +38,7 @@ public interface IUserDTOFactory {
 
     InfoGeneralDTO showGeneralInfo();
 
+    UserDTO getCurrentUser();
+
     void changePassword(final String uid, final PasswordChangeRequest req);
 }

@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 
 import javax.validation.constraints.NotNull;
 
+import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,6 +82,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private PersonneDTO personneDTO;
 
     private ServiceProperties serviceProperties;
+
+    @Autowired
+    private SoffitHolder soffitHolder;
 
     @Autowired
     private IStructureService structureService;
@@ -402,17 +406,45 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return infoGeneral;
     }
 
+    private boolean isSubOk() {
+
+        final boolean isOk = soffitHolder.getSub() != null && !soffitHolder.getSub().startsWith("guest");
+        if (!isOk)
+            log.info("User is guest : sub {}", soffitHolder.getSub());
+
+        return isOk;
+    }
+
+    @Override
+    public UserDTO getCurrentUser() {
+
+        if (!isSubOk())
+            return null;
+        final UserDTO user = from(soffitHolder.getSub());
+
+        if (user == null)
+            log.info("No user found with sub: {}", soffitHolder.getSub());
+
+        return user;
+    }
 
     @Override
     public void changePassword(String uid, PasswordChangeRequest req) {
 
-        PersonneDTO user = personneService.retrievePersonnebyUid(uid);
-
-        if (user == null) {
-            throw new IllegalStateException("User not found");
+        if (!isSubOk()) {
+            throw new SecurityException("No authorization");
         }
 
-        passwordService.changePassword(user, req);
+        PersonneDTO user = personneService.retrievePersonnebyUid(uid);
+        if (user == null) {
+            throw new RuntimeException("User not found.");
+        }
+
+        try {
+            passwordService.changePassword(user, req);
+        } catch (Exception e) {
+            throw new RuntimeException("Error during changePassword", e);
+        }
     }
 
 }

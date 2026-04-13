@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.web.rest;
 
+import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
@@ -24,8 +25,9 @@ import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
+
 import javax.validation.Valid;
 
 @Slf4j
@@ -35,21 +37,22 @@ public class PersonneRestController {
 
     private final PersonneService personneService;
     private final IUserDTOFactory userDTOFactory;
+    private final SoffitHolder soffitHolder;
 
-    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory) {
+    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory, SoffitHolder soffitHolder) {
         this.personneService = personneService;
         this.userDTOFactory = userDTOFactory;
+        this.soffitHolder = soffitHolder;
     }
 
     /**
      * Retourne l'UID de l'utilisateur actuellement authentifié.
      *
-     * @param authentication l'objet Authentication injecté par Spring Security
      * @return l'UID de l'utilisateur ou 401 si non authentifié
      */
     @GetMapping("/id")
-    public ResponseEntity<String> getCurrentUserId(Authentication authentication) {
-        String uid = getCurrentUid(authentication);
+    public ResponseEntity<String> getCurrentUserId() {
+        String uid = getCurrentUid();
         return uid != null
                 ? ResponseEntity.ok(uid)
                 : ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Aucun utilisateur authentifié");
@@ -58,12 +61,11 @@ public class PersonneRestController {
     /**
      * Retourne les informations complètes d'une personne (PersonneDTO) pour l'utilisateur connecté.
      *
-     * @param authentication l'objet Authentication
      * @return PersonneDTO de l'utilisateur ou 401 si non authentifié
      */
     @GetMapping("/getuser")
-    public ResponseEntity<PersonneDTO> getPersonneByUid(Authentication authentication) {
-        String uid = getCurrentUid(authentication);
+    public ResponseEntity<PersonneDTO> getPersonneByUid() {
+        String uid = getCurrentUid();
         if (uid == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -80,12 +82,11 @@ public class PersonneRestController {
     /**
      * Retourne la fiche LDAP brute de l'utilisateur connecté.
      *
-     * @param authentication l'objet Authentication
      * @return IExternalUser ou 401/404 selon le cas
      */
     @GetMapping("/ldap")
-    public ResponseEntity<IExternalUser> getPersonLdap(Authentication authentication) {
-        String uid = getCurrentUid(authentication);
+    public ResponseEntity<IExternalUser> getPersonLdap() {
+        String uid = getCurrentUid();
         if (uid == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -99,12 +100,11 @@ public class PersonneRestController {
     /**
      * Retourne le UserDTO complet de l'utilisateur connecté.
      *
-     * @param authentication l'objet Authentication
      * @return UserDTO de l'utilisateur
      */
     @GetMapping("/")
-    public ResponseEntity<UserDTO> getMCE(Authentication authentication) {
-        String uid = getCurrentUid(authentication);
+    public ResponseEntity<UserDTO> getMCE() {
+        String uid = getCurrentUid();
         if (uid == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -132,17 +132,15 @@ public class PersonneRestController {
     /**
      * Change le mot de passe de l'utilisateur connecté.
      *
-     * @param uid UID de l'utilisateur dont on veut changer le mot de passe
+     * @param uid     UID de l'utilisateur dont on veut changer le mot de passe
      * @param request données du changement de mot de passe
-     * @param authentication authentification de l'utilisateur courant
      */
     @PostMapping("/{uid}/change-password")
     public ResponseEntity<Void> changePass(
             @PathVariable String uid,
-            @Valid @RequestBody PasswordChangeRequest request,
-            Authentication authentication) {
+            @Valid @RequestBody PasswordChangeRequest request) {
 
-        String currentUid = getCurrentUid(authentication);
+        String currentUid = getCurrentUid();
 
         if (currentUid == null) {
             throw new IllegalStateException("Utilisateur non authentifié");
@@ -150,7 +148,7 @@ public class PersonneRestController {
 
         if (!currentUid.equals(uid)) {
             log.warn("Tentative non autorisée de modification de mot de passe pour {}", uid);
-            throw new org.springframework.security.access.AccessDeniedException("Action non autorisée");
+            throw new AccessDeniedException("Action non autorisée");
         }
 
         userDTOFactory.changePassword(uid, request);
@@ -158,16 +156,15 @@ public class PersonneRestController {
     }
 
     /**
-     * Récupère l'UID de l'utilisateur à partir de l'objet Authentication.
+     * Récupère l'UID de l'utilisateur depuis le SoffitHolder (rempli par SoffitInterceptor).
      *
-     * @param authentication l'authentication Spring Security
      * @return l'UID ou null si l'utilisateur n'est pas authentifié
      */
-    private String getCurrentUid(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
+    private String getCurrentUid() {
+        String sub = soffitHolder.getSub();
+        if (sub == null || sub.isBlank()) {
             return null;
         }
-        return authentication.getName();
+        return sub;
     }
-
 }
