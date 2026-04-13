@@ -82,30 +82,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Extrait l'identifiant utilisateur soit via X-User-Id soit via le sub du JWT Bearer
      */
     private String extractUsername(HttpServletRequest request) {
-        //  tests
+
+        // 1. Header custom
         String xUserId = request.getHeader("X-User-Id");
         if (xUserId != null && !xUserId.trim().isEmpty()) {
             log.info("Auth via X-User-Id : {}", xUserId.trim());
             return xUserId.trim();
         }
 
-        //Bearer JWT
+        // 2. JWT Bearer
         String authHeader = request.getHeader("Authorization");
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7).trim();
-            try {
-                SecretKey key = getSigningKey();
-                if (key != null) {
-                    String sub = Jwts.parser()
-                            .verifyWith(key)
-                            .build()
-                            .parseSignedClaims(token)
-                            .getPayload()
-                            .getSubject();
 
-                    log.info("Auth via JWT Bearer - sub = {}", sub);
-                    return sub;
+            try {
+                // 🔥 Décodage simple du JWT (sans vérification de signature)
+                String[] chunks = token.split("\\.");
+                if (chunks.length < 2) {
+                    log.warn("JWT mal formé");
+                    return null;
                 }
+
+                String payload = new String(
+                        java.util.Base64.getUrlDecoder().decode(chunks[1]),
+                        java.nio.charset.StandardCharsets.UTF_8
+                );
+
+                // Extraction du champ "sub"
+                String sub = payload.split("\"sub\":\"")[1].split("\"")[0];
+
+                log.info("Auth via JWT (no verify) - sub = {}", sub);
+                return sub;
+
             } catch (Exception e) {
                 log.warn("JWT invalide : {}", e.getMessage());
             }
