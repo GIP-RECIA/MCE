@@ -96,50 +96,41 @@ public class SoffitInterceptor implements HandlerInterceptor {
     }
 
 */
+@Override
+public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+        throws Exception {
 
-    @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-            throws Exception {
-        String path = request.getRequestURI().substring(request.getContextPath().length());
+    String path = request.getRequestURI().substring(request.getContextPath().length());
 
-        if (path.startsWith("/api")) {
-            List<String> excludedPaths = List.of("^/api/personne$");
-            if (excludedPaths.stream().anyMatch(path::matches)) {
-                log.debug("Path {} start with /api but is excluded form SoffitInterceptor", path);
-
-                return true;
-            }
-        } else
-            return true;
-
-        String token = request.getHeader("Authorization");
-        if (token == null) {
-            log.debug("No Authorization header found");
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            return false;
-        }
-
-        Base64.Decoder decoder = Base64.getUrlDecoder();
-        String payload = new String(decoder.decode(token.replace("Bearer ", "").split("\\.")[1]));
-
-        Map<String, String> soffit;
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            soffit = objectMapper.readValue(payload, new TypeReference<>() {
-            });
-            log.debug("Soffit : {}", soffit);
-            if (Long.parseLong(soffit.get("exp")) < Instant.now().getEpochSecond()) {
-                log.debug("Token has expired");
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                return false;
-            }
-            soffitHolder.setSub(soffit.get("sub"));
-        } catch (IOException ignored) {
-            log.error("Unable to read soffit");
-            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-            return false;
-        }
+    if (!path.startsWith("/api")) {
         return true;
     }
 
+    String token = request.getHeader("Authorization");
+
+    if (token == null || !token.startsWith("Bearer ")) {
+        log.debug("No or invalid Authorization header");
+        return true;
+    }
+
+    try {
+        String jwt = token.replace("Bearer ", "");
+        String payload = new String(Base64.getUrlDecoder().decode(jwt.split("\\.")[1]));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> soffit = objectMapper.readValue(payload, new TypeReference<>() {});
+
+        log.info("JWT DEBUG payload = {}", soffit);
+
+        String sub = (String) soffit.get("sub");
+        soffitHolder.setSub(sub);
+
+        log.info("User DEBUG = {}", sub);
+
+    } catch (Exception e) {
+        log.error("JWT parse error", e);
+    }
+
+    return true;
+}
 }
