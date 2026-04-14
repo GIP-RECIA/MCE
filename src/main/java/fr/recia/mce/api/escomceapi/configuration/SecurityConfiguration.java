@@ -51,10 +51,9 @@ public class SecurityConfiguration {
             "/webjars/**"
     };
 
-    private static final String[] TEMPORARY_PERMIT_LIST = {
-            "/api/personne/mce/getuser",
-            "/api/password/**",
-            "/api/personne/mce/**"
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/health-check",
+            "/api/personne/mce/token"
     };
 
     @Bean
@@ -65,13 +64,14 @@ public class SecurityConfiguration {
 
         http.addFilter(filter);
         http.csrf(AbstractHttpConfigurer::disable);
+
         http.authorizeHttpRequests(authz -> authz
                 .antMatchers(SWAGGER_WHITELIST).permitAll()
-                .antMatchers("/health-check").permitAll()
-                .antMatchers(TEMPORARY_PERMIT_LIST).permitAll()
+                .antMatchers(PUBLIC_ENDPOINTS).permitAll()
                 .antMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
         );
+
         http.sessionManagement(session -> session.sessionFixation().newSession());
 
         return http.build();

@@ -17,11 +17,18 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
+
 @Data
 public class PasswordChangeRequest {
 
+    @NotBlank
     private String oldPass;
+
+    @NotBlank
     private String newPass;
+
+    @NotBlank
     private String confirmPass;
 
 }

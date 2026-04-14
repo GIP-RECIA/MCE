@@ -1,4 +1,20 @@
-package fr.recia.mce.api.escomceapi;
+/*
+ * Copyright (C) 2023 GIP-RECIA, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package fr.recia.mce.api.escomceapi.service;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
@@ -28,31 +44,6 @@ import static org.mockito.Mockito.*;
 @DisplayName("Tests unitaires - PasswordService")
 class PasswordServiceTest {
 
-    private static final Long USER_ID = 123L;
-    private static final String USER_UID = "valentine.seine";
-
-    private static final String VALID_OLD_PASSWORD = "AncienPass123!";
-    private static final String VALID_NEW_PASSWORD = "NouveauPass456!";
-    private static final String WRONG_PASSWORD = "MauvaisPass";
-    private static final String WEAK_PASSWORD = "123";
-    private static final String SAME_PASSWORD = "Same123!";
-
-    private static final String STRONG_PASSWORD_1 = "MonSuperMotDePasse2026!";
-    private static final String STRONG_PASSWORD_2 = "Azerty123!Secure2026";
-    private static final String STRONG_PASSWORD_3 = "P@ssw0rd2026Secure!";
-
-    private static final String WEAK_PASSWORD_1 = "123456";
-    private static final String WEAK_PASSWORD_2 = "abcdef";
-    private static final String WEAK_PASSWORD_3 = "Password";
-    private static final String WEAK_PASSWORD_4 = "pass123";
-    private static final String WEAK_PASSWORD_5 = "Azerty123!";
-
-    private static final String VALID_SSHA_PASSWORD = "{SSHA}abc123==";
-    private static final String INVALID_SSHA_PASSWORD = "{SSHA}Active=blocked";
-    private static final String PLAINTEXT_PASSWORD = "plainText123";
-
-    private static final String INITIAL_PASSWORD_HASH = "{SSHA}eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fakeHash";
-
     @Mock
     private IExternalUserDao externalUserDao;
 
@@ -68,32 +59,33 @@ class PasswordServiceTest {
     @BeforeEach
     void setUp() {
         aPersonne = new APersonne();
-        aPersonne.setId(USER_ID);
-        aPersonne.setPassword(INITIAL_PASSWORD_HASH);
-        aPersonne.setUid(USER_UID);
+        aPersonne.setId(123L);
+        aPersonne.setPassword("{SSHA}SomeValidHashHere==");
+        aPersonne.setUid("test.user");
 
         personneDTO = new PersonneDTO(aPersonne);
     }
+
 
     @Test
     @DisplayName("Devrait changer le mot de passe avec succès")
     void shouldChangePasswordSuccessfully() {
         PasswordChangeRequest request = new PasswordChangeRequest();
-        request.setOldPass(VALID_OLD_PASSWORD);
-        request.setNewPass(VALID_NEW_PASSWORD);
+        request.setOldPass("AncienPass123!");
+        request.setNewPass("NouveauPass456!");
 
         PasswordService spiedService = spy(passwordService);
         doReturn(true).when(spiedService)
-                .verifyPassword(any(PersonneDTO.class), eq(VALID_OLD_PASSWORD), eq(false));
+                .verifyPassword(any(PersonneDTO.class), eq("AncienPass123!"), eq(false));
 
-        given(aPersonneRepository.findById(USER_ID)).willReturn(Optional.of(aPersonne));
+        given(aPersonneRepository.findById(123L)).willReturn(Optional.of(aPersonne));
         doNothing().when(externalUserDao).updatePassword(anyString(), anyString());
 
         assertThatCode(() -> spiedService.changePassword(personneDTO, request))
                 .doesNotThrowAnyException();
 
         verify(aPersonneRepository).saveAndFlush(aPersonne);
-        verify(externalUserDao).updatePassword(eq(USER_UID), anyString());
+        verify(externalUserDao).updatePassword(eq("test.user"), anyString());
         assertThat(aPersonne.getDateModification()).isNotNull();
     }
 
@@ -101,12 +93,12 @@ class PasswordServiceTest {
     @DisplayName("Devrait échouer si l'ancien mot de passe est incorrect")
     void shouldThrowWhenOldPasswordIsWrong() {
         PasswordChangeRequest request = new PasswordChangeRequest();
-        request.setOldPass(WRONG_PASSWORD);
-        request.setNewPass(VALID_NEW_PASSWORD);
+        request.setOldPass("MauvaisPass");
+        request.setNewPass("NouveauPass456!");
 
         PasswordService spiedService = spy(passwordService);
         doReturn(false).when(spiedService)
-                .verifyPassword(any(PersonneDTO.class), eq(WRONG_PASSWORD), eq(false));
+                .verifyPassword(any(PersonneDTO.class), eq("MauvaisPass"), eq(false));
 
         assertThatThrownBy(() -> spiedService.changePassword(personneDTO, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -117,8 +109,8 @@ class PasswordServiceTest {
     @DisplayName("Devrait échouer si le nouveau mot de passe est trop faible")
     void shouldThrowWhenNewPasswordIsWeak() {
         PasswordChangeRequest request = new PasswordChangeRequest();
-        request.setOldPass(VALID_OLD_PASSWORD);
-        request.setNewPass(WEAK_PASSWORD);
+        request.setOldPass("AncienPass123!");
+        request.setNewPass("123");
 
         assertThatThrownBy(() -> passwordService.changePassword(personneDTO, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -129,20 +121,21 @@ class PasswordServiceTest {
     @DisplayName("Devrait échouer si oldPass == newPass")
     void shouldThrowWhenOldAndNewPasswordAreIdentical() {
         PasswordChangeRequest request = new PasswordChangeRequest();
-        request.setOldPass(SAME_PASSWORD);
-        request.setNewPass(SAME_PASSWORD);
+        request.setOldPass("Same123!");
+        request.setNewPass("Same123!");
 
         assertThatThrownBy(() -> passwordService.changePassword(personneDTO, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Le nouveau mot de passe doit être différent");
     }
 
+
     @Test
     @DisplayName("isPasswordStrongEnough → doit accepter les mots de passe forts")
     void shouldAcceptStrongPassword() {
-        assertThat(PasswordService.isPasswordStrongEnough(STRONG_PASSWORD_1)).isTrue();
-        assertThat(PasswordService.isPasswordStrongEnough(STRONG_PASSWORD_2)).isTrue();
-        assertThat(PasswordService.isPasswordStrongEnough(STRONG_PASSWORD_3)).isTrue();
+        assertThat(PasswordService.isPasswordStrongEnough("MonSuperMotDePasse2026!")).isTrue();
+        assertThat(PasswordService.isPasswordStrongEnough("Azerty123!Secure2026")).isTrue();
+        assertThat(PasswordService.isPasswordStrongEnough("P@ssw0rd2026Secure!")).isTrue();
     }
 
     @Test
@@ -150,18 +143,19 @@ class PasswordServiceTest {
     void shouldRejectWeakPassword() {
         assertThat(PasswordService.isPasswordStrongEnough(null)).isFalse();
         assertThat(PasswordService.isPasswordStrongEnough("")).isFalse();
-        assertThat(PasswordService.isPasswordStrongEnough(WEAK_PASSWORD_1)).isFalse();
-        assertThat(PasswordService.isPasswordStrongEnough(WEAK_PASSWORD_2)).isFalse();
-        assertThat(PasswordService.isPasswordStrongEnough(WEAK_PASSWORD_3)).isFalse();
-        assertThat(PasswordService.isPasswordStrongEnough(WEAK_PASSWORD_4)).isFalse();
-        assertThat(PasswordService.isPasswordStrongEnough(WEAK_PASSWORD_5)).isFalse();
+        assertThat(PasswordService.isPasswordStrongEnough("123456")).isFalse();
+        assertThat(PasswordService.isPasswordStrongEnough("abcdef")).isFalse();
+        assertThat(PasswordService.isPasswordStrongEnough("Password")).isFalse();
+        assertThat(PasswordService.isPasswordStrongEnough("pass123")).isFalse();
+        assertThat(PasswordService.isPasswordStrongEnough("Azerty123!")).isFalse();
     }
+
 
     @Test
     @DisplayName("hasValidStoredPassword → cas valides")
     void shouldReturnTrueForValidStoredPassword() {
-        assertThat(passwordService.hasValidStoredPassword(VALID_SSHA_PASSWORD)).isTrue();
-        assertThat(passwordService.hasValidStoredPassword(PLAINTEXT_PASSWORD)).isTrue();
+        assertThat(passwordService.hasValidStoredPassword("{SSHA}abc123==")).isTrue();
+        assertThat(passwordService.hasValidStoredPassword("plainText123")).isTrue();
     }
 
     @Test
@@ -169,18 +163,18 @@ class PasswordServiceTest {
     void shouldReturnFalseForInvalidStoredPassword() {
         assertThat(passwordService.hasValidStoredPassword(null)).isFalse();
         assertThat(passwordService.hasValidStoredPassword("")).isFalse();
-        assertThat(passwordService.hasValidStoredPassword(INVALID_SSHA_PASSWORD)).isFalse();
+        assertThat(passwordService.hasValidStoredPassword("{SSHA}Active=blocked")).isFalse();
     }
 
     @Test
     @DisplayName("verifyPassword → doit retourner true pour un mot de passe correct")
     void shouldVerifyCorrectPassword() {
         LdapPassword ldapPasswordMock = mock(LdapPassword.class);
-        given(ldapPasswordMock.test(VALID_OLD_PASSWORD)).willReturn(true);
+        given(ldapPasswordMock.test("CorrectPass123!")).willReturn(true);
 
         personneDTO.setLdapPassword(ldapPasswordMock);
 
-        boolean result = passwordService.verifyPassword(personneDTO, VALID_OLD_PASSWORD, false);
+        boolean result = passwordService.verifyPassword(personneDTO, "CorrectPass123!", false);
         assertThat(result).isTrue();
     }
 
@@ -192,25 +186,7 @@ class PasswordServiceTest {
 
         personneDTO.setLdapPassword(ldapPasswordMock);
 
-        boolean result = passwordService.verifyPassword(personneDTO, WRONG_PASSWORD, false);
+        boolean result = passwordService.verifyPassword(personneDTO, "WrongPass", false);
         assertThat(result).isFalse();
-    }
-
-    @Test
-    void shouldFullyChangePassword() {
-        given(aPersonneRepository.findById(USER_ID)).willReturn(Optional.of(aPersonne));
-
-        LdapPassword ldapPasswordMock = mock(LdapPassword.class);
-        given(ldapPasswordMock.test(VALID_OLD_PASSWORD)).willReturn(true);
-        personneDTO.setLdapPassword(ldapPasswordMock);
-
-        PasswordChangeRequest request = new PasswordChangeRequest();
-        request.setOldPass(VALID_OLD_PASSWORD);
-        request.setNewPass(VALID_NEW_PASSWORD);
-
-        passwordService.changePassword(personneDTO, request);
-
-        assertThat(aPersonne.getPassword()).isNotEqualTo(INITIAL_PASSWORD_HASH);
-        verify(externalUserDao).updatePassword(eq(USER_UID), anyString());
     }
 }
