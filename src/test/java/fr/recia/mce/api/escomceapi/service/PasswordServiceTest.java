@@ -189,4 +189,65 @@ class PasswordServiceTest {
         boolean result = passwordService.verifyPassword(personneDTO, "WrongPass", false);
         assertThat(result).isFalse();
     }
+
+
+    @Test
+    @DisplayName("Devrait échouer si PasswordChangeRequest est null")
+    void shouldThrowWhenRequestIsNull() {
+        assertThatThrownBy(() -> passwordService.changePassword(personneDTO, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Requête invalide");   // ← updated
+    }
+
+    @Test
+    @DisplayName("Devrait échouer si oldPass est null ou vide")
+    void shouldThrowWhenOldPassIsNullOrEmpty() {
+        PasswordChangeRequest request = new PasswordChangeRequest();
+        request.setOldPass(null);
+        request.setNewPass("NewPass123!");
+
+        assertThatThrownBy(() -> passwordService.changePassword(personneDTO, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Ancien mot de passe requis");
+
+        request.setOldPass("");
+        assertThatThrownBy(() -> passwordService.changePassword(personneDTO, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Ancien mot de passe requis");
+    }
+
+    @Test
+    @DisplayName("Devrait échouer si newPass est null ou vide")
+    void shouldThrowWhenNewPassIsNullOrEmpty() {
+        PasswordChangeRequest request = new PasswordChangeRequest();
+        request.setOldPass("Old123!");
+        request.setNewPass(null);
+
+        assertThatThrownBy(() -> passwordService.changePassword(personneDTO, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Nouveau mot de passe requis");
+
+        request.setNewPass("");
+        assertThatThrownBy(() -> passwordService.changePassword(personneDTO, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Nouveau mot de passe requis");
+    }
+
+    @Test
+    @DisplayName("Devrait échouer si utilisateur introuvable dans le repository")
+    void shouldThrowWhenUserNotFound() {
+        PasswordChangeRequest request = new PasswordChangeRequest();
+        request.setOldPass("AncienPass123!");
+        request.setNewPass("NouveauPass456!Secure2026!");
+
+        PasswordService spiedService = spy(passwordService);
+        doReturn(true).when(spiedService)
+                .verifyPassword(any(PersonneDTO.class), eq("AncienPass123!"), eq(false));
+
+        given(aPersonneRepository.findById(123L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> spiedService.changePassword(personneDTO, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Utilisateur introuvable");
+    }
 }

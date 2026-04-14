@@ -81,9 +81,7 @@ class PersonneRestControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Simule utilisateur connecté
         when(soffitHolder.getSub()).thenReturn(USER);
-
         when(soffitInterceptor.preHandle(any(), any(), any())).thenReturn(true);
     }
 
@@ -98,7 +96,6 @@ class PersonneRestControllerTest {
     @Test
     void shouldChangePasswordSuccessfully() throws Exception {
         PasswordChangeRequest request = buildValidRequest();
-
         doNothing().when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
@@ -158,5 +155,69 @@ class PersonneRestControllerTest {
                 .andExpect(status().isInternalServerError());
 
         verify(userDTOFactory).changePassword(eq(USER), any());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenOldPassMissing() throws Exception {
+        PasswordChangeRequest request = buildValidRequest();
+        request.setOldPass(null);
+
+        mockMvc.perform(post(BASE_URL + USER + "/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(userDTOFactory, never()).changePassword(any(), any());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenNewPassMissing() throws Exception {
+        PasswordChangeRequest request = buildValidRequest();
+        request.setNewPass(null);
+
+        mockMvc.perform(post(BASE_URL + USER + "/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(userDTOFactory, never()).changePassword(any(), any());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenNewPassIsWeak() throws Exception {
+        PasswordChangeRequest request = buildValidRequest();
+        request.setNewPass("123");
+
+        mockMvc.perform(post(BASE_URL + USER + "/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(userDTOFactory, never()).changePassword(any(), any());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUserDoesNotExist() throws Exception {
+        PasswordChangeRequest request = buildValidRequest();
+
+        doThrow(new IllegalArgumentException("Utilisateur introuvable"))
+                .when(userDTOFactory).changePassword(eq(USER), any());
+
+        mockMvc.perform(post(BASE_URL + USER + "/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+
+        verify(userDTOFactory).changePassword(eq(USER), any());
+    }
+
+    @Test
+    void shouldReturnBadRequestForMalformedJson() throws Exception {
+        mockMvc.perform(post(BASE_URL + USER + "/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("invalid json"))
+                .andExpect(status().isBadRequest());
+
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 }

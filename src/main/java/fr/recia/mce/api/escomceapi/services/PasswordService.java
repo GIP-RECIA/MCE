@@ -93,7 +93,6 @@ public class PasswordService {
      * @throws IllegalStateException si l'état du mot de passe stocké est incohérent
      */
     private void validateRequest(PersonneDTO person, PasswordChangeRequest request) {
-
         if (person == null || request == null) {
             throw new IllegalArgumentException("Requête invalide");
         }
@@ -120,6 +119,14 @@ public class PasswordService {
         if (!hasValidStoredPassword(person.getAPersonneBase().getPassword())) {
             throw new IllegalStateException("Ancien mot de passe requis");
         }
+
+        if (!isOldPasswordValid(person, oldPassword)) {
+            throw new IllegalArgumentException("Ancien mot de passe incorrect");
+        }
+
+        APersonne aPersonne = aPersonneRepository.findById(
+                person.getAPersonneBase().getId()
+        ).orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
     }
 
     /**
