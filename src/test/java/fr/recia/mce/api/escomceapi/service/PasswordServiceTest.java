@@ -1,9 +1,10 @@
-package fr.recia.mce.api.escomceapi.services;
+package fr.recia.mce.api.escomceapi.service;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.utils.LdapPassword;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import org.junit.jupiter.api.BeforeEach;
