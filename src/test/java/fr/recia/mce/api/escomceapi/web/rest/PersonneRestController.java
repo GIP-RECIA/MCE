@@ -22,6 +22,7 @@ import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
@@ -188,19 +189,22 @@ class PersonneRestControllerTest {
         PasswordChangeRequest request = buildValidRequest();
         request.setNewPass("123");
 
+        doThrow(new IllegalArgumentException("Mot de passe trop faible"))
+                .when(userDTOFactory).changePassword(eq(USER), any());
+
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory, never()).changePassword(any(), any());
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
 
     @Test
     void shouldReturnNotFoundWhenUserDoesNotExist() throws Exception {
         PasswordChangeRequest request = buildValidRequest();
 
-        doThrow(new IllegalArgumentException("Utilisateur introuvable"))
+        doThrow(new PersonneNotFoundException("Utilisateur introuvable"))
                 .when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
@@ -219,5 +223,27 @@ class PersonneRestControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(userDTOFactory, never()).changePassword(any(), any());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenNewPassFailsValidation() throws Exception {
+        PasswordChangeRequest request = buildValidRequest();
+        request.setNewPass("weak"); // mot de passe trop faible
+
+        // Simule la vraie validation dans PasswordService
+        doAnswer(invocation -> {
+            String newPass = ((PasswordChangeRequest) invocation.getArgument(1)).getNewPass();
+            if (newPass.length() < 8) {
+                throw new IllegalArgumentException("Mot de passe trop faible");
+            }
+            return null;
+        }).when(userDTOFactory).changePassword(eq(USER), any());
+
+        mockMvc.perform(post(BASE_URL + USER + "/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
 }

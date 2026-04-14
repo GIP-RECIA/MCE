@@ -19,6 +19,7 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.utils.LdapPassword;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -58,8 +59,13 @@ public class PasswordService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
+
         String uid = (person != null) ? person.getUid() : "UNKNOWN";
         log.info("Début changement mot de passe uid={}", uid);
+
+        if (person == null) {
+            throw new PersonneNotFoundException("Utilisateur introuvable");
+        }
 
         validateRequest(person, request);
 
@@ -73,14 +79,12 @@ public class PasswordService {
 
         try {
             String hashedPassword = generateHashedPassword(newPassword);
+
             updatePasswordInDatabase(person, hashedPassword);
             updatePasswordInLdap(uid, hashedPassword);
 
-            log.info("Mot de passe changé avec succès uid={}", uid);
-
         } catch (Exception e) {
-            log.error("Erreur changement mot de passe uid={} : {}", uid, e.getMessage(), e);
-            throw new RuntimeException("Erreur lors de la sauvegarde du mot de passe", e);
+            throw new RuntimeException("Erreur technique lors du changement de mot de passe", e);
         }
     }
 
