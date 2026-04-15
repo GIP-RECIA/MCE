@@ -54,7 +54,9 @@ public class SecurityConfiguration {
     private static final String[] TEMPORARY_PERMIT_LIST = {
             "/api/personne/mce/getuser",
             "/api/password/**",
-            "/api/personne/mce/**"
+            "/api/personne/mce/id",
+            "/api/personne/mce/**",
+            "/api/personne/fonction/**"
     };
 
     @Bean

@@ -38,6 +38,25 @@ import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact.SensRel;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import lombok.extern.slf4j.Slf4j;
 
+
+
+
+/**
+ * Service de gestion des relations entre élèves et contacts.
+ *
+ * <p>Ce service agrège les relations issues :
+ * <ul>
+ *   <li>de l'annuaire LDAP </li>
+ *   <li>de la base de données en fallback si LDAP est vide</li>
+ * </ul>
+ *
+ * <p>Il permet notamment :
+ * <ul>
+ *   <li>de récupérer les relations d'un élève vers ses contacts</li>
+ *   <li>de récupérer les élèves liés à un parent/contact</li>
+ *   <li>de récupérer les apprentis d'un maître</li>
+ * </ul>
+ */
 @Service
 @Slf4j
 public class RelationEleveServiceImpl implements IRelationEleveService {
@@ -100,6 +119,15 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
     }
 
+
+
+    /**
+     * Analyse les relations LDAP élève/contact et alimente la map des relations.
+     *
+     * @param eleve UID de l'élève
+     * @param ldapAttr attribut LDAP contenant les relations
+     * @param uid2relation map des relations
+     */
     private void analyse(final String eleve, final String ldapAttr,
             final Map<String, RelationEleveContact> uid2relation) {
 
@@ -141,39 +169,89 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
     }
 
+
+    /**
+     * Retourne toutes les relations d'un élève.
+     * Ordre :
+     *
+     *   LDAP
+     *   base de données si LDAP vide
+     *
+     * @param eleve UID de l'élève
+     * @return collection de relations
+     */
     @Override
     public Collection<RelationEleveContact> allRelationEleves(String eleve) {
 
-        if (eleve == null) {
+        if (eleve == null || eleve.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        log.info("eleve: {}", eleve);
-        log.info("eleveRelation: {}", extUserHelper.getUserEleveRelationAttribute());
 
-        // uid des personnes en relation avec l'eleve => la description de cette
-        // relation
+        log.info("Recherche des relations parents pour l'élève : {}", eleve);
+
+        // LDAP
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
+
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
         String eleveTuteurEntr = extUserHelper.getUserEleveTuteurAttribute();
 
         analyse(eleve, eleveRelation, uid2relation);
         analyseMaitre(eleve, eleveTuteurEntr, "Maitre", false, uid2relation);
 
+        // Remplissage des noms via LDAP
         for (Entry<String, RelationEleveContact> entry : uid2relation.entrySet()) {
             try {
                 IExternalUser u = personneService.retrievePersonLdap(entry.getKey());
-                String displayName = u.getDisplayName();
-
-                RelationEleveContact re = entry.getValue();
-                re.setDisplayNameRelation(displayName);
+                entry.getValue().setDisplayNameRelation(u.getDisplayName());
             } catch (Exception e) {
-                log.error("error allRelationEleves: {}", e);
+                log.debug("Impossible de récupérer le displayName via LDAP pour {}", entry.getKey());
             }
         }
 
-        return uid2relation.values();
+        //BASE DE DONNÉES SI LDAP VIDE
+        if (uid2relation.isEmpty()) {
+            log.info("LDAP vide pour l'élève {}. Tentative de fallback en base de données.", eleve);
+
+            try {
+                List<RelationEleveContact> dbRelations = aPersonneRepository.findAllParentOfEleve(eleve);
+
+                if (dbRelations != null && !dbRelations.isEmpty()) {
+                    log.info("Fallback DB réussi : {} relation(s) trouvée(s) pour l'élève {}",
+                            dbRelations.size(), eleve);
+
+                    // Log détaillé pour voir exactement ce qui est renvoyé
+                    for (RelationEleveContact r : dbRelations) {
+                        log.info("  → Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
+                                r.getUidRelation(),
+                                r.getDisplayNameRelation(),
+                                r.getTypeRelation(),
+                                r.getLienParente());
+                    }
+
+                    return dbRelations;
+                } else {
+                    log.info("Aucune relation trouvée en base non plus pour l'élève {}", eleve);
+                }
+            } catch (Exception e) {
+                log.warn("Erreur lors du fallback DB pour l'élève {} : {}", eleve, e.getMessage(), e);
+            }
+        }
+
+        // Si LDAP a trouvé des relations, on les retourne
+        if (!uid2relation.isEmpty()) {
+            log.info("LDAP a trouvé {} relation(s) pour l'élève {}", uid2relation.size(), eleve);
+        }
+
+        return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();
     }
 
+
+    /**
+     * Retourne tous les élèves associés à un parent.
+     *
+     * @param parent identifiant du parent
+     * @return relations parent → élèves
+     */
     @Override
     public Collection<RelationEleveContact> allEleveEnRelation(Long parent) {
         Collection<PersonneDTO> allEnfant;

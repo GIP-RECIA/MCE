@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,15 +17,16 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import java.util.Date;
 import java.util.List;
+
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
 public class UserDTO {
 
@@ -47,7 +48,12 @@ public class UserDTO {
     private List<RelationEleveContact> apprentis;
 
     public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String userMail, Date bod,
-            String avatar, String etat, List<String> listMenu) {
+                   String avatar, String etat, Boolean mdp, List<String> userPublic, List<String> listMenu,
+                   InfoGeneralDTO fonctionClassesGroupe,
+                   List<RelationEleveContact> parentEleve,
+                   List<RelationEleveContact> relationEleve,
+                   List<RelationEleveContact> apprentis) {
+
         this.id = id;
         this.uid = uid;
         this.userName = userName;
@@ -57,14 +63,70 @@ public class UserDTO {
         this.bod = bod;
         this.avatar = avatar;
         this.etat = etat;
+        this.mdp = mdp;
+        this.userPublic = userPublic;
         this.listMenu = listMenu;
+        this.fonctionClassesGroupe = fonctionClassesGroupe;
+        this.parentEleve = parentEleve;
+        this.relationEleve = relationEleve;
+        this.apprentis = apprentis;
+
+        log.info("UserDTO construit - uid={} | etab={} | menu={}", uid, etab, listMenu);
+
+        log.info("parentEleve (ELEVE → CONTACT) : {} élément(s)",
+                parentEleve != null ? parentEleve.size() : 0);
+        if (parentEleve != null) {
+            for (RelationEleveContact r : parentEleve) {
+                log.info("   → parentEleve : uid={} | nom={} | type={}",
+                        r.getUidRelation(),
+                        r.getDisplayNameRelation(),
+                        r.getTypeRelation());
+            }
+        }
+
+        log.info("relationEleve (CONTACT → ELEVE) : {} élément(s)",
+                relationEleve != null ? relationEleve.size() : 0);
+        if (relationEleve != null) {
+            for (RelationEleveContact r : relationEleve) {
+                log.info("   → relationEleve : uid={} | nom={} | type={}",
+                        r.getUidRelation(),
+                        r.getDisplayNameRelation(),
+                        r.getTypeRelation());
+            }
+        }
+
+        log.info("apprentis : {} élément(s)",
+                apprentis != null ? apprentis.size() : 0);
+        if (apprentis != null) {
+            for (RelationEleveContact r : apprentis) {
+                log.info("   → apprenti : uid={} | nom={} | type={}",
+                        r.getUidRelation(),
+                        r.getDisplayNameRelation(),
+                        r.getTypeRelation());
+            }
+        }
+    }
+
+    public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String userMail, Date bod,
+                   String avatar, String etat, List<String> listMenu) {
+        this(id, uid, userName, identifiant, etab, userMail, bod, avatar, etat,
+                null, null, listMenu, null, null, null, null);
     }
 
     @Override
     public String toString() {
-        return "UserDTO [id=" + id + ", uid=" + uid + ", userName=" + userName + ", identifiant=" + identifiant
-                + ", etab=" + etab + ", userMail=" + userMail + ", bod=" + bod + ", avatar=" + avatar + ", etat=" + etat
-                + ", listMenu=" + listMenu + "]";
+        return "UserDTO{" +
+                "id=" + id +
+                ", uid='" + uid + '\'' +
+                ", userName='" + userName + '\'' +
+                ", identifiant='" + identifiant + '\'' +
+                ", etab='" + etab + '\'' +
+                ", userMail='" + userMail + '\'' +
+                ", etat='" + etat + '\'' +
+                ", mdp=" + mdp +
+                ", parentEleveSize=" + (parentEleve != null ? parentEleve.size() : 0) +
+                ", relationEleveSize=" + (relationEleve != null ? relationEleve.size() : 0) +
+                ", apprentisSize=" + (apprentis != null ? apprentis.size() : 0) +
+                '}';
     }
-
 }

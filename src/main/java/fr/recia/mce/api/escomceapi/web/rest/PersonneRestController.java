@@ -24,7 +24,6 @@ import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
@@ -51,7 +50,7 @@ public class PersonneRestController {
      *
      * @return l'UID de l'utilisateur ou 401 si non authentifié
      */
-    @GetMapping("/id")
+    @GetMapping("/debug-id")
     public ResponseEntity<String> getCurrentUserId() {
         return ResponseEntity.ok(getCurrentUid());
     }
