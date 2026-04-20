@@ -71,6 +71,12 @@
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>jcifs</groupId>
+			<artifactId>jcifs</artifactId>
+			<version>1.3.17</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.ehcache</groupId>
 			<artifactId>ehcache</artifactId>
 			<version>3.8.1</version>
