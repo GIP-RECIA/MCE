@@ -15,9 +15,12 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
@@ -34,11 +37,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.rmi.server.UID;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,6 +70,11 @@ public class PasswordService {
     @Autowired
     private APersonneRepository aPersonneRepository;
 
+    @Autowired
+    private MCEProperties mceProperties;
+
+    @Autowired
+    private ExternalUserHelper externalUserHelper;
 
     // ---------------------------------------------------------------
     // DTO internes
@@ -108,7 +118,6 @@ public class PasswordService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
-
         if (person == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable");
         }
@@ -116,18 +125,24 @@ public class PasswordService {
         String uid = person.getUid();
         log.info("Début changement mot de passe uid={}", uid);
 
+        // Validation de la requête de changement de mot de passe
         validateRequest(person, request);
 
+        // Vérification de l'ancien mot de passe
         if (!verifyPassword(person, request.getOldPass(), false)) {
             throw new IllegalArgumentException("Ancien mot de passe incorrect");
         }
 
-        // TODO : déterminer l'algo selon le profil de la personne
-        Algo algo = Algo.ARGON2;
-
         try {
-            // TODO : vérifier si Samba est requis pour ce groupe
-            PasswordResult result = generatePassword(request.getNewPass(), true, algo);
+            // Choix de l'algo selon les groupes LDAP
+            Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
+            log.info("Algo choisi pour uid={} : {}", uid, algo);
+
+            // Vérification si Samba est requis
+            boolean withSamba = requiresSamba(person);
+            log.info("withSamba pour uid={} : {}", uid, withSamba);
+
+            PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo);
 
             log.info("PASSWORD RESULT uid={} ldapHash={} lm={} nt={}",
                     uid,
@@ -145,7 +160,6 @@ public class PasswordService {
             throw new RuntimeException("Erreur technique", e);
         }
     }
-
 
     // ---------------------------------------------------------------
     // Génération du hash
@@ -204,6 +218,46 @@ public class PasswordService {
         }
     }
 
+    private boolean requiresSSHA(PersonneDTO person) {
+        String regex = mceProperties.getService()
+                .getCustomParams()
+                .getRegexGroupsWithSshaPass();
+
+        log.info("requiresSSHA — regex configurée : '{}'", regex);
+
+        if (regex == null || regex.isBlank()) {
+            log.warn("requiresSSHA — aucune regex configurée, SSHA désactivé");
+            return false;
+        }
+
+        if (person.getExtUser() == null) {
+            log.warn("requiresSSHA — extUser null pour uid={}, SSHA désactivé", person.getUid());
+            return false;
+        }
+
+        Pattern pattern = Pattern.compile(regex);
+        List<String> groups = person.getExtUser()
+                .getAttribute(externalUserHelper.getUserGroupAttribute());
+
+        if (groups == null || groups.isEmpty()) {
+            log.warn("requiresSSHA — aucun groupe LDAP trouvé pour uid={}", person.getUid());
+            return false;
+        }
+
+        log.info("requiresSSHA — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
+
+        boolean matched = false;
+        for (String group : groups) {
+            boolean matches = pattern.matcher(group).matches();
+            log.info("  → groupe='{}' | match={}", group, matches);
+            if (matches) {
+                matched = true;
+            }
+        }
+
+        log.info("requiresSSHA — résultat final pour uid={} : withSSHA={}", person.getUid(), matched);
+        return matched;
+    }
 
     // ---------------------------------------------------------------
     // Samba
@@ -278,6 +332,46 @@ public class PasswordService {
         return p16;
     }
 
+    private boolean requiresSamba(PersonneDTO person) {
+        String regex = mceProperties.getService()
+                .getCustomParams()
+                .getRegexGroupsWithSambaNt();
+
+        log.info("requiresSamba — regex configurée : '{}'", regex);
+
+        if (regex == null || regex.isBlank()) {
+            log.warn("requiresSamba — aucune regex configurée, Samba désactivé");
+            return false;
+        }
+
+        if (person.getExtUser() == null) {
+            log.warn("requiresSamba — extUser null pour uid={}, Samba désactivé", person.getUid());
+            return false;
+        }
+
+        Pattern pattern = Pattern.compile(regex);
+        List<String> groups = person.getExtUser()
+                .getAttribute(externalUserHelper.getUserGroupAttribute());
+
+        if (groups == null || groups.isEmpty()) {
+            log.warn("requiresSamba — aucun groupe LDAP trouvé pour uid={}", person.getUid());
+            return false;
+        }
+
+        log.info("requiresSamba — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
+
+        boolean matched = false;
+        for (String group : groups) {
+            boolean matches = pattern.matcher(group).matches();
+            log.info("  → groupe='{}' | match={}", group, matches);
+            if (matches) {
+                matched = true;
+            }
+        }
+
+        log.info("requiresSamba — résultat final pour uid={} : withSamba={}", person.getUid(), matched);
+        return matched;
+    }
 
     // ---------------------------------------------------------------
     // Parsing
