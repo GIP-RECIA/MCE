@@ -266,15 +266,10 @@ public class PasswordService {
     private String makeLmHash(String password) {
         try {
             byte[] lm = getPreNTLMResponse(password);
-            String hex = Hexdump.toHexString(lm, 0, lm.length * 2).toLowerCase();
-
-            log.debug("LM HASH generated raw={} hex={}", Arrays.toString(lm), hex);
-
-            return hex;
-
+            return Hexdump.toHexString(lm, 0, lm.length * 2).toLowerCase();
         } catch (Exception e) {
             log.error("Erreur calcul LM hash", e);
-            return "aad3b435b51404eeaad3b435b51404ee";
+            throw new IllegalStateException("Impossible de générer le LM hash", e);
         }
     }
 
@@ -362,7 +357,7 @@ public class PasswordService {
 
         boolean matched = false;
         for (String group : groups) {
-            boolean matches = pattern.matcher(group).matches();
+            boolean matches = pattern.matcher(group).find();
             log.info("  → groupe='{}' | match={}", group, matches);
             if (matches) {
                 matched = true;
@@ -417,7 +412,7 @@ public class PasswordService {
 
                     if (digestsalt.length < digestSize) {
                         log.warn("parse() : payload SSHA trop court ({} o) — comparaison refusée", digestsalt.length);
-                        return new ParsedPassword((byte[]) null, (byte[]) null);
+                        return null;
                     }
 
                     byte[] digest = Arrays.copyOf(digestsalt, digestSize);
@@ -465,18 +460,25 @@ public class PasswordService {
         }
 
         String stored = personne.getAPersonneBase().getPassword();
-        log.info("Password - 359 {}", stored);
+
         if (stored == null || stored.isBlank() || stored.startsWith(ACTIVE_PASSWORD)) {
             return false;
         }
 
-        if (allowPlain && !stored.startsWith("{")) {
-            return stored.equals(input);
+        if (!stored.startsWith("{")) {
+            if (allowPlain) {
+                return MessageDigest.isEqual(
+                        stored.getBytes(StandardCharsets.UTF_8),
+                        input.getBytes(StandardCharsets.UTF_8)
+                );
+            }
+            log.warn("Mot de passe stocké en clair refusé");
+            return false;
         }
 
         ParsedPassword parsed = parse(stored);
         if (parsed == null) {
-            log.warn("verifyPassword : impossible de parser le hash stocké");
+            log.error("verifyPassword : hash invalide ou corrompu");
             return false;
         }
 
@@ -506,6 +508,7 @@ public class PasswordService {
     private boolean verifySSHA(byte[] expectedDigest, byte[] salt, String input) {
 
         if (expectedDigest == null || salt == null) {
+            log.error("verifySSHA : digest ou salt null (hash corrompu)");
             return false;
         }
 
@@ -515,19 +518,15 @@ public class PasswordService {
             if (matchSSHA(md, expectedDigest, salt, input.getBytes(StandardCharsets.UTF_8)))
                 return true;
 
-            String v2 = new String(input.getBytes("UTF-8"), "ISO-8859-1");
+            String v2 = new String(input.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);
             if (matchSSHA(md, expectedDigest, salt, v2.getBytes(StandardCharsets.UTF_8)))
                 return true;
 
-
-            String v3 = new String(input.getBytes("ISO-8859-1"), "UTF-8");
+            String v3 = new String(input.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
             return matchSSHA(md, expectedDigest, salt, v3.getBytes(StandardCharsets.UTF_8));
 
-        } catch (UnsupportedEncodingException e) {
-            log.error("verifySSHA : encodage non supporté", e);
-            return false;
-        } catch (NoSuchAlgorithmException e) {
-            log.error("verifySSHA : SHA-1 indisponible", e);
+        } catch (Exception e) {
+            log.error("verifySSHA : erreur", e);
             return false;
         }
     }
@@ -544,7 +543,7 @@ public class PasswordService {
     // Validation
     // ---------------------------------------------------------------
 
-    private void validateRequest(PersonneDTO person, PasswordChangeRequest request) {
+    public void validateRequest(PersonneDTO person, PasswordChangeRequest request) {
 
         if (request == null) {
             throw new IllegalArgumentException("Requête invalide");
@@ -563,14 +562,27 @@ public class PasswordService {
         }
     }
 
+
+    /**
+     * Pour que le test passe, il faut 12 caractéres ansi que 3 différentes types
+     * @param pass
+     * @return
+     */
     public static boolean isPasswordStrongEnough(String pass) {
         if (pass == null) return false;
-        int score = 16;
-        if (pass.matches(".*\\W.*"))        score--;
-        if (pass.matches(".*\\p{Lower}.*")) score--;
-        if (pass.matches(".*\\p{Upper}.*")) score--;
-        if (pass.matches(".*\\d.*"))        score--;
-        return pass.length() >= score;
+
+        boolean hasLower = pass.matches(".*[a-z].*");
+        boolean hasUpper = pass.matches(".*[A-Z].*");
+        boolean hasDigit = pass.matches(".*\\d.*");
+        boolean hasSymbol = pass.matches(".*[^a-zA-Z0-9].*");
+
+        int types = 0;
+        if (hasLower) types++;
+        if (hasUpper) types++;
+        if (hasDigit) types++;
+        if (hasSymbol) types++;
+
+        return pass.length() >= 12 && types >= 3;
     }
 
 
