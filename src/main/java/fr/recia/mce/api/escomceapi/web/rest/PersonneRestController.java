@@ -28,6 +28,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 @Slf4j
@@ -132,7 +133,8 @@ public class PersonneRestController {
     @PostMapping("/{uid}/change-password")
     public ResponseEntity<Void> changePass(
             @PathVariable String uid,
-            @Valid @RequestBody PasswordChangeRequest request) {
+            @Valid @RequestBody PasswordChangeRequest request,
+            HttpServletRequest httpRequest) {
 
         String currentUid = getCurrentUid();
 
@@ -141,8 +143,25 @@ public class PersonneRestController {
             throw new AccessDeniedException("Vous ne pouvez modifier que votre propre mot de passe");
         }
 
-        userDTOFactory.changePassword(uid, request);
+        userDTOFactory.changePassword(uid, request, extractIp(httpRequest));
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Extrait l'IP réelle du client
+     */
+    private String extractIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank()) {
+            return xRealIp.trim();
+        }
+
+        return request.getRemoteAddr();
     }
 
     /**

@@ -24,6 +24,7 @@ import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
+import fr.recia.mce.api.escomceapi.services.log.PasswordAuditLogger;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
@@ -77,6 +78,10 @@ public class PasswordService {
     @Autowired
     private ExternalUserHelper externalUserHelper;
 
+    @Autowired
+    private PasswordAuditLogger auditLogger;
+
+
     // ---------------------------------------------------------------
     // DTO internes
     // ---------------------------------------------------------------
@@ -118,25 +123,37 @@ public class PasswordService {
 
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
+    public void changePassword(PersonneDTO person, PasswordChangeRequest request, String ip) {
+
+        // Vérification immédiate que `person` est bien non null
         if (person == null) {
+            String uid = "unknown";
+            String name = "unknown";
+
+            auditLogger.logFailure(uid, name, "Utilisateur introuvable", ip);
             throw new PersonneNotFoundException("Utilisateur introuvable");
         }
 
-        String uid = person.getUid();
+        String uid = person.getUid() != null ? person.getUid() : "unknown";
+        String name = person.getDisplayName() != null ? person.getDisplayName() : "unknown";
+
+
         log.info("Début changement mot de passe uid={}", uid);
 
         // Validation de la requête de changement de mot de passe
         validateRequest(person, request);
 
-        // Vérification de l'ancien mot de passe
+
         if (!verifyPassword(person, request.getOldPass(), false)) {
+            auditLogger.logFailure(uid, name, "Ancien mot de passe incorrect", ip);
             throw new IllegalArgumentException("Ancien mot de passe incorrect");
         }
 
         try {
             // Choix de l'algo selon les groupes LDAP
-            Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
+//            Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
+
+            Algo algo = Algo.ARGON2 ;
             log.info("Algo choisi pour uid={} : {}", uid, algo);
 
             // Vérification si Samba est requis
@@ -154,12 +171,15 @@ public class PasswordService {
             updatePasswordInDatabase(person, result);
             updatePasswordInLdap(uid, result.ldapHash);
 
+            auditLogger.logSuccess(uid, name, algo.name(), ip, result.ldapHash);
             log.info("Mot de passe changé avec succès pour uid={}", uid);
 
         } catch (WeakPasswordException | IllegalArgumentException | PersonneNotFoundException e) {
+            auditLogger.logFailure(uid, name, e.getMessage(), ip);
             throw e;
         } catch (Exception e) {
             log.error("Erreur changement mot de passe uid={}", uid, e);
+            auditLogger.logFailure(uid, name, "Erreur technique", ip);
             throw new RuntimeException("Erreur technique", e);
         }
     }
