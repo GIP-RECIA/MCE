@@ -22,13 +22,13 @@ import javax.validation.constraints.NotBlank;
 @Data
 public class PasswordChangeRequest {
 
-    @NotBlank
+    @NotBlank(message = "L'ancien mot de passe est requis")
     private String oldPass;
 
-    @NotBlank
+    @NotBlank(message = "Le nouveau mot de passe est requis")
     private String newPass;
 
-    @NotBlank
+    @NotBlank(message = "La confirmation du mot de passe est requise")
     private String confirmPass;
 
 }

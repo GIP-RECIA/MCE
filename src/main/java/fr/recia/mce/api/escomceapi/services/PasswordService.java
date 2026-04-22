@@ -23,6 +23,7 @@ import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
+import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
@@ -155,6 +156,8 @@ public class PasswordService {
 
             log.info("Mot de passe changé avec succès pour uid={}", uid);
 
+        } catch (WeakPasswordException | IllegalArgumentException | PersonneNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Erreur changement mot de passe uid={}", uid, e);
             throw new RuntimeException("Erreur technique", e);
@@ -557,19 +560,26 @@ public class PasswordService {
             throw new IllegalArgumentException("Nouveau mot de passe requis");
         }
 
-        if (!isPasswordStrongEnough(request.getNewPass())) {
-            throw new IllegalArgumentException("Mot de passe trop faible");
+        if (request.getOldPass().equals(request.getNewPass())) {
+            throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'ancien");
         }
+
+        isPasswordStrongEnough(request.getNewPass());
     }
 
-
     /**
-     * Pour que le test passe, il faut 12 caractéres ansi que 3 différentes types
-     * @param pass
-     * @return
+     * Vérifie si le mot de passe est assez fort et lance une exception si ce n'est pas le cas.
+     * @param pass Le mot de passe à valider.
+     * @throws WeakPasswordException Si le mot de passe ne respecte pas les critères de sécurité.
      */
-    public static boolean isPasswordStrongEnough(String pass) {
-        if (pass == null) return false;
+    public static void isPasswordStrongEnough(String pass) {
+        if (pass == null) {
+            throw new WeakPasswordException("Mot de passe requis");
+        }
+
+        if (pass.length() < 12) {
+            throw new WeakPasswordException("Le mot de passe doit contenir au moins 12 caractères");
+        }
 
         boolean hasLower = pass.matches(".*[a-z].*");
         boolean hasUpper = pass.matches(".*[A-Z].*");
@@ -582,7 +592,9 @@ public class PasswordService {
         if (hasDigit) types++;
         if (hasSymbol) types++;
 
-        return pass.length() >= 12 && types >= 3;
+        if (types < 3) {
+            throw new WeakPasswordException("Le mot de passe doit contenir au moins trois types différents de caractères (minuscules, majuscules, chiffres, symboles)");
+        }
     }
 
 

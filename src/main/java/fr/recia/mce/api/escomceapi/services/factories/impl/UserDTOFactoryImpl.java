@@ -25,6 +25,7 @@ import javax.validation.constraints.NotNull;
 
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
+import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -441,14 +442,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
 
-        try {
-            passwordService.changePassword(user, req);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Erreur technique changePassword uid={}", uid, e);
-            throw new RuntimeException("Error during changePassword", e);
-        }
+        passwordService.changePassword(user, req);
     }
 
 }
