@@ -77,9 +77,9 @@ public class PasswordAuditLogger {
 
         String withoutPrefix = ldapHash.replaceAll("^\\{[^}]+\\}", "");
 
-        if (withoutPrefix.length() < 8) return "***";
+        if (withoutPrefix.length() < 16) return "***";
 
-        return withoutPrefix.substring(0, 8) + "***";
+        return withoutPrefix.substring(0, 16) + "***";
     }
 
     /**

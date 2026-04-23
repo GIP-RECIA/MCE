@@ -584,6 +584,11 @@ public class PasswordService {
             throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'ancien");
         }
 
+
+        if (!request.getNewPass().equals(request.getConfirmPass())) {
+            throw new IllegalArgumentException("La confirmation du mot de passe ne correspond pas");
+        }
+
         isPasswordStrongEnough(request.getNewPass());
     }
 
