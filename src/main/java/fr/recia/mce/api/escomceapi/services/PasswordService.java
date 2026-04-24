@@ -179,7 +179,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         throw e;
 
     } catch (Exception e) {
-        log.error("action=CHANGE_PASSWORD | status=FATAL | uid={} | reason=TECHNICAL_ERROR", uid, e);
+        log.error("action=CHANGE_PASSWORD | status=FATAL | uid={} | reason=TECHNICAL_ERROR | error={}",
+                uid, e.getMessage());
         throw new RuntimeException("Erreur technique", e);
     }
 }
@@ -291,7 +292,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             byte[] lm = getPreNTLMResponse(password);
             return Hexdump.toHexString(lm, 0, lm.length * 2).toLowerCase();
         } catch (Exception e) {
-            log.error("Erreur calcul LM hash", e);
+            log.error("Erreur calcul LM hash | error={}", e.getMessage());
             throw new IllegalStateException("Impossible de générer le LM hash", e);
         }
     }
@@ -371,7 +372,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         try {
             pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
-            log.error("action=REQUIRES_SAMBA | status=ERROR | reason=INVALID_REGEX | regex={}", regex, e);
+            log.error("action=REQUIRES_SAMBA | status=ERROR | reason=INVALID_REGEX | regex={} | error={}", regex, e.getMessage());
             return false;
         }
 
@@ -588,7 +589,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             return matchSSHA(md, expectedDigest, salt, v3.getBytes(StandardCharsets.UTF_8));
 
         } catch (Exception e) {
-            log.error("verifySSHA : erreur", e);
+            log.error("verifySSHA : erreur | error={}", e.getMessage());
             return false;
         }
     }
@@ -695,7 +696,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         try {
             externalUserDao.updatePassword(uid, hash);
         } catch (Exception e) {
-            log.error("action=UPDATE_LDAP | status=FATAL | uid={} | reason=LDAP_UPDATE_FAILED", uid, e);
+            log.error("action=UPDATE_LDAP | status=FATAL | uid={} | reason=LDAP_UPDATE_FAILED | error={}",
+                    uid, e.getMessage());
             throw e;
         }
     }

@@ -80,7 +80,7 @@ public class PersonneService {
             cache.putIfAbsent(uid, userLdap);
 
         } catch (Exception e) {
-            log.error("error : {}", e);
+            log.error("error : {}", e.getMessage());
 
         }
         return userLdap;
