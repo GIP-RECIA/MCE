@@ -24,7 +24,6 @@ import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
-import fr.recia.mce.api.escomceapi.services.log.PasswordAuditLogger;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,8 +78,7 @@ class PersonneRestControllerTest {
     private SoffitInterceptor soffitInterceptor;
 
 
-    @MockBean
-    private PasswordAuditLogger  passwordAuditLogger;
+
 
     private static final String BASE_URL = "/api/personne/mce/";
     private static final String USER = "test.user";
@@ -103,14 +101,14 @@ class PersonneRestControllerTest {
     @Test
     void shouldChangePasswordSuccessfully() throws Exception {
         PasswordChangeRequest request = buildValidRequest();
-        doNothing().when(userDTOFactory).changePassword(eq(USER), any(), any());
+        doNothing().when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
 
-        verify(userDTOFactory).changePassword(eq(USER), any(), any());
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
 
     @Test
@@ -122,7 +120,7 @@ class PersonneRestControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
 
-        verify(userDTOFactory, never()).changePassword(any(), any(), any());
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 
     @Test
@@ -136,7 +134,7 @@ class PersonneRestControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
 
-        verify(userDTOFactory, never()).changePassword(any(), any(), any());
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 
     @Test
@@ -146,7 +144,7 @@ class PersonneRestControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory, never()).changePassword(any(), any(), any());
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 
     @Test
@@ -154,14 +152,14 @@ class PersonneRestControllerTest {
         PasswordChangeRequest request = buildValidRequest();
 
         doThrow(new RuntimeException("Erreur LDAP"))
-                .when(userDTOFactory).changePassword(eq(USER), any(), any());
+                .when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isInternalServerError());
 
-        verify(userDTOFactory).changePassword(eq(USER), any(), any());
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
 
     @Test
@@ -174,7 +172,7 @@ class PersonneRestControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory, never()).changePassword(any(), any(), any());
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 
     @Test
@@ -187,7 +185,7 @@ class PersonneRestControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory, never()).changePassword(any(), any(), any());
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 
     @Test
@@ -196,14 +194,14 @@ class PersonneRestControllerTest {
         request.setNewPass("123");
 
         doThrow(new IllegalArgumentException("Mot de passe trop faible"))
-                .when(userDTOFactory).changePassword(eq(USER), any(), any());
+                .when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory).changePassword(eq(USER), any(), any());
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
 
     @Test
@@ -211,14 +209,14 @@ class PersonneRestControllerTest {
         PasswordChangeRequest request = buildValidRequest();
 
         doThrow(new PersonneNotFoundException("Utilisateur introuvable"))
-                .when(userDTOFactory).changePassword(eq(USER), any(), any());
+                .when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
 
-        verify(userDTOFactory).changePassword(eq(USER), any(), any());
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
 
     @Test
@@ -228,7 +226,7 @@ class PersonneRestControllerTest {
                         .content("invalid json"))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory, never()).changePassword(any(), any(), any());
+        verify(userDTOFactory, never()).changePassword(any(), any());
     }
 
     @Test
@@ -243,14 +241,15 @@ class PersonneRestControllerTest {
                 throw new IllegalArgumentException("Mot de passe trop faible");
             }
             return null;
-        }).when(userDTOFactory).changePassword(eq(USER), any(),any());
+        }).when(userDTOFactory).changePassword(eq(USER), any());
 
         mockMvc.perform(post(BASE_URL + USER + "/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(userDTOFactory).changePassword(eq(USER), any(), any());
+        verify(userDTOFactory).changePassword(eq(USER), any());
     }
+
 
 }

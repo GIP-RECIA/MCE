@@ -143,26 +143,11 @@ public class PersonneRestController {
             throw new AccessDeniedException("Vous ne pouvez modifier que votre propre mot de passe");
         }
 
-        userDTOFactory.changePassword(uid, request, extractIp(httpRequest));
+        userDTOFactory.changePassword(uid, request);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Extrait l'IP réelle du client
-     */
-    private String extractIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
 
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isBlank()) {
-            return xRealIp.trim();
-        }
-
-        return request.getRemoteAddr();
-    }
 
     /**
      * Récupère l'UID de l'utilisateur depuis le SoffitHolder (rempli par SoffitInterceptor).

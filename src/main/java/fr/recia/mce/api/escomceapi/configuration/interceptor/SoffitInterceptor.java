@@ -78,7 +78,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
                 soffitHolder.setSub(null);
             } else {
                 soffitHolder.setSub(sub);
-                log.info("User authenticated via Soffit - sub: {}", sub);
+                log.debug("User authenticated via Soffit - sub: {}", sub);
             }
 
             // Vérification expiration (optionnelle, le filtre le fait déjà)
@@ -120,12 +120,12 @@ public boolean preHandle(HttpServletRequest request, HttpServletResponse respons
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> soffit = objectMapper.readValue(payload, new TypeReference<>() {});
 
-        log.info("JWT DEBUG payload = {}", soffit);
+        log.debug("JWT DEBUG payload = {}", soffit);
 
         String sub = (String) soffit.get("sub");
         soffitHolder.setSub(sub);
 
-        log.info("User DEBUG = {}", sub);
+        log.debug("User DEBUG = {}", sub);
 
     } catch (Exception e) {
         log.error("JWT parse error", e);

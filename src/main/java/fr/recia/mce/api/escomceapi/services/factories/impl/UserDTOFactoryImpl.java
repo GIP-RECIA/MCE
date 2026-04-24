@@ -25,8 +25,6 @@ import javax.validation.constraints.NotNull;
 
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
-import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
-import fr.recia.mce.api.escomceapi.services.log.PasswordAuditLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -432,7 +430,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     }
 
     @Override
-    public void changePassword(String uid, PasswordChangeRequest req, String ip) {
+    public void changePassword(String uid, PasswordChangeRequest req) {
 
         if (!isSubOk()) {
             throw new SecurityException("No authorization");
@@ -443,7 +441,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
 
-        passwordService.changePassword(user, req, ip);
+        passwordService.changePassword(user, req);
     }
 
 }

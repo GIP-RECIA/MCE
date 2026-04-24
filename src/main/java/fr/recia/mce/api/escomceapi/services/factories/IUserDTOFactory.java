@@ -40,5 +40,5 @@ public interface IUserDTOFactory {
 
     UserDTO getCurrentUser();
 
-    void changePassword(final String uid, final PasswordChangeRequest req, final String ip);
+    void changePassword(final String uid, final PasswordChangeRequest req);
 }

@@ -24,13 +24,14 @@ import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
-import fr.recia.mce.api.escomceapi.services.log.PasswordAuditLogger;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
 import jcifs.util.MD4;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Service
 @Slf4j
@@ -78,8 +80,6 @@ public class PasswordService {
     @Autowired
     private ExternalUserHelper externalUserHelper;
 
-    @Autowired
-    private PasswordAuditLogger auditLogger;
 
 
     // ---------------------------------------------------------------
@@ -121,69 +121,68 @@ public class PasswordService {
         }
     }
 
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void changePassword(PersonneDTO person, PasswordChangeRequest request, String ip) {
+    if (person == null) {
+        log.error("action=CHANGE_PASSWORD | status=ERROR | reason=PERSON_NULL");
+        throw new PersonneNotFoundException("Utilisateur introuvable");
+    }
 
-        // Vérification immédiate que `person` est bien non null
-        if (person == null) {
-            String uid = "unknown";
-            String name = "unknown";
+    String uid = person.getUid() != null ? person.getUid() : "unknown";
 
-            auditLogger.logFailure(uid, name, "Utilisateur introuvable", ip);
-            throw new PersonneNotFoundException("Utilisateur introuvable");
-        }
-
-        String uid = person.getUid() != null ? person.getUid() : "unknown";
-        String name = person.getDisplayName() != null ? person.getDisplayName() : "unknown";
-
-
-        log.info("Début changement mot de passe uid={}", uid);
-
-        // Validation de la requête de changement de mot de passe
+    try {
         validateRequest(person, request);
 
+    } catch (WeakPasswordException e) {
+        log.warn("action=CHANGE_PASSWORD | status=ERROR | uid={} | reason=WEAK_PASSWORD", uid);
+        throw e;
 
-        if (!verifyPassword(person, request.getOldPass(), false)) {
-            auditLogger.logFailure(uid, name, "Ancien mot de passe incorrect", ip);
+    } catch (IllegalArgumentException e) {
+        log.warn("action=CHANGE_PASSWORD | status=ERROR | uid={} | reason=INVALID_REQUEST", uid);
+        throw e;
+    }
+
+    try {
+        boolean ok = verifyPassword(person, request.getOldPass(), false);
+
+        if (!ok) {
             throw new IllegalArgumentException("Ancien mot de passe incorrect");
         }
 
-        try {
-            // Choix de l'algo selon les groupes LDAP
-//            Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
+    } catch (IllegalArgumentException e) {
+        throw e;
 
-            Algo algo = Algo.ARGON2 ;
-            log.info("Algo choisi pour uid={} : {}", uid, algo);
-
-            // Vérification si Samba est requis
-            boolean withSamba = requiresSamba(person);
-            log.info("withSamba pour uid={} : {}", uid, withSamba);
-
-            PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo);
-
-            log.info("PASSWORD RESULT uid={} ldapHash={} lm={} nt={}",
-                    uid,
-                    result.ldapHash,
-                    result.sambaLm,
-                    result.sambaNt);
-
-            updatePasswordInDatabase(person, result);
-            updatePasswordInLdap(uid, result.ldapHash);
-
-            auditLogger.logSuccess(uid, name, algo.name(), ip, result.ldapHash);
-            log.info("Mot de passe changé avec succès pour uid={}", uid);
-
-        } catch (WeakPasswordException | IllegalArgumentException | PersonneNotFoundException e) {
-            auditLogger.logFailure(uid, name, e.getMessage(), ip);
-            throw e;
-        } catch (Exception e) {
-            log.error("Erreur changement mot de passe uid={}", uid, e);
-            auditLogger.logFailure(uid, name, "Erreur technique", ip);
-            throw new RuntimeException("Erreur technique", e);
-        }
+    } catch (Exception e) {
+        log.error("action=CHANGE_PASSWORD | status=FATAL | uid={} | reason=VERIFY_PASSWORD_EXCEPTION", uid, e);
+        throw new RuntimeException("Erreur technique lors de la vérification", e);
     }
 
+    try {
+
+        // Choix de l'algo selon les groupes LDAP
+//            Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
+        Algo algo = Algo.ARGON2;
+
+        boolean withSamba = requiresSamba(person);
+
+        PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo);
+
+         updatePasswordInDatabase(person, result);
+         updatePasswordInLdap(uid, result.ldapHash);
+
+        log.info("action=CHANGE_PASSWORD | status=SUCCESS | uid={} | algo={} | samba={}",
+                uid, algo, withSamba);
+
+    } catch (WeakPasswordException | IllegalArgumentException e) {
+        log.warn("action=CHANGE_PASSWORD | status=ERROR | uid={} | reason=BUSINESS_ERROR", uid);
+        throw e;
+
+    } catch (Exception e) {
+        log.error("action=CHANGE_PASSWORD | status=FATAL | uid={} | reason=TECHNICAL_ERROR", uid, e);
+        throw new RuntimeException("Erreur technique", e);
+    }
+}
     // ---------------------------------------------------------------
     // Génération du hash
     // ---------------------------------------------------------------
@@ -200,6 +199,7 @@ public class PasswordService {
                 result.ldapHash = PREFIXCODE_ARGON2 + argon2Encoder.encode(password);
                 break;
             default:
+                log.warn("action=GENERATE_PASSWORD | reason=ALGO inconnue | algo = {}" ,algo );
                 throw new IllegalStateException("Algo non supporté : " + algo);
         }
 
@@ -207,7 +207,7 @@ public class PasswordService {
             result.sambaLm = makeLmHash(password);
             result.sambaNt = makeNtHash(password);
 
-            log.info("SAMBA HASH GENERATED lm={} nt={}",
+            log.debug("SAMBA HASH GENERATED lm={} nt={}",
                     result.sambaLm,
                     result.sambaNt);
         }
@@ -246,15 +246,15 @@ public class PasswordService {
                 .getCustomParams()
                 .getRegexGroupsWithSshaPass();
 
-        log.info("requiresSSHA — regex configurée : '{}'", regex);
+        log.debug("requiresSSHA — regex configurée : '{}'", regex);
 
         if (regex == null || regex.isBlank()) {
-            log.warn("requiresSSHA — aucune regex configurée, SSHA désactivé");
+            log.warn("action=REQUIRES_SSHA | status=WARN | reason=NO_REGEX_CONFIGURED | feature=SSHA_DISABLED");
             return false;
         }
 
         if (person.getExtUser() == null) {
-            log.warn("requiresSSHA — extUser null pour uid={}, SSHA désactivé", person.getUid());
+            log.warn("action=REQUIRES_SSHA | status=WARN | reason=EXT_USER_NULL | uid={}", person.getUid());
             return false;
         }
 
@@ -263,22 +263,22 @@ public class PasswordService {
                 .getAttribute(externalUserHelper.getUserGroupAttribute());
 
         if (groups == null || groups.isEmpty()) {
-            log.warn("requiresSSHA — aucun groupe LDAP trouvé pour uid={}", person.getUid());
+            log.warn("action=REQUIRES_SSHA | status=WARN | reason=NO_LDAP_GROUPS | uid={}", person.getUid());
             return false;
         }
 
-        log.info("requiresSSHA — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
+        log.debug("requiresSSHA — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
 
         boolean matched = false;
         for (String group : groups) {
             boolean matches = pattern.matcher(group).matches();
-            log.info("  → groupe='{}' | match={}", group, matches);
+            log.debug("  → groupe='{}' | match={}", group, matches);
             if (matches) {
                 matched = true;
             }
         }
 
-        log.info("requiresSSHA — résultat final pour uid={} : withSSHA={}", person.getUid(), matched);
+        log.debug("requiresSSHA — résultat final pour uid={} : withSSHA={}", person.getUid(), matched);
         return matched;
     }
 
@@ -301,7 +301,7 @@ public class PasswordService {
             byte[] nt = getNTLMResponse(password);
             return Hexdump.toHexString(nt, 0, nt.length * 2).toLowerCase();
         } catch (Exception e) {
-            log.error("Erreur calcul NT hash", e);
+            log.warn("action=GENERATE_NT_HASH | status=ERROR | reason=NULL_RETURNED | uid impact possible");
             return null;
         }
     }
@@ -355,39 +355,46 @@ public class PasswordService {
                 .getCustomParams()
                 .getRegexGroupsWithSambaNt();
 
-        log.info("requiresSamba — regex configurée : '{}'", regex);
+        log.debug("requiresSamba — regex configurée : '{}'", regex);
 
         if (regex == null || regex.isBlank()) {
-            log.warn("requiresSamba — aucune regex configurée, Samba désactivé");
+            log.warn("action=REQUIRES_SAMBA | status=WARN | reason=NO_REGEX_CONFIGURED | feature=SAMBA");
             return false;
         }
 
         if (person.getExtUser() == null) {
-            log.warn("requiresSamba — extUser null pour uid={}, Samba désactivé", person.getUid());
+            log.warn("action=REQUIRES_SAMBA | status=WARN | reason=EXT_USER_NULL | uid={}", person.getUid());
             return false;
         }
 
-        Pattern pattern = Pattern.compile(regex);
+        Pattern pattern;
+        try {
+            pattern = Pattern.compile(regex);
+        } catch (PatternSyntaxException e) {
+            log.error("action=REQUIRES_SAMBA | status=ERROR | reason=INVALID_REGEX | regex={}", regex, e);
+            return false;
+        }
+
         List<String> groups = person.getExtUser()
                 .getAttribute(externalUserHelper.getUserGroupAttribute());
 
         if (groups == null || groups.isEmpty()) {
-            log.warn("requiresSamba — aucun groupe LDAP trouvé pour uid={}", person.getUid());
+            log.warn("action=REQUIRES_SAMBA | status=WARN | reason=NO_LDAP_GROUPS | uid={}", person.getUid());
             return false;
         }
 
-        log.info("requiresSamba — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
+        log.debug("requiresSamba — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
 
         boolean matched = false;
         for (String group : groups) {
             boolean matches = pattern.matcher(group).find();
-            log.info("  → groupe='{}' | match={}", group, matches);
+            log.debug("  → groupe='{}' | match={}", group, matches);
             if (matches) {
                 matched = true;
             }
         }
 
-        log.info("requiresSamba — résultat final pour uid={} : withSamba={}", person.getUid(), matched);
+        log.debug("requiresSamba — résultat final pour uid={} : withSamba={}", person.getUid(), matched);
         return matched;
     }
 
@@ -413,13 +420,14 @@ public class PasswordService {
     private ParsedPassword parse(String codageLdap) {
 
         if (codageLdap == null || codageLdap.isBlank()) {
-            log.error("parse() : hash LDAP vide ou null");
+            log.warn("action=PARSE | status=ERROR | reason=EMPTY_LDAP_HASH");
             return null;
         }
 
         Matcher m = HASH_PATTERN.matcher(codageLdap.trim());
         if (!m.matches()) {
-            log.error("parse() : format invalide — {}", codageLdap);
+            log.warn("action=PARSE | status=ERROR | reason=HASH_REGEX_MISMATCH | input_length={}",
+                    codageLdap != null ? codageLdap.length() : 0);
             return null;
         }
 
@@ -434,7 +442,7 @@ public class PasswordService {
                     int digestSize = md.getDigestLength();
 
                     if (digestsalt.length < digestSize) {
-                        log.warn("parse() : payload SSHA trop court ({} o) — comparaison refusée", digestsalt.length);
+                        log.warn("action=PARSE | status=WARN | reason=SSHA_PAYLOAD_TOO_SHORT | size={}", digestsalt.length);
                         return null;
                     }
 
@@ -445,7 +453,7 @@ public class PasswordService {
                     return new ParsedPassword(digest, salt);
 
                 } catch (NoSuchAlgorithmException e) {
-                    log.error("parse() : SHA-1 indisponible", e);
+                    log.warn("action=PARSE | algo=SHA1 | event=ALGORITHM_NOT_AVAILABLE", e);
                     return null;
                 }
             }
@@ -456,7 +464,7 @@ public class PasswordService {
             }
 
             default:
-                log.error("parse() : algo inconnu — {}", algo);
+                log.warn("action=PARSE | status=ERROR | reason=ALGO INCONNUE — {}", algo);
                 return null;
         }
     }
@@ -478,44 +486,75 @@ public class PasswordService {
      */
     public boolean verifyPassword(PersonneDTO personne, String input, boolean allowPlain) {
 
+
         if (personne == null || input == null || input.isBlank()) {
+            log.warn("action=VERIFY_PASSWORD | status=ERROR | reason=INVALID_INPUT");
             return false;
         }
 
+        String uid = personne.getUid() != null ? personne.getUid() : "unknown";
+
         String stored = personne.getAPersonneBase().getPassword();
 
-        if (stored == null || stored.isBlank() || stored.startsWith(ACTIVE_PASSWORD)) {
+        if (stored == null || stored.isBlank()) {
+            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=NO_PASSWORD_STORED", uid);
+            return false;
+        }
+
+        if (stored.startsWith(ACTIVE_PASSWORD)) {
+            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=ACCOUNT_ACTIVE_NO_PASSWORD", uid);
             return false;
         }
 
         if (!stored.startsWith("{")) {
+
             if (allowPlain) {
-                return MessageDigest.isEqual(
+                boolean match = MessageDigest.isEqual(
                         stored.getBytes(StandardCharsets.UTF_8),
                         input.getBytes(StandardCharsets.UTF_8)
                 );
+
+                if (!match) {
+                    log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=PLAIN_PASSWORD_MISMATCH", uid);
+                }
+
+                return match;
             }
-            log.warn("Mot de passe stocké en clair refusé");
+
+            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=PLAIN_PASSWORD_NOT_ALLOWED", uid);
             return false;
         }
 
         ParsedPassword parsed = parse(stored);
+
         if (parsed == null) {
-            log.error("verifyPassword : hash invalide ou corrompu");
+            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=CORRUPTED_HASH", uid);
             return false;
         }
+
+        boolean match;
 
         switch (parsed.algo) {
 
             case ARGON2:
-                return argon2Encoder.matches(input, parsed.hash);
+                match = argon2Encoder.matches(input, parsed.hash);
+                break;
 
             case SSHA:
-                return verifySSHA(parsed.digest, parsed.salt, input);
+                match = verifySSHA(parsed.digest, parsed.salt, input);
+                break;
 
             default:
+                log.error("action=VERIFY_PASSWORD | status=FATAL | uid={} | reason=UNKNOWN_ALGO | algo={}",
+                        uid, parsed.algo);
                 return false;
         }
+
+        if (!match) {
+            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=PASSWORD_MISMATCH", uid);
+        }
+
+        return match;
     }
 
     /**
@@ -531,7 +570,7 @@ public class PasswordService {
     private boolean verifySSHA(byte[] expectedDigest, byte[] salt, String input) {
 
         if (expectedDigest == null || salt == null) {
-            log.error("verifySSHA : digest ou salt null (hash corrompu)");
+            log.warn("verifySSHA : digest ou salt null (hash corrompu)");
             return false;
         }
 
@@ -629,27 +668,35 @@ public class PasswordService {
 
     private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {
         Long id = person.getAPersonneBase().getId();
-        log.info("updatePasswordInDatabase — id={} lm={} nt={}",
+        log.debug("updatePasswordInDatabase — id={} lm={} nt={}",
                 id, result.sambaLm, result.sambaNt);
 
         APersonne entity = aPersonneRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Utilisateur introuvable en base"));
+                .orElseThrow(() -> {
+                    log.error("action=UPDATE_DB | status=FATAL | id={} | reason=USER_NOT_FOUND_IN_DB", id);
+                    return new IllegalStateException("Utilisateur introuvable en base");
+                });
 
-        log.info("BEFORE SET — sambaLm actuel en base: {}", entity.getSambaLmpassword());
+        log.debug("BEFORE SET — sambaLm actuel en base: {}", entity.getSambaLmpassword());
 
         entity.setPassword(result.ldapHash);
         entity.setSambaLmpassword(result.sambaLm);
         entity.setSambaNtpassword(result.sambaNt);
         entity.setDateModification(new Date());
 
-        log.info("AFTER SET — sambaLm à sauvegarder: {}", entity.getSambaLmpassword());
+        log.debug("AFTER SET — sambaLm à sauvegarder: {}", entity.getSambaLmpassword());
 
         APersonne saved = aPersonneRepository.saveAndFlush(entity);
 
-        log.info("AFTER SAVE — sambaLm sauvegardé: {}", saved.getSambaLmpassword());
+        log.debug("AFTER SAVE — sambaLm sauvegardé: {}", saved.getSambaLmpassword());
     }
 
     private void updatePasswordInLdap(String uid, String hash) {
-        externalUserDao.updatePassword(uid, hash);
+        try {
+            externalUserDao.updatePassword(uid, hash);
+        } catch (Exception e) {
+            log.error("action=UPDATE_LDAP | status=FATAL | uid={} | reason=LDAP_UPDATE_FAILED", uid, e);
+            throw e;
+        }
     }
 }
