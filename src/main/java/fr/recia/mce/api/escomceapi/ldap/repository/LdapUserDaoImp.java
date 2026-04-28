@@ -16,6 +16,10 @@
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
+import fr.recia.mce.api.escomceapi.services.logging.AuditLogger;
+import fr.recia.mce.api.escomceapi.services.logging.Loggers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.ldap.core.ContextMapper;
@@ -36,6 +40,8 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
 import java.util.List;
 
+import static fr.recia.mce.api.escomceapi.services.logging.AuditConstants.*;
+
 @Slf4j
 @Repository
 public class LdapUserDaoImp implements IExternalUserDao {
@@ -45,6 +51,8 @@ public class LdapUserDaoImp implements IExternalUserDao {
 
     @Autowired
     private ExternalUserHelper externalUserHelper;
+
+    private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     @Override
     public IExternalUser getUserByUid(String uid) {
@@ -68,10 +76,10 @@ public class LdapUserDaoImp implements IExternalUserDao {
         try {
             user = ldapTemplate.searchForObject(query, mapper);
         } catch (EmptyResultDataAccessException e) {
-            log.warn("Aucun utilisateur LDAP trouvé pour uid={}", uid);
+            AuditLogger.warn(specialLog, ACTION_GET_USER_BY_ID, STATUS_FAILED, uid, REASON_USER_NOT_FOUND, e.getMessage());
             throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
         } catch (Exception e) {
-            log.error("Erreur LDAP pour uid={} : {}", uid, e.getMessage(), e);
+            AuditLogger.error(specialLog, ACTION_GET_USER_BY_ID, STATUS_DENIED, uid, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP", e);
         }
 
@@ -106,7 +114,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             List<String> dns = ldapTemplate.search(query, dnMapper);
 
             if (dns == null || dns.isEmpty()) {
-                log.error("Aucun utilisateur LDAP trouvé pour uid: {}", uid);
+                AuditLogger.error(specialLog, ACTION_UPDATE_PASSWORD, STATUS_FAILED, uid, REASON_USER_NOT_FOUND, "error= utilisateur LDAP introuvable" );
                 throw new RuntimeException("Utilisateur LDAP introuvable : " + uid);
             }
 
@@ -114,10 +122,10 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("DN résolu pour uid={} : {}", uid, dn);
 
             ldapTemplate.modifyAttributes(dn, mods);
-            log.info("LDAP password updated for uid: {} at DN: {}", uid, dn);
+            log.debug("LDAP password updated for uid: {} at DN: {}", uid, dn);
 
         } catch (Exception e) {
-            log.error("Failed to update LDAP password for uid {}: {}", uid, e.getMessage());
+            AuditLogger.error(specialLog, ACTION_UPDATE_PASSWORD, STATUS_DENIED, uid, e.getMessage(), "error= LDAP password update fail ");
             throw new RuntimeException("LDAP password update failed", e);
         }
     }

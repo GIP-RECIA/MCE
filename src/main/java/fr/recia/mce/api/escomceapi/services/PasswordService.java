@@ -18,12 +18,13 @@ package fr.recia.mce.api.escomceapi.services;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
-import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
+import fr.recia.mce.api.escomceapi.services.logging.AuditLogger;
+import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
@@ -40,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.rmi.server.UID;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -50,6 +50,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
+import static fr.recia.mce.api.escomceapi.services.logging.AuditConstants.*;
 
 @Service
 @Slf4j
@@ -81,6 +83,7 @@ public class PasswordService {
     private ExternalUserHelper externalUserHelper;
 
 
+    private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     // ---------------------------------------------------------------
     // DTO internes
@@ -125,7 +128,7 @@ public class PasswordService {
 public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
 
     if (person == null) {
-        log.error("action=CHANGE_PASSWORD | status=ERROR | reason=PERSON_NULL");
+        AuditLogger.error(specialLog, ACTION_CHANGE_PASSWORD, STATUS_DENIED, null, REASON_PERSON_NULL);
         throw new PersonneNotFoundException("Utilisateur introuvable");
     }
 
@@ -135,11 +138,11 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         validateRequest(person, request);
 
     } catch (WeakPasswordException e) {
-        log.warn("action=CHANGE_PASSWORD | status=ERROR | uid={} | reason=WEAK_PASSWORD", uid);
+        AuditLogger.warn(specialLog, ACTION_CHANGE_PASSWORD, STATUS_DENIED, uid, REASON_WEAK_PASSWORD);
         throw e;
 
     } catch (IllegalArgumentException e) {
-        log.warn("action=CHANGE_PASSWORD | status=ERROR | uid={} | reason=INVALID_REQUEST", uid);
+        AuditLogger.warn(specialLog, ACTION_CHANGE_PASSWORD, STATUS_FAILED, uid, REASON_VERIFY_PASSWORD_ERROR, e.getMessage());
         throw e;
     }
 
@@ -154,7 +157,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         throw e;
 
     } catch (Exception e) {
-        log.error("action=CHANGE_PASSWORD | status=FATAL | uid={} | reason=VERIFY_PASSWORD_EXCEPTION", uid, e);
+        AuditLogger.error(specialLog,ACTION_CHANGE_PASSWORD, STATUS_FAILED, uid, REASON_VERIFY_PASSWORD_ERROR);
         throw new RuntimeException("Erreur technique lors de la vérification", e);
     }
 
@@ -171,16 +174,14 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
          updatePasswordInDatabase(person, result);
          updatePasswordInLdap(uid, result.ldapHash);
 
-        log.info("action=CHANGE_PASSWORD | status=SUCCESS | uid={} | algo={} | samba={}",
-                uid, algo, withSamba);
+        AuditLogger.info(specialLog, ACTION_CHANGE_PASSWORD, STATUS_SUCCESS, uid);
 
     } catch (WeakPasswordException | IllegalArgumentException e) {
-        log.warn("action=CHANGE_PASSWORD | status=ERROR | uid={} | reason=BUSINESS_ERROR", uid);
+        AuditLogger.warn(specialLog,ACTION_CHANGE_PASSWORD, STATUS_FAILED, uid, REASON_BUSINESS_ERROR, null);
         throw e;
 
     } catch (Exception e) {
-        log.error("action=CHANGE_PASSWORD | status=FATAL | uid={} | reason=TECHNICAL_ERROR | error={}",
-                uid, e.getMessage());
+        AuditLogger.error(specialLog,ACTION_CHANGE_PASSWORD, STATUS_ABORTED, uid, REASON_TECHNICAL_ERROR);
         throw new RuntimeException("Erreur technique", e);
     }
 }
@@ -200,7 +201,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                 result.ldapHash = PREFIXCODE_ARGON2 + argon2Encoder.encode(password);
                 break;
             default:
-                log.warn("action=GENERATE_PASSWORD | reason=ALGO inconnue | algo = {}" ,algo );
+                AuditLogger.warn(specialLog, ACTION_GENERATE_PASSWORD, STATUS_FAILED, null, "algo=" + algo);
                 throw new IllegalStateException("Algo non supporté : " + algo);
         }
 
@@ -238,6 +239,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             return PREFIXCODE + new String(Base64.encodeBase64(combined, false), StandardCharsets.UTF_8);
 
         } catch (NoSuchAlgorithmException e) {
+            AuditLogger.error(specialLog, ACTION_GENERATE_PASSWORD, STATUS_ABORTED, null, REASON_UNKNOWN_ALGO, "algo=SHA-1", e);
             throw new RuntimeException("Erreur SSHA", e);
         }
     }
@@ -250,12 +252,12 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         log.debug("requiresSSHA — regex configurée : '{}'", regex);
 
         if (regex == null || regex.isBlank()) {
-            log.warn("action=REQUIRES_SSHA | status=WARN | reason=NO_REGEX_CONFIGURED | feature=SSHA_DISABLED");
+            AuditLogger.warn(specialLog,ACTION_REQUIRES_SSHA, STATUS_FAILED, person.getUid(), REASON_NO_REGEX);
             return false;
         }
 
         if (person.getExtUser() == null) {
-            log.warn("action=REQUIRES_SSHA | status=WARN | reason=EXT_USER_NULL | uid={}", person.getUid());
+            AuditLogger.warn(specialLog,ACTION_REQUIRES_SSHA, STATUS_FAILED, person.getUid(), REASON_EXT_USER_NULL);
             return false;
         }
 
@@ -264,7 +266,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                 .getAttribute(externalUserHelper.getUserGroupAttribute());
 
         if (groups == null || groups.isEmpty()) {
-            log.warn("action=REQUIRES_SSHA | status=WARN | reason=NO_LDAP_GROUPS | uid={}", person.getUid());
+            AuditLogger.warn(specialLog, ACTION_REQUIRES_SSHA, STATUS_FAILED, person.getUid(), REASON_NO_LDAP_GROUPS);
             return false;
         }
 
@@ -292,7 +294,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             byte[] lm = getPreNTLMResponse(password);
             return Hexdump.toHexString(lm, 0, lm.length * 2).toLowerCase();
         } catch (Exception e) {
-            log.error("Erreur calcul LM hash | error={}", e.getMessage());
+            AuditLogger.error(specialLog, ACTION_GENERATE_PASSWORD, STATUS_ABORTED, null, REASON_LM_HASH_FAILED, "error=" + e.getMessage());
             throw new IllegalStateException("Impossible de générer le LM hash", e);
         }
     }
@@ -302,7 +304,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             byte[] nt = getNTLMResponse(password);
             return Hexdump.toHexString(nt, 0, nt.length * 2).toLowerCase();
         } catch (Exception e) {
-            log.warn("action=GENERATE_NT_HASH | status=ERROR | reason=NULL_RETURNED | uid impact possible");
+            AuditLogger.error(specialLog, ACTION_GENERATE_PASSWORD, STATUS_ABORTED, null, REASON_NT_HASH_FAILED, "error=" + e.getMessage());
             return null;
         }
     }
@@ -346,7 +348,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         try {
             md4.digest(p16, 0, 16);
         } catch (Exception e) {
-            log.error("Erreur MD4 (NT hash)", e);
+            AuditLogger.error(specialLog, ACTION_GENERATE_PASSWORD, STATUS_ABORTED, null, REASON_MD4_DIGEST_FAILED, "error=" + e.getMessage());
         }
         return p16;
     }
@@ -359,12 +361,12 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         log.debug("requiresSamba — regex configurée : '{}'", regex);
 
         if (regex == null || regex.isBlank()) {
-            log.warn("action=REQUIRES_SAMBA | status=WARN | reason=NO_REGEX_CONFIGURED | feature=SAMBA");
+            AuditLogger.warn(specialLog, ACTION_REQUIRES_SAMBA, STATUS_FAILED, person.getUid(), REASON_NO_REGEX, "feature=SAMBA");
             return false;
         }
 
         if (person.getExtUser() == null) {
-            log.warn("action=REQUIRES_SAMBA | status=WARN | reason=EXT_USER_NULL | uid={}", person.getUid());
+            AuditLogger.warn(specialLog, ACTION_REQUIRES_SAMBA, STATUS_FAILED, person.getUid(), REASON_EXT_USER_NULL);
             return false;
         }
 
@@ -372,7 +374,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         try {
             pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
-            log.error("action=REQUIRES_SAMBA | status=ERROR | reason=INVALID_REGEX | regex={} | error={}", regex, e.getMessage());
+            AuditLogger.error(specialLog, ACTION_REQUIRES_SAMBA, STATUS_FAILED, person.getUid(), REASON_INVALID_REGEX, e.getMessage());
             return false;
         }
 
@@ -380,7 +382,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                 .getAttribute(externalUserHelper.getUserGroupAttribute());
 
         if (groups == null || groups.isEmpty()) {
-            log.warn("action=REQUIRES_SAMBA | status=WARN | reason=NO_LDAP_GROUPS | uid={}", person.getUid());
+            AuditLogger.warn(specialLog, ACTION_REQUIRES_SAMBA, STATUS_FAILED, person.getUid(), REASON_NO_LDAP_GROUPS);
             return false;
         }
 
@@ -421,14 +423,13 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
     private ParsedPassword parse(String codageLdap) {
 
         if (codageLdap == null || codageLdap.isBlank()) {
-            log.warn("action=PARSE | status=ERROR | reason=EMPTY_LDAP_HASH");
+            AuditLogger.warn(specialLog, ACTION_PARSE, STATUS_FAILED, null, REASON_EMPTY_LDAP_HASH);
             return null;
         }
 
         Matcher m = HASH_PATTERN.matcher(codageLdap.trim());
         if (!m.matches()) {
-            log.warn("action=PARSE | status=ERROR | reason=HASH_REGEX_MISMATCH | input_length={}",
-                    codageLdap != null ? codageLdap.length() : 0);
+            AuditLogger.warn(specialLog, ACTION_PARSE, STATUS_FAILED, null, REASON_HASH_REGEX_MISMATCH, "input_length=" + codageLdap.length());
             return null;
         }
 
@@ -443,7 +444,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                     int digestSize = md.getDigestLength();
 
                     if (digestsalt.length < digestSize) {
-                        log.warn("action=PARSE | status=WARN | reason=SSHA_PAYLOAD_TOO_SHORT | size={}", digestsalt.length);
+                        AuditLogger.warn(specialLog, ACTION_PARSE, STATUS_FAILED, null, REASON_SSHA_PAYLOAD_TOO_SHORT, "size=" + digestsalt.length);
                         return null;
                     }
 
@@ -454,7 +455,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                     return new ParsedPassword(digest, salt);
 
                 } catch (NoSuchAlgorithmException e) {
-                    log.warn("action=PARSE | algo=SHA1 | event=ALGORITHM_NOT_AVAILABLE", e);
+                    AuditLogger.error(specialLog, ACTION_PARSE, STATUS_ABORTED, null, REASON_UNKNOWN_ALGO, "algo=SHA1 | error=" + e.getMessage());
                     return null;
                 }
             }
@@ -465,7 +466,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             }
 
             default:
-                log.warn("action=PARSE | status=ERROR | reason=ALGO INCONNUE — {}", algo);
+                AuditLogger.error(specialLog, ACTION_PARSE, STATUS_ABORTED, null, REASON_UNKNOWN_ALGO, "algo=" + algo);
                 return null;
         }
     }
@@ -487,9 +488,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
      */
     public boolean verifyPassword(PersonneDTO personne, String input, boolean allowPlain) {
 
-
         if (personne == null || input == null || input.isBlank()) {
-            log.warn("action=VERIFY_PASSWORD | status=ERROR | reason=INVALID_INPUT");
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, null, REASON_INVALID_INPUT);
             return false;
         }
 
@@ -498,12 +498,12 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         String stored = personne.getAPersonneBase().getPassword();
 
         if (stored == null || stored.isBlank()) {
-            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=NO_PASSWORD_STORED", uid);
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, uid, REASON_NO_PASSWORD_STORED);
             return false;
         }
 
         if (stored.startsWith(ACTIVE_PASSWORD)) {
-            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=ACCOUNT_ACTIVE_NO_PASSWORD", uid);
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, uid, REASON_ACCOUNT_ACTIVE_NO_PASSWORD);
             return false;
         }
 
@@ -516,20 +516,20 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                 );
 
                 if (!match) {
-                    log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=PLAIN_PASSWORD_MISMATCH", uid);
+                    AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, uid, REASON_PLAIN_MISMATCH);
                 }
 
                 return match;
             }
 
-            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=PLAIN_PASSWORD_NOT_ALLOWED", uid);
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, uid, REASON_PLAIN_NOT_ALLOWED);
             return false;
         }
 
         ParsedPassword parsed = parse(stored);
 
         if (parsed == null) {
-            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=CORRUPTED_HASH", uid);
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, uid, REASON_CORRUPTED_HASH);
             return false;
         }
 
@@ -546,13 +546,12 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
                 break;
 
             default:
-                log.error("action=VERIFY_PASSWORD | status=FATAL | uid={} | reason=UNKNOWN_ALGO | algo={}",
-                        uid, parsed.algo);
+                AuditLogger.error(specialLog, ACTION_VERIFY_PASSWORD, STATUS_ABORTED, uid, REASON_UNKNOWN_ALGO, "algo=" + parsed.algo);
                 return false;
         }
 
         if (!match) {
-            log.warn("action=VERIFY_PASSWORD | status=ERROR | uid={} | reason=PASSWORD_MISMATCH", uid);
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, uid, REASON_PASSWORD_MISMATCH);
         }
 
         return match;
@@ -571,7 +570,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
     private boolean verifySSHA(byte[] expectedDigest, byte[] salt, String input) {
 
         if (expectedDigest == null || salt == null) {
-            log.warn("verifySSHA : digest ou salt null (hash corrompu)");
+            AuditLogger.warn(specialLog, ACTION_VERIFY_PASSWORD, STATUS_DENIED, null, REASON_CORRUPTED_HASH, "detail=digest_or_salt_null");
             return false;
         }
 
@@ -589,7 +588,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
             return matchSSHA(md, expectedDigest, salt, v3.getBytes(StandardCharsets.UTF_8));
 
         } catch (Exception e) {
-            log.error("verifySSHA : erreur | error={}", e.getMessage());
+            AuditLogger.error(specialLog, ACTION_VERIFY_PASSWORD, STATUS_ABORTED, null, REASON_TECHNICAL_ERROR, "detail=verifySSHA | error=" + e.getMessage());
             return false;
         }
     }
@@ -669,12 +668,11 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
 
     private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {
         Long id = person.getAPersonneBase().getId();
-        log.debug("updatePasswordInDatabase — id={} lm={} nt={}",
-                id, result.sambaLm, result.sambaNt);
+        log.debug("updatePasswordInDatabase — id={} lm={} nt={}", id, result.sambaLm, result.sambaNt);
 
         APersonne entity = aPersonneRepository.findById(id)
                 .orElseThrow(() -> {
-                    log.error("action=UPDATE_DB | status=FATAL | id={} | reason=USER_NOT_FOUND_IN_DB", id);
+                    AuditLogger.error(specialLog, ACTION_UPDATE_DB, STATUS_ABORTED, null, REASON_USER_NOT_FOUND, "id=" + id);
                     return new IllegalStateException("Utilisateur introuvable en base");
                 });
 
@@ -696,8 +694,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
         try {
             externalUserDao.updatePassword(uid, hash);
         } catch (Exception e) {
-            log.error("action=UPDATE_LDAP | status=FATAL | uid={} | reason=LDAP_UPDATE_FAILED | error={}",
-                    uid, e.getMessage());
+            AuditLogger.error(specialLog, ACTION_UPDATE_LDAP, STATUS_ABORTED, uid, REASON_LDAP_UPDATE_FAILED, "error=" + e.getMessage());
             throw e;
         }
     }
