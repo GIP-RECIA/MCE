@@ -131,7 +131,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             try {
                 EnumPublic ep = evalPublic(model);
-                log.info("ep user connecté : {}", ep.name());
+                log.debug("ep user connecté : {}", ep.name());
             } catch (Exception e) {
                 log.error("error.EnumPublic {} : ", e);
             }
@@ -384,7 +384,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public InfoGeneralDTO showGeneralInfo() {
 
         if (personneDTO == null) {
-            log.debug("user is null");
+            log.warn("user is null");
             return null;
         }
 
@@ -393,12 +393,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         List<FonctionDTO> listFonctions;
 
         Long id = personneDTO.getAPersonneBase().getId();
-        log.info("id user: {}", id);
+        log.debug("id user: {}", id);
 
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
 
         listFonctions = new ArrayList<>(fonctions);
-        log.info("listFonctions : {}", listFonctions);
+        log.debug("listFonctions : {}", listFonctions);
 
         ClasseGroupeDTO classes = classeGroupeService.calculCG(personneDTO.getExtUser());
 
@@ -424,7 +424,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         final UserDTO user = from(soffitHolder.getSub());
 
         if (user == null)
-            log.info("No user found with sub: {}", soffitHolder.getSub());
+            log.warn("No user found with sub: {}", soffitHolder.getSub());
 
         return user;
     }

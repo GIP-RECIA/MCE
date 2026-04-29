@@ -101,11 +101,11 @@ public class StructureDTO extends Structure {
                 }
             } else {
 
-                log.info("SOURCE_STRUCT_NO_DOM");
+                log.warn("SOURCE_STRUCT_NO_DOM");
             }
 
         } else {
-            log.info("SOURCE_STRUCT_NULL");
+            log.warn("SOURCE_STRUCT_NULL");
 
         }
         return null;

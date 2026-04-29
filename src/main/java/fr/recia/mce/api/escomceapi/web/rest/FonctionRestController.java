@@ -40,7 +40,7 @@ public class FonctionRestController {
     @GetMapping("/fonction/{id}")
     public ResponseEntity<Collection<FonctionDTO>> getFonctionsOfPerson(@PathVariable Long id) {
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
-        log.info("fonctions of person: {}", fonctions);
+        log.debug("fonctions of person: {}", fonctions);
         return new ResponseEntity<>(fonctions, HttpStatus.OK);
 
     }

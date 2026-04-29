@@ -91,7 +91,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
         if (listAttrs == null) {
-            log.debug("analyse : ldapValues is null for eleve {}", personne.getId());
+            log.warn("analyse : ldapValues is null for eleve {}", personne.getId());
         } else {
             for (String val : listAttrs) {
                 if (val != null) {
@@ -136,25 +136,25 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
         if (listAttrs == null) {
-            log.debug("analyse : ladpValues is null for eleve" + personne.getId());
+            log.warn("analyse : ldapValues is null for eleve" + personne.getId());
         } else {
             for (String val : listAttrs) {
 
                 if (val != null) {
                     Matcher m = patternRelation.matcher(val);
                     if (!m.matches()) {
-                        log.info("no match : " + patternRelation.pattern());
+                        log.debug("no match : " + patternRelation.pattern());
                     } else {
                         String uid = m.group(grpUid);
                         RelationEleveContact re = uid2relation.get(uid);
-                        log.info("re : {}", re);
+                        log.debug("re : {}", re);
 
                         if (re == null) {
                             re = new RelationEleveContact(SensRel.ELEVE2CONTACT);
                             // re.setEleve(eleve);
                             re.setUidRelation(uid);
                             uid2relation.put(uid, re);
-                            log.info("count");
+                            log.debug("count");
                         }
                         re.setAutoriteParental(true);
                         String code = m.group(grpTypRel);
@@ -165,7 +165,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 }
             }
         }
-        log.info("ldapValues : {}", uid2relation);
+        log.debug("ldapValues : {}", uid2relation);
 
     }
 
@@ -187,7 +187,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
             return Collections.emptyList();
         }
 
-        log.info("Recherche des relations parents pour l'élève : {}", eleve);
+        log.debug("Recherche des relations parents pour l'élève : {}", eleve);
 
         // LDAP
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
@@ -204,13 +204,13 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 IExternalUser u = personneService.retrievePersonLdap(entry.getKey());
                 entry.getValue().setDisplayNameRelation(u.getDisplayName());
             } catch (Exception e) {
-                log.debug("Impossible de récupérer le displayName via LDAP pour {}", entry.getKey());
+                log.warn("Impossible de récupérer le displayName via LDAP pour {}", entry.getKey());
             }
         }
 
         //BASE DE DONNÉES SI LDAP VIDE
         if (uid2relation.isEmpty()) {
-            log.info("LDAP vide pour l'élève {}. Tentative de fallback en base de données.", eleve);
+            log.warn("LDAP vide pour l'élève {}. Tentative de fallback en base de données.", eleve);
 
             try {
                 List<RelationEleveContact> dbRelations = aPersonneRepository.findAllParentOfEleve(eleve);
@@ -221,7 +221,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
                     // Log détaillé pour voir exactement ce qui est renvoyé
                     for (RelationEleveContact r : dbRelations) {
-                        log.info("  → Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
+                        log.debug("  → Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
                                 r.getUidRelation(),
                                 r.getDisplayNameRelation(),
                                 r.getTypeRelation(),
@@ -230,16 +230,16 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
                     return dbRelations;
                 } else {
-                    log.info("Aucune relation trouvée en base non plus pour l'élève {}", eleve);
+                    log.warn("Aucune relation trouvée en base non plus pour l'élève {}", eleve);
                 }
             } catch (Exception e) {
-                log.warn("Erreur lors du fallback DB pour l'élève {} : {}", eleve, e.getMessage(), e);
+                log.error("Erreur lors du fallback DB pour l'élève {} : {}", eleve, e.getMessage(), e);
             }
         }
 
         // Si LDAP a trouvé des relations, on les retourne
         if (!uid2relation.isEmpty()) {
-            log.info("LDAP a trouvé {} relation(s) pour l'élève {}", uid2relation.size(), eleve);
+            log.debug("LDAP a trouvé {} relation(s) pour l'élève {}", uid2relation.size(), eleve);
         }
 
         return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();
@@ -284,7 +284,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 }
             }
         } catch (Exception e) {
-            log.warn("cannot load enfant : " + parent, e);
+            log.error("cannot load enfant : " + parent, e);
         }
 
         return uidEleve2relation.values();

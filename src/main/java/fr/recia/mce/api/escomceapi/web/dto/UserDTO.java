@@ -71,35 +71,35 @@ public class UserDTO {
         this.relationEleve = relationEleve;
         this.apprentis = apprentis;
 
-        log.info("UserDTO construit - uid={} | etab={} | menu={}", uid, etab, listMenu);
+        log.debug("UserDTO construit - uid={} | etab={} | menu={}", uid, etab, listMenu);
 
-        log.info("parentEleve (ELEVE → CONTACT) : {} élément(s)",
+        log.debug("parentEleve (ELEVE → CONTACT) : {} élément(s)",
                 parentEleve != null ? parentEleve.size() : 0);
         if (parentEleve != null) {
             for (RelationEleveContact r : parentEleve) {
-                log.info("   → parentEleve : uid={} | nom={} | type={}",
+                log.debug("   → parentEleve : uid={} | nom={} | type={}",
                         r.getUidRelation(),
                         r.getDisplayNameRelation(),
                         r.getTypeRelation());
             }
         }
 
-        log.info("relationEleve (CONTACT → ELEVE) : {} élément(s)",
+        log.debug("relationEleve (CONTACT → ELEVE) : {} élément(s)",
                 relationEleve != null ? relationEleve.size() : 0);
         if (relationEleve != null) {
             for (RelationEleveContact r : relationEleve) {
-                log.info("   → relationEleve : uid={} | nom={} | type={}",
+                log.debug("   → relationEleve : uid={} | nom={} | type={}",
                         r.getUidRelation(),
                         r.getDisplayNameRelation(),
                         r.getTypeRelation());
             }
         }
 
-        log.info("apprentis : {} élément(s)",
+        log.debug("apprentis : {} élément(s)",
                 apprentis != null ? apprentis.size() : 0);
         if (apprentis != null) {
             for (RelationEleveContact r : apprentis) {
-                log.info("   → apprenti : uid={} | nom={} | type={}",
+                log.debug("   → apprenti : uid={} | nom={} | type={}",
                         r.getUidRelation(),
                         r.getDisplayNameRelation(),
                         r.getTypeRelation());

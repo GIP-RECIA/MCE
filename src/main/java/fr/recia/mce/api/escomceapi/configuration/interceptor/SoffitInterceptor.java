@@ -78,7 +78,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
                 soffitHolder.setSub(null);
             } else {
                 soffitHolder.setSub(sub);
-                log.debug("User authenticated via Soffit - sub: {}", sub);
+                log.info("User authenticated via Soffit - sub: {}", sub);
             }
 
             // Vérification expiration (optionnelle, le filtre le fait déjà)

@@ -36,7 +36,7 @@ public class FonctionService {
     private IStructureService structureService;
 
     public Collection<FonctionDTO> getAllFonctionOfPersonne(Long id) {
-        log.info("person_id: {}", id);
+        log.debug("person_id: {}", id);
         Collection<FonctionDTO> foncts = fonctionRepository.findAllFonction(id);
 
         for (FonctionDTO f : foncts) {

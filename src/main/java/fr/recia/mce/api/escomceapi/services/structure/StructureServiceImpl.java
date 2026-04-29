@@ -90,22 +90,22 @@ public class StructureServiceImpl implements IStructureService {
     public IExternalStructure findStructureBySiren(String siren) {
 
         if (isStructureLoaded()) {
-            log.info("structures exists : {}", siren);
+            log.debug("structures exists : {}", siren);
 
             return siren2structure.get(siren);
         }
-        log.info("struct null");
+        log.warn("struct null");
         return null;
     }
 
     @Override
     public IExternalStructure findStructureByUai(String uai) {
         if (isStructureLoaded()) {
-            log.info("structures with uai exists : {}", uai);
+            log.debug("structures with uai exists : {}", uai);
 
             return uai2structure.get(uai);
         }
-        log.info("struct null");
+        log.warn("struct null");
         return null;
     }
 
@@ -142,14 +142,14 @@ public class StructureServiceImpl implements IStructureService {
         // }
 
         if (domaineEtabRecia.isEmpty()) {
-            log.info("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
+            log.warn("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
             return false;
         }
 
         if (!domPerson.isEmpty() && !uais.isEmpty()) {
             if (setDomaineEtabRecia.isEmpty()) {
                 for (String domaine : domaineEtabRecia.split(" ")) {
-                    log.info("domaineRecia : {}", domaine);
+                    log.debug("domaineRecia : {}", domaine);
 
                     setDomaineEtabRecia.add(domaine);
                 }
@@ -178,7 +178,7 @@ public class StructureServiceImpl implements IStructureService {
         }
 
         if (domaineEtabRecia == null) {
-            log.info("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
+            log.warn("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
             return false;
         }
         if (setDomaineEtabRecia.isEmpty()) {

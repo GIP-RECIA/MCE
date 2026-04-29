@@ -134,7 +134,7 @@ public class PersonneDTO extends Personne {
         if (mail == null) {
             if (aPersonneBase.getCategorie().equals("Eleve")) {
                 // add a condition only if its a student, isEleve()
-                log.info("mailfixe is null, then retrieve it from ldap");
+                log.warn("mailfixe is null, then retrieve it from ldap");
                 mail = getMailFromLdap();
             }
         }

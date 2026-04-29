@@ -50,7 +50,7 @@ public class PersonneService {
 
     @Cacheable(cacheNames = "personneDBCache", key = "#uid")
     public PersonneDTO getUserByUid(String uid) {
-        log.info("Calcul personneDB pour uid: {}", uid);
+        log.debug("Calcul personneDB pour uid: {}", uid);
 
         PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
 
@@ -58,7 +58,7 @@ public class PersonneService {
             loadLdapUser(personne, uid);
         }
 
-        log.info("getPersonne : {}", personne);
+        log.debug("getPersonne : {}", personne);
         return personne;
     }
 
@@ -70,12 +70,12 @@ public class PersonneService {
 
         IExternalUser getUser = cache.get(uid, IExternalUser.class);
         if (!Objects.isNull(getUser)) {
-            log.info("Loading personneLDAP cache for user {}...", uid);
+            log.debug("Loading personneLDAP cache for user {}...", uid);
             return getUser;
         }
 
         try {
-            log.info("Calcul personLDAP");
+            log.debug("Calcul personLDAP");
             userLdap = getExtDao().getUserByUid(uid);
             cache.putIfAbsent(uid, userLdap);
 
@@ -97,7 +97,7 @@ public class PersonneService {
     }
 
     public IExternalUser retrievePersonLdap(String uid) {
-        log.info("retrievePersonLdap: {}", uid);
+        log.debug("retrievePersonLdap: {}", uid);
         return getUserLdap(uid);
 
     }

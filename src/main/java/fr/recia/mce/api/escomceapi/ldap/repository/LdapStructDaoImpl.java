@@ -65,9 +65,9 @@ public class LdapStructDaoImpl implements IExternalStructDao {
             structs = ldapTemplate.search(query, mapper);
         } catch (Exception e) {
             structs = null;
-            log.info("error structs null : {}", e);
+            log.error("error structs null : {}", e);
         }
-        log.info("{} structures found.", structs.size());
+        log.debug("{} structures found.", structs.size());
 
         return structs;
     }

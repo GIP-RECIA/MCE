@@ -122,7 +122,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("DN résolu pour uid={} : {}", uid, dn);
 
             ldapTemplate.modifyAttributes(dn, mods);
-            log.debug("LDAP password updated for uid: {} at DN: {}", uid, dn);
+            log.info("LDAP password updated for uid: {} at DN: {}", uid, dn);
 
         } catch (Exception e) {
             AuditLogger.error(specialLog, ACTION_UPDATE_PASSWORD, STATUS_DENIED, uid, e.getMessage(), "error= LDAP password update fail ");

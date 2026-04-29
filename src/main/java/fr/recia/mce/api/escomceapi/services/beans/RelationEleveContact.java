@@ -84,7 +84,7 @@ public class RelationEleveContact {
             this.eleve = new PersonneDTO(enfant);
         }
 
-        log.info("RelationEleveContact créée via DB → ParentUid={} | ParentNom={} | EnfantUid={} | Type={} | Lien={}",
+        log.debug("RelationEleveContact créée via DB → ParentUid={} | ParentNom={} | EnfantUid={} | Type={} | Lien={}",
                 this.uidRelation,
                 this.displayNameRelation,
                 (enfant != null ? enfant.getUid() : "null"),
