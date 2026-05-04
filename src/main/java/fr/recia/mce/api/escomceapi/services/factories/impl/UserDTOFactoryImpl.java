@@ -53,7 +53,7 @@ import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
-import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
+import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -430,7 +430,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     }
 
     @Override
-    public void changePassword(String uid, PasswordChangeRequest req) {
+    public void changePassword(String uid, PasswordChangeRequestDTO req) {
 
         if (!isSubOk()) {
             throw new SecurityException("No authorization");

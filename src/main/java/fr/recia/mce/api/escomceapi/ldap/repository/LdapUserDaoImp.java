@@ -127,4 +127,44 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
+    @Override
+    public void updateEmail(String uid, String newEmail) {
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .base(externalUserHelper.getUserDNSubPath())
+                .filter(filter);
+
+        ModificationItem[] mods = new ModificationItem[]{
+                new ModificationItem(
+                        DirContext.REPLACE_ATTRIBUTE,
+                        new BasicAttribute(externalUserHelper.getUserEmailAttribute(), newEmail))
+        };
+
+        ContextMapper<String> dnMapper = ctx -> {
+            DirContextAdapter adapter = (DirContextAdapter) ctx;
+            return adapter.getDn().toString();
+        };
+
+        try {
+            List<String> dns = ldapTemplate.search(query, dnMapper);
+
+            if (dns == null || dns.isEmpty()) {
+                specialLog.error("Audit [UPDATE_EMAIL]: FAILED for user [{}] - Reason: User not found in LDAP directory during update attempt", uid);
+                throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
+            }
+
+            String dn = dns.get(0);
+            log.debug("DN résolu pour uid={} : {}", uid, dn);
+
+            ldapTemplate.modifyAttributes(dn, mods);
+            log.info("LDAP email updated for uid: {} at DN: {} with new email: {}", uid, dn, newEmail);
+
+        } catch (Exception e) {
+            specialLog.error("Audit [UPDATE_EMAIL]: DENIED for user [{}] - Reason: LDAP attribute modification failed | Detail: {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP email update failed", e);
+        }
+    }
+
 }

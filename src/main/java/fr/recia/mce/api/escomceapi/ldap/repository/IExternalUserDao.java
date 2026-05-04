@@ -21,4 +21,5 @@ public interface IExternalUserDao {
 
     IExternalUser getUserByUid(final String uid);
     void updatePassword(final String uid, final String newHashedPassword);
+    void updateEmail(final String uid, final String newEmail);
 }

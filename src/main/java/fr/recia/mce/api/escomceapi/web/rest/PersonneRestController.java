@@ -21,7 +21,9 @@ import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
-import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
+import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
+
+import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -133,7 +135,7 @@ public class PersonneRestController {
     @PostMapping("/{uid}/change-password")
     public ResponseEntity<Void> changePass(
             @PathVariable String uid,
-            @Valid @RequestBody PasswordChangeRequest request,
+            @Valid @RequestBody PasswordChangeRequestDTO request,
             HttpServletRequest httpRequest) {
 
         String currentUid = getCurrentUid();
@@ -147,6 +149,32 @@ public class PersonneRestController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Met à jour l'adresse email de l'utilisateur connecté.
+     *
+     * @param uid     UID de l'utilisateur
+     * @param request objet contenant le nouvel email
+     */
+    @PutMapping("/{uid}/update-email")
+    public ResponseEntity<Void> updateEmail(
+            @PathVariable String uid,
+            @Valid @RequestBody EmailUpdateRequestDTO request) {
+
+        String currentUid = getCurrentUid();
+
+        if (!currentUid.equals(uid)) {
+            log.warn("Tentative de mise à jour d'email non autorisée pour uid={}", uid);
+            throw new AccessDeniedException("Vous ne pouvez modifier que votre propre email");
+        }
+
+        if (!request.getEmail().equals(request.getConfirmEmail())) {
+            log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
+            return ResponseEntity.badRequest().build();
+        }
+
+        personneService.updateEmail(uid, request.getEmail());
+        return ResponseEntity.noContent().build();
+    }
 
 
     /**

@@ -250,7 +250,7 @@ public class PersonneDTO extends Personne {
      *
      * @return apersonne
      */
-    APersonne getApersonne() {
+    public APersonne getApersonne() {
         return aPersonneBase;
     }
 

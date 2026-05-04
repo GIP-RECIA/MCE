@@ -26,7 +26,7 @@ import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
-import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequest;
+import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
 import jcifs.util.MD4;
@@ -127,7 +127,7 @@ public class PasswordService {
     }
 
 @Transactional(propagation = Propagation.REQUIRES_NEW)
-public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
+public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request) {
 
     if (person == null) {
         specialLog.error("Audit [CHANGE_PASSWORD]: DENIED - Reason: Person object is null (method: changePassword)");
@@ -177,7 +177,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
 
         // Vérifier que le nouveau mot de passe n'a pas déjà été utilisé
         if (isPasswordAlreadyUsed(person, request.getNewPass())) {
-            throw new WeakPasswordException("Ce mot de passe a déjà été utilisé récemment");
+            throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
         }
 
 
@@ -623,7 +623,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequest request) {
     // Validation
     // ---------------------------------------------------------------
 
-    public void validateRequest(PersonneDTO person, PasswordChangeRequest request) {
+    public void validateRequest(PersonneDTO person, PasswordChangeRequestDTO request) {
 
         if (request == null) {
             throw new IllegalArgumentException("Requête invalide");

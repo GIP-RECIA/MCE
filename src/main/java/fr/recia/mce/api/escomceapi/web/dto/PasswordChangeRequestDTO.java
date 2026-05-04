@@ -20,7 +20,7 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 
 @Data
-public class PasswordChangeRequest {
+public class PasswordChangeRequestDTO {
 
     @NotBlank(message = "L'ancien mot de passe est requis")
     private String oldPass;
