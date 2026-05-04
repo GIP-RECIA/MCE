@@ -63,11 +63,15 @@ public class LdapStructDaoImpl implements IExternalStructDao {
         List<IExternalStructure> structs;
         try {
             structs = ldapTemplate.search(query, mapper);
+            if (structs != null) {
+                log.debug("LDAP search successful: {} structures found using filter [{}]", structs.size(), filter);
+            } else {
+                log.warn("LDAP search returned null structures for filter [{}]", filter);
+            }
         } catch (Exception e) {
-            structs = null;
-            log.error("error structs null : {}", e);
+            log.error("Failed to load structures from LDAP - Reason: Technical error during search | Detail: {}", e.getMessage());
+            return null;
         }
-        log.debug("{} structures found.", structs.size());
 
         return structs;
     }

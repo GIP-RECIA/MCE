@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CacheEventLogger implements CacheEventListener<Object, Object> {
     @Override
     public void onEvent(CacheEvent<?, ?> cacheEvent) {
-        log.debug("CacheEvent = {} , Key = {} , OldValue = {} , NewValue = {}", cacheEvent.getType(),
-                cacheEvent.getKey(), cacheEvent.getOldValue(), cacheEvent.getNewValue());
+        log.debug("EHCache Event [{}]: Key=[{}] | OldValue=[{}] | NewValue=[{}]", 
+                cacheEvent.getType(), cacheEvent.getKey(), cacheEvent.getOldValue(), cacheEvent.getNewValue());
     }
 }

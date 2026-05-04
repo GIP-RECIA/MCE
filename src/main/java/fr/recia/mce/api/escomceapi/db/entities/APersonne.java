@@ -163,6 +163,10 @@ public class APersonne implements Serializable {
 	@JsonIgnore
 	private Set<Login> loginsForApersonneOldAlias = new HashSet<Login>(0);
 
+	@JsonIgnore
+	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
+	private Set<CerberePassword> cerberePasswords = new HashSet<>(0);
+
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
 	private Set<AStructure> astructuresForResponsableId = new HashSet<AStructure>(0);
 

@@ -131,9 +131,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             try {
                 EnumPublic ep = evalPublic(model);
-                log.debug("ep user connecté : {}", ep.name());
+                log.debug("Successfully evaluated public profile for user [uid={}]: {}", model.getUid(), ep.name());
             } catch (Exception e) {
-                log.error("error.EnumPublic {} : ", e);
+                log.error("Failed to evaluate public profile for user [uid={}] - Reason: Technical error during profile calculation | Detail: {}", model.getUid(), e.getMessage());
             }
         }
         return from(model, extModel);
@@ -153,7 +153,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             ds = (structure).getDomSource();
 
         } catch (Exception e) {
-            log.error("error getDomSource {}", e);
+            log.error("Failed to retrieve domain source for user [uid={}] structure - Detail: {}", personne.getUid(), e.getMessage());
         }
 
         if (source != null) {
@@ -384,7 +384,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public InfoGeneralDTO showGeneralInfo() {
 
         if (personneDTO == null) {
-            log.warn("user is null");
+            log.warn("Attempted to show general information but the global PersonneDTO context is null.");
             return null;
         }
 
@@ -393,12 +393,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         List<FonctionDTO> listFonctions;
 
         Long id = personneDTO.getAPersonneBase().getId();
-        log.debug("id user: {}", id);
+        log.debug("Retrieving general information for user ID: {}", id);
 
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
 
         listFonctions = new ArrayList<>(fonctions);
-        log.debug("listFonctions : {}", listFonctions);
+        log.debug("Found {} functions for user ID: {}", listFonctions.size(), id);
 
         ClasseGroupeDTO classes = classeGroupeService.calculCG(personneDTO.getExtUser());
 
@@ -411,7 +411,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         final boolean isOk = soffitHolder.getSub() != null && !soffitHolder.getSub().startsWith("guest");
         if (!isOk)
-            log.info("User is guest : sub {}", soffitHolder.getSub());
+            log.info("Request denied: User is a guest or has no 'sub' claim (sub: {})", soffitHolder.getSub());
 
         return isOk;
     }
@@ -424,7 +424,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         final UserDTO user = from(soffitHolder.getSub());
 
         if (user == null)
-            log.warn("No user found with sub: {}", soffitHolder.getSub());
+            log.warn("Authenticated user not found in the system for Soffit sub: {}", soffitHolder.getSub());
 
         return user;
     }

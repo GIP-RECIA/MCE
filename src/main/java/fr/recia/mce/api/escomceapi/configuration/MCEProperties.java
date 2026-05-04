@@ -44,7 +44,7 @@ public class MCEProperties {
     @PostConstruct
     private void init() throws JsonProcessingException {
 
-        log.debug("Init MCE properties{}", this);
+        log.debug("MCE Application properties initialized successfully: {}", this);
     }
 
     @Override

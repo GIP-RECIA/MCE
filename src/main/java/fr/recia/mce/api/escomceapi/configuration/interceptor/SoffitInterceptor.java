@@ -109,7 +109,7 @@ public boolean preHandle(HttpServletRequest request, HttpServletResponse respons
     String token = request.getHeader("Authorization");
 
     if (token == null || !token.startsWith("Bearer ")) {
-        log.debug("No or invalid Authorization header");
+        log.debug("No Authorization header found or header does not start with 'Bearer ' for request path: {}", path);
         return true;
     }
 
@@ -120,15 +120,15 @@ public boolean preHandle(HttpServletRequest request, HttpServletResponse respons
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> soffit = objectMapper.readValue(payload, new TypeReference<>() {});
 
-        log.debug("JWT DEBUG payload = {}", soffit);
+        log.debug("JWT payload successfully decoded: {}", soffit);
 
         String sub = (String) soffit.get("sub");
         soffitHolder.setSub(sub);
 
-        log.debug("User DEBUG = {}", sub);
+        log.debug("User 'sub' extracted from JWT: {}", sub);
 
     } catch (Exception e) {
-        log.error("JWT parse error", e);
+        log.error("Authentication failed: Error parsing Soffit JWT token - Detail: {}", e.getMessage());
     }
 
     return true;

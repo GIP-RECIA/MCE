@@ -91,7 +91,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
         if (listAttrs == null) {
-            log.warn("analyse : ldapValues is null for eleve {}", personne.getId());
+            log.warn("LDAP Analysis: No attributes found for attribute '{}' on eleve ID: {}", ldapAttr, personne.getId());
         } else {
             for (String val : listAttrs) {
                 if (val != null) {
@@ -111,7 +111,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                             re.setAutoriteParental(true);
                         }
                     } else {
-                        log.warn("attribut d'eleve ne matche pas");
+                        log.warn("LDAP Analysis: Attribute value '{}' for eleve ID: {} does not match the expected UID pattern: {}", val, personne.getId(), pattern.pattern());
                     }
                 }
             }
@@ -136,14 +136,14 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
         if (listAttrs == null) {
-            log.warn("analyse : ldapValues is null for eleve" + personne.getId());
+            log.warn("LDAP Analysis: No attributes found for attribute '{}' on eleve ID: {}", ldapAttr, personne.getId());
         } else {
             for (String val : listAttrs) {
 
                 if (val != null) {
                     Matcher m = patternRelation.matcher(val);
                     if (!m.matches()) {
-                        log.debug("no match : " + patternRelation.pattern());
+                        log.debug("LDAP Analysis: Value '{}' does not match the relation pattern: {}", val, patternRelation.pattern());
                     } else {
                         String uid = m.group(grpUid);
                         RelationEleveContact re = uid2relation.get(uid);
@@ -284,7 +284,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 }
             }
         } catch (Exception e) {
-            log.error("cannot load enfant : " + parent, e);
+            log.error("Failed to load children for parent ID [{}]: Technical error - Detail: {}", parent, e.getMessage());
         }
 
         return uidEleve2relation.values();
@@ -316,10 +316,10 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                             re.setAutoriteParental(false);
                             allApprenti.add(re);
                         } catch (Exception e) {
-                            log.warn("can't load apprenti : {}", uid);
+                            log.warn("Failed to load apprentice details for UID [{}]: Detail: {}", uid, e.getMessage());
                         }
                     } else {
-                        log.debug("tutor attribute does not match {}", val);
+                        log.debug("LDAP Analysis: Apprentice DN '{}' does not match the UID pattern: {}", val, pattern.pattern());
                     }
                 }
             }

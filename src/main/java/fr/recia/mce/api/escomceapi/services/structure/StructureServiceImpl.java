@@ -90,22 +90,22 @@ public class StructureServiceImpl implements IStructureService {
     public IExternalStructure findStructureBySiren(String siren) {
 
         if (isStructureLoaded()) {
-            log.debug("structures exists : {}", siren);
+            log.debug("Searching for structure with SIREN: {}", siren);
 
             return siren2structure.get(siren);
         }
-        log.warn("struct null");
+        log.warn("Attempted to find structure by SIREN [{}], but the structure cache is not yet loaded.", siren);
         return null;
     }
 
     @Override
     public IExternalStructure findStructureByUai(String uai) {
         if (isStructureLoaded()) {
-            log.debug("structures with uai exists : {}", uai);
+            log.debug("Searching for structure with UAI: {}", uai);
 
             return uai2structure.get(uai);
         }
-        log.warn("struct null");
+        log.warn("Attempted to find structure by UAI [{}], but the structure cache is not yet loaded.", uai);
         return null;
     }
 
@@ -142,7 +142,7 @@ public class StructureServiceImpl implements IStructureService {
         // }
 
         if (domaineEtabRecia.isEmpty()) {
-            log.warn("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
+            log.warn("Configuration Error: The 'app.service.custom-params.domaine-etab-recia' property is empty. Cannot determine if user [uid={}] belongs to the Recia network.", p.getUid());
             return false;
         }
 
@@ -178,7 +178,7 @@ public class StructureServiceImpl implements IStructureService {
         }
 
         if (domaineEtabRecia == null) {
-            log.warn("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
+            log.warn("Configuration Error: The 'app.service.custom-params.domaine-etab-recia' property is null. Cannot determine Recia network status for structure [id={}].", struct.getId());
             return false;
         }
         if (setDomaineEtabRecia.isEmpty()) {
@@ -194,7 +194,7 @@ public class StructureServiceImpl implements IStructureService {
                     return true;
             }
         } else {
-            log.error("Structure sans domaine " + struct.getDisplayName() + " " + struct.getId() + " (437)");
+            log.error("Data Consistency Error: Structure [id={}, name={}] has no domain attributes defined. (Context: isDomaineRecia)", struct.getId(), struct.getDisplayName());
         }
 
         return false;

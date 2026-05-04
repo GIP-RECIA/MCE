@@ -16,7 +16,6 @@
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
-import fr.recia.mce.api.escomceapi.services.logging.AuditLogger;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +38,6 @@ import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
 import java.util.List;
-
-import static fr.recia.mce.api.escomceapi.services.logging.AuditConstants.*;
 
 @Slf4j
 @Repository
@@ -76,10 +73,10 @@ public class LdapUserDaoImp implements IExternalUserDao {
         try {
             user = ldapTemplate.searchForObject(query, mapper);
         } catch (EmptyResultDataAccessException e) {
-            AuditLogger.warn(specialLog, ACTION_GET_USER_BY_ID, STATUS_FAILED, uid, REASON_USER_NOT_FOUND, e.getMessage());
+            specialLog.warn("Audit [GET_USER_BY_ID]: FAILED for user [{}] - Reason: User not found in LDAP directory | Detail: {}", uid, e.getMessage());
             throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
         } catch (Exception e) {
-            AuditLogger.error(specialLog, ACTION_GET_USER_BY_ID, STATUS_DENIED, uid, e.getMessage());
+            specialLog.error("Audit [GET_USER_BY_ID]: DENIED for user [{}] - Reason: Technical error during LDAP search | Detail: {}", uid, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP", e);
         }
 
@@ -114,7 +111,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             List<String> dns = ldapTemplate.search(query, dnMapper);
 
             if (dns == null || dns.isEmpty()) {
-                AuditLogger.error(specialLog, ACTION_UPDATE_PASSWORD, STATUS_FAILED, uid, REASON_USER_NOT_FOUND, "error= utilisateur LDAP introuvable" );
+                specialLog.error("Audit [UPDATE_PASSWORD]: FAILED for user [{}] - Reason: User not found in LDAP directory during update attempt", uid);
                 throw new RuntimeException("Utilisateur LDAP introuvable : " + uid);
             }
 
@@ -125,7 +122,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.info("LDAP password updated for uid: {} at DN: {}", uid, dn);
 
         } catch (Exception e) {
-            AuditLogger.error(specialLog, ACTION_UPDATE_PASSWORD, STATUS_DENIED, uid, e.getMessage(), "error= LDAP password update fail ");
+            specialLog.error("Audit [UPDATE_PASSWORD]: DENIED for user [{}] - Reason: LDAP attribute modification failed | Detail: {}", uid, e.getMessage());
             throw new RuntimeException("LDAP password update failed", e);
         }
     }
