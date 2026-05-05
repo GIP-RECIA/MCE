@@ -19,6 +19,7 @@ import java.util.Date;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import fr.recia.mce.api.escomceapi.db.beans.Personne;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
@@ -44,6 +45,7 @@ public class PersonneDTO extends Personne {
 
     private String mailFromLdap;
 
+    @JsonIgnore
     private IExternalUser extUser;
 
     public PersonneDTO(final APersonne aPersonne) {
