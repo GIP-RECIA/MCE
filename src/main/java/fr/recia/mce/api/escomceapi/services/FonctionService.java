@@ -21,6 +21,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
+import fr.recia.mce.api.escomceapi.db.entities.AFonction;
+import fr.recia.mce.api.escomceapi.db.repositories.AFonctionRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,9 @@ public class FonctionService {
 
     @Autowired
     private FonctionRepository fonctionRepository;
+
+    @Autowired
+    private AFonctionRepository aFonctionRepository;
 
     @Autowired
     private IStructureService structureService;
@@ -46,6 +51,18 @@ public class FonctionService {
         }
 
         return foncts;
+    }
+
+    public void updateDateFin(Long id, boolean active) {
+        AFonction aFonction = aFonctionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Fonction not found with id: " + id));
+        if (active) {
+            aFonction.setDateFin(null);
+        } else {
+            aFonction.setDateFin(new java.util.Date());
+        }
+        aFonction.setDateModification(new java.util.Date());
+        aFonctionRepository.save(aFonction);
     }
 
 }

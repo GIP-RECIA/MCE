@@ -157,6 +157,7 @@ public class APersonne implements Serializable {
 	private Set<CerbereEnfant> cerbereEnfantsForIdEnfant = new HashSet<CerbereEnfant>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
+	@JsonIgnore
 	private Set<CerbereConfirmation> cerbereConfirmations = new HashSet<CerbereConfirmation>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
@@ -168,15 +169,19 @@ public class APersonne implements Serializable {
 	private Set<CerberePassword> cerberePasswords = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
+	@JsonIgnore
 	private Set<AStructure> astructuresForResponsableId = new HashSet<AStructure>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
+	@JsonIgnore
 	private Set<AStructure> astructuresForContactId = new HashSet<AStructure>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
+	@JsonIgnore
 	private Set<AStructure> astructuresForContactId_1 = new HashSet<AStructure>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
+	@JsonIgnore
 	private Set<AStructure> astructuresForResponsableId_1 = new HashSet<AStructure>(0);
 
 	public APersonne() {
