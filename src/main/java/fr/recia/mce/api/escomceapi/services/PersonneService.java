@@ -123,7 +123,7 @@ public class PersonneService {
 
         APersonne entity = personneDTO.getApersonne();
         entity.setEmail(newEmail);
-        entity.setEmailPersonnel(newEmail);
+//        entity.setEmailPersonnel(newEmail);
         entity.setDateModification(new Date());
 
         aPersonneRepository.saveAndFlush(entity);
