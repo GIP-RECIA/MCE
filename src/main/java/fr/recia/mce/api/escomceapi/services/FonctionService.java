@@ -41,7 +41,7 @@ public class FonctionService {
     private IStructureService structureService;
 
     public Collection<FonctionDTO> getAllFonctionOfPersonne(Long id) {
-        log.debug("person_id: {}", id);
+        log.debug("Récupération des fonctions pour l'ID personne : {}", id);
         Collection<FonctionDTO> foncts = fonctionRepository.findAllFonction(id);
 
         for (FonctionDTO f : foncts) {
@@ -49,13 +49,17 @@ public class FonctionService {
                 f.setStruct(structureService.findStructureBySiren(f.getSiren()));
             }
         }
-
+        log.debug("{} fonction(s) trouvée(s) pour l'ID personne : {}", foncts.size(), id);
         return foncts;
     }
 
     public void updateDateFin(Long id, boolean active) {
+        log.debug("Mise à jour de l'état de la fonction (active={}) pour l'ID : {}", active, id);
         AFonction aFonction = aFonctionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Fonction not found with id: " + id));
+                .orElseThrow(() -> {
+                    log.error("Impossible de mettre à jour la fonction : fonction introuvable avec l'ID : {}", id);
+                    return new RuntimeException("Fonction non trouvée avec l'id : " + id);
+                });
         if (active) {
             aFonction.setDateFin(null);
         } else {
@@ -63,6 +67,7 @@ public class FonctionService {
         }
         aFonction.setDateModification(new java.util.Date());
         aFonctionRepository.save(aFonction);
+        log.info("État de la fonction mis à jour avec succès pour l'ID : {}", id);
     }
 
 }

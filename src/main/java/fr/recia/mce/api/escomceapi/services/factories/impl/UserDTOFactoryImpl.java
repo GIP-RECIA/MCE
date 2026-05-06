@@ -107,7 +107,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Override
     public APersonne from(@NotNull UserDTO dtObject) {
-        log.debug("DTO to model of {}", dtObject);
+        log.debug("Conversion DTO vers modèle pour {}", dtObject);
         if (dtObject != null) {
             Optional<APersonne> optionalAPersonne = daoPersonne.findById(dtObject.getId());
             return optionalAPersonne.orElse(null);
@@ -117,7 +117,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Override
     public UserDTO from(IExternalUser extModel, boolean withInternal) {
-        log.debug("External to DTO of {}", extModel);
+        log.debug("Conversion modèle externe vers DTO pour {}", extModel);
 
         PersonneDTO model = null;
         if (extModel != null && withInternal) {
@@ -131,9 +131,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             try {
                 EnumPublic ep = evalPublic(model);
-                log.debug("Successfully evaluated public profile for user [uid={}]: {}", model.getUid(), ep.name());
+                log.debug("Profil public évalué avec succès pour l'utilisateur [uid={}] : {}", model.getUid(), ep.name());
             } catch (Exception e) {
-                log.error("Failed to evaluate public profile for user [uid={}] - Reason: Technical error during profile calculation | Detail: {}", model.getUid(), e.getMessage());
+                log.error("Échec de l'évaluation du profil public pour l'utilisateur [uid={}] - Raison : Erreur technique lors du calcul du profil | Détail : {}", model.getUid(), e.getMessage());
             }
         }
         return from(model, extModel);
@@ -153,7 +153,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             ds = (structure).getDomSource();
 
         } catch (Exception e) {
-            log.error("Failed to retrieve domain source for user [uid={}] structure - Detail: {}", personne.getUid(), e.getMessage());
+            log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
         }
 
         if (source != null) {
@@ -333,7 +333,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Override
     public UserDTO from(@NotNull PersonneDTO model) {
 
-        log.debug("Model to DTO of {}", model);
+        log.debug("Conversion modèle vers DTO pour {}", model);
         externalUser = personneService.retrievePersonLdap(model.getUid());
         return from(model, externalUser);
     }
@@ -341,7 +341,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Override
     public UserDTO from(@NotNull String uid) {
 
-        log.debug("from uid to DTO of {}", uid);
+        log.debug("Conversion de l'uid vers DTO pour {}", uid);
         externalUser = personneService.retrievePersonLdap(uid);
 
         return from(externalUser, true);
@@ -384,7 +384,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public InfoGeneralDTO showGeneralInfo() {
 
         if (personneDTO == null) {
-            log.warn("Attempted to show general information but the global PersonneDTO context is null.");
+            log.warn("Tentative d'affichage des informations générales mais le contexte PersonneDTO global est nul.");
             return null;
         }
 
@@ -393,12 +393,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         List<FonctionDTO> listFonctions;
 
         Long id = personneDTO.getAPersonneBase().getId();
-        log.debug("Retrieving general information for user ID: {}", id);
+        log.debug("Récupération des informations générales pour l'ID utilisateur : {}", id);
 
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
 
         listFonctions = new ArrayList<>(fonctions);
-        log.debug("Found {} functions for user ID: {}", listFonctions.size(), id);
+        log.debug("{} fonction(s) trouvée(s) pour l'ID utilisateur : {}", listFonctions.size(), id);
 
         ClasseGroupeDTO classes = classeGroupeService.calculCG(personneDTO.getExtUser());
 
@@ -411,7 +411,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         final boolean isOk = soffitHolder.getSub() != null && !soffitHolder.getSub().startsWith("guest");
         if (!isOk)
-            log.info("Request denied: User is a guest or has no 'sub' claim (sub: {})", soffitHolder.getSub());
+            log.info("Requête refusée : l'utilisateur est un invité ou n'a pas de réclamation 'sub' (sub : {})", soffitHolder.getSub());
 
         return isOk;
     }
@@ -424,7 +424,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         final UserDTO user = from(soffitHolder.getSub());
 
         if (user == null)
-            log.warn("Authenticated user not found in the system for Soffit sub: {}", soffitHolder.getSub());
+            log.warn("Utilisateur authentifié non trouvé dans le système pour le sub Soffit : {}", soffitHolder.getSub());
 
         return user;
     }

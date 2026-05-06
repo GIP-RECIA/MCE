@@ -97,15 +97,15 @@ public class StructureDTO extends Structure {
                     domSource = DomSource.valueOf(m.group(1));
                     return domSource;
                 } catch (Exception e) {
-                    log.error("Failed to map structure source '{}' to a valid DomSource enum constant - Detail: {}", m.group(1), e.getMessage());
+                    log.error("Échec de la correspondance de la source de structure '{}' avec une constante énumérée DomSource valide - Détail : {}", m.group(1), e.getMessage());
                 }
             } else {
 
-                log.warn("Structure source '{}' (siren={}) does not match the expected domain pattern (e.g., 'DOMAIN-...')", source, getSiren());
+                log.warn("La source de structure '{}' (siren={}) ne correspond pas au modèle de domaine attendu (ex: 'DOMAIN-...')", source, getSiren());
             }
 
         } else {
-            log.warn("Structure source attribute is null for siren: {}", getSiren());
+            log.warn("L'attribut de source de structure est nul pour le siren : {}", getSiren());
 
         }
         return null;

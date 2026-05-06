@@ -90,22 +90,22 @@ public class StructureServiceImpl implements IStructureService {
     public IExternalStructure findStructureBySiren(String siren) {
 
         if (isStructureLoaded()) {
-            log.debug("Searching for structure with SIREN: {}", siren);
+            log.debug("Recherche de structure avec le SIREN : {}", siren);
 
             return siren2structure.get(siren);
         }
-        log.warn("Attempted to find structure by SIREN [{}], but the structure cache is not yet loaded.", siren);
+        log.warn("Tentative de recherche de structure par SIREN [{}], mais le cache des structures n'est pas encore chargé.", siren);
         return null;
     }
 
     @Override
     public IExternalStructure findStructureByUai(String uai) {
         if (isStructureLoaded()) {
-            log.debug("Searching for structure with UAI: {}", uai);
+            log.debug("Recherche de structure avec l'UAI : {}", uai);
 
             return uai2structure.get(uai);
         }
-        log.warn("Attempted to find structure by UAI [{}], but the structure cache is not yet loaded.", uai);
+        log.warn("Tentative de recherche de structure par UAI [{}], mais le cache des structures n'est pas encore chargé.", uai);
         return null;
     }
 
@@ -142,7 +142,7 @@ public class StructureServiceImpl implements IStructureService {
         // }
 
         if (domaineEtabRecia.isEmpty()) {
-            log.warn("Configuration Error: The 'app.service.custom-params.domaine-etab-recia' property is empty. Cannot determine if user [uid={}] belongs to the Recia network.", p.getUid());
+            log.warn("Erreur de configuration : La propriété 'app.service.custom-params.domaine-etab-recia' est vide. Impossible de déterminer si l'utilisateur [uid={}] appartient au réseau Recia.", p.getUid());
             return false;
         }
 
@@ -178,7 +178,7 @@ public class StructureServiceImpl implements IStructureService {
         }
 
         if (domaineEtabRecia == null) {
-            log.warn("Configuration Error: The 'app.service.custom-params.domaine-etab-recia' property is null. Cannot determine Recia network status for structure [id={}].", struct.getId());
+            log.warn("Erreur de configuration : La propriété 'app.service.custom-params.domaine-etab-recia' est nulle. Impossible de déterminer le statut du réseau Recia pour la structure [id={}].", struct.getId());
             return false;
         }
         if (setDomaineEtabRecia.isEmpty()) {
@@ -194,7 +194,7 @@ public class StructureServiceImpl implements IStructureService {
                     return true;
             }
         } else {
-            log.error("Data Consistency Error: Structure [id={}, name={}] has no domain attributes defined. (Context: isDomaineRecia)", struct.getId(), struct.getDisplayName());
+            log.error("Erreur de cohérence des données : La structure [id={}, nom={}] n'a aucun attribut de domaine défini. (Contexte : isDomaineRecia)", struct.getId(), struct.getDisplayName());
         }
 
         return false;

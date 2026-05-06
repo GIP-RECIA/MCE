@@ -120,7 +120,7 @@ public boolean preHandle(HttpServletRequest request, HttpServletResponse respons
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> soffit = objectMapper.readValue(payload, new TypeReference<>() {});
 
-        log.debug("JWT payload successfully decoded: {}", soffit);
+        log.debug("Payload JWT décodé avec succès : {}", soffit);
 
         String sub = (String) soffit.get("sub");
         soffitHolder.setSub(sub);

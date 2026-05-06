@@ -50,7 +50,7 @@ public class LDAPConfiguration {
                 ldapProperties.getUserBranch().getOtherBackendAttributes(),
                 ldapProperties.getUserBranch().getOtherDisplayedAttributes(),
                 ldapProperties.getUserBranch().getBaseDN());
-        log.debug("LDAP Configuration: ExternalUserHelper bean initialized with properties: {}", ldapUser);
+        log.debug("Configuration LDAP : bean ExternalUserHelper initialisé avec les propriétés : {}", ldapUser);
 
         return ldapUser;
     }
@@ -67,7 +67,7 @@ public class LDAPConfiguration {
                 ldapProperties.getStructBranch().getUai(),
                 ldapProperties.getStructBranch().getVille(),
                 ldapProperties.getStructBranch().getBaseDN());
-        log.debug("LDAP Configuration: ExternalStructHelper bean initialized with properties: {}", ldapStruct);
+        log.debug("Configuration LDAP : bean ExternalStructHelper initialisé avec les propriétés : {}", ldapStruct);
 
         return ldapStruct;
     }

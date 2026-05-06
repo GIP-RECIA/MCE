@@ -136,7 +136,7 @@ public class PersonneDTO extends Personne {
         if (mail == null) {
             if (aPersonneBase.getCategorie().equals("Eleve")) {
                 // add a condition only if its a student, isEleve()
-                log.warn("User [uid={}] has no primary email in database. Attempting to retrieve fallback email from LDAP.", getUid());
+                log.warn("L'utilisateur [uid={}] n'a pas d'email principal en base de données. Tentative de récupération d'un email de secours depuis l'annuaire LDAP.", getUid());
                 mail = getMailFromLdap();
             }
         }

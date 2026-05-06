@@ -58,7 +58,7 @@ public class PersonneService {
 
     @Cacheable(cacheNames = "personneDBCache", key = "#uid")
     public PersonneDTO getUserByUid(String uid) {
-        log.debug("Database lookup: fetching PersonneDTO for uid [{}]", uid);
+        log.debug("Recherche base de données : récupération de PersonneDTO pour l'uid [{}]", uid);
 
         PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
 
@@ -66,7 +66,7 @@ public class PersonneService {
             loadLdapUser(personne, uid);
         }
 
-        log.debug("Database lookup complete for uid [{}]: Result={}", uid, personne);
+        log.debug("Recherche base de données terminée pour l'uid [{}] : Résultat={}", uid, personne);
         return personne;
     }
 
@@ -78,17 +78,17 @@ public class PersonneService {
 
         IExternalUser getUser = cache.get(uid, IExternalUser.class);
         if (!Objects.isNull(getUser)) {
-            log.debug("Cache hit for 'personneLDAPCache': Loaded LDAP data for uid [{}]", uid);
+            log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
             return getUser;
         }
 
         try {
-            log.debug("Cache miss for 'personneLDAPCache': Fetching LDAP data from directory for uid [{}]", uid);
+            log.debug("Cache miss pour 'personneLDAPCache' : Récupération des données LDAP depuis l'annuaire pour l'uid [{}]", uid);
             userLdap = getExtDao().getUserByUid(uid);
             cache.putIfAbsent(uid, userLdap);
 
         } catch (Exception e) {
-            log.error("Failed to load LDAP user data for uid [{}] - Detail: {}", uid, e.getMessage());
+            log.error("Échec du chargement des données LDAP pour l'uid [{}] - Détail : {}", uid, e.getMessage());
 
         }
         return userLdap;
@@ -105,19 +105,19 @@ public class PersonneService {
     }
 
     public IExternalUser retrievePersonLdap(String uid) {
-        log.debug("retrievePersonLdap: {}", uid);
+        log.debug("retrievePersonLdap : {}", uid);
         return getUserLdap(uid);
 
     }
 
     @Transactional
     public void updateEmail(String uid, String newEmail) {
-        log.info("Updating email for user [uid={}] to: {}", uid, newEmail);
+        log.info("Mise à jour de l'email pour l'utilisateur [uid={}] vers : {}", uid, newEmail);
 
         // 1. Update in Database
         PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
         if (personneDTO == null) {
-            specialLog.error("Audit [UPDATE_EMAIL]: FAILED for user [{}] - Reason: User not found in database", uid);
+            specialLog.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
             throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
         }
 
@@ -127,21 +127,21 @@ public class PersonneService {
         entity.setDateModification(new Date());
 
         aPersonneRepository.saveAndFlush(entity);
-        log.debug("Database email updated for uid: {}", uid);
+        log.debug("Email mis à jour en base de données pour l'uid : {}", uid);
 
         // 2. Update in LDAP
         try {
             getExtDao().updateEmail(uid, newEmail);
-            log.debug("LDAP email updated for uid: {}", uid);
+            log.debug("Email mis à jour dans l'annuaire LDAP pour l'uid : {}", uid);
         } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_EMAIL]: FAILED for user [{}] - Reason: LDAP update failed | Detail: {}", uid, e.getMessage());
+            specialLog.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Échec de la mise à jour LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("Erreur lors de la mise à jour de l'email dans l'annuaire", e);
         }
 
         // 3. Clear Caches
         clearUserCaches(uid);
 
-        specialLog.info("Audit [UPDATE_EMAIL]: SUCCESS for user [{}]", uid);
+        specialLog.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
     }
 
     private void clearUserCaches(String uid) {
