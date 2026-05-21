@@ -76,9 +76,13 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
     @Override
     public ClasseGroupeDTO calculCG(IExternalUser person) {
 
+        log.debug("DEBUG: Entrée dans calculCG pour {}", person != null ? person.getId() : "null");
         if (person == null) {
             return null;
         }
+
+        log.debug("DEBUG: Inspection des attributs de l'utilisateur : {}", person.getId());
+        log.debug("DEBUG: Attributs complets disponibles : {}", person.toString());
 
         ClasseGroupeDTO cg = new ClasseGroupeDTO();
         SubSectionEleve sectionEleve = new SubSectionEleve();
@@ -90,8 +94,16 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         Map<String, List<String>> classes = new HashMap<>();
         Map<String, List<String>> groups = new HashMap<>();
 
-        classAttrs = this.serviceProperties.getClasseProperties().getLdapAttributsClasse().split("\\s+");
-        groupAttrs = this.serviceProperties.getGrpPedagoProperties().getLdapAttributsClasse().split("\\s+");
+        String profil = person.getAttribute("ENTPersonProfils").stream().findFirst().orElse("");
+        log.debug("DEBUG: Profil utilisateur détecté : {}", profil);
+
+        if (profil.contains("ENS")) {
+            classAttrs = new String[]{"ENTAuxEnsClasses", "ENTAuxEnsClassesMatieres"};
+            groupAttrs = new String[]{"ENTAuxEnsClasses", "ENTAuxEnsClassesMatieres"};
+        } else {
+            classAttrs = this.serviceProperties.getClasseProperties().getLdapAttributsClasse().split("\\s+");
+            groupAttrs = this.serviceProperties.getGrpPedagoProperties().getLdapAttributsClasse().split("\\s+");
+        }
 
         regexClasse = this.serviceProperties.getClasseProperties().getRegexSirenAndClasse();
         regexGroup = this.serviceProperties.getGrpPedagoProperties().getRegexSirenAndClasse();
@@ -223,7 +235,8 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         }
 
         // Check if it’s a class or a group and add to respective lists
-        if (ldapAttr.contains(classAttrs[0])) {
+        log.debug("DEBUG handleEleve: ldapAttr={}, classAttrs[0]={}, groupAttrs[0]={}", ldapAttr, classAttrs[0], groupAttrs[0]);
+        if (ldapAttr.equals(classAttrs[0])) {
             if (sourceData.getClasses() == null) {
                 sourceData.setClasses(new ArrayList<>());
             }
@@ -232,7 +245,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             sourceData.getClasses().add(value); // Add the class value
         }
 
-        if (ldapAttr.contains(groupAttrs[0])) {
+        if (ldapAttr.equals(groupAttrs[0])) {
             if (sourceData.getGroupes() == null) {
                 sourceData.setGroupes(new ArrayList<>());
             }

@@ -63,7 +63,8 @@ public class PasswordService {
 
     private static final Argon2PasswordEncoder argon2Encoder = new Argon2PasswordEncoder();
 
-    private static final Pattern HASH_PATTERN = Pattern.compile("\\{((SSHA)|(ARGON2))\\}(.+)");
+//    private static final Pattern HASH_PATTERN = Pattern.compile("\\{((SSHA)|(ARGON2))\\}(.+)");
+    private static final Pattern HASH_PATTERN = Pattern.compile("\\{([A-Z0-9]+)\\}(.+)");
 
     public enum Algo {
         SSHA, ARGON2
@@ -257,7 +258,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
             return PREFIXCODE + new String(Base64.encodeBase64(combined, false), StandardCharsets.UTF_8);
 
         } catch (NoSuchAlgorithmException e) {
-            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé | Détail : algorithme requis pour SSHA", e);
+            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé | Détail : algorithme requis pour SSHA cause = {}", e.getMessage());
             throw new RuntimeException("Erreur SSHA", e);
         }
     }
@@ -451,8 +452,16 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
             return null;
         }
 
-        Algo   algo    = Algo.valueOf(m.group(1));
-        String content = m.group(4);
+        Algo algo ;
+
+        try {
+            algo = Algo.valueOf(m.group(1));
+        }catch (IllegalArgumentException e) {
+            specialLog.error("Audit [PARSE] : ABANDONNÉ - Raison : Algorithme inconnu | Détail : algo={}", m.group(1));
+            return null;
+        }
+
+        String content = m.group(2);
 
         switch (algo) {
             case SSHA: {
@@ -482,11 +491,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
                 log.debug("parse() ARGON2 — hash extrait");
                 return new ParsedPassword(content);
             }
-
-            default:
-                specialLog.error("Audit [PARSE] : ABANDONNÉ - Raison : Algorithme inconnu détecté lors de l'analyse | Détail : algo={}", algo);
-                return null;
         }
+        return null ;
     }
 
 
