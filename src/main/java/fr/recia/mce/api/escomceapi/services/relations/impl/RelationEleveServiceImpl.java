@@ -199,15 +199,19 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         analyseMaitre(eleve, eleveTuteurEntr, "Maitre", false, uid2relation);
 
         // Remplissage des noms via LDAP
-        for (Entry<String, RelationEleveContact> entry : uid2relation.entrySet()) {
+        if (!uid2relation.isEmpty()) {
             try {
-                IExternalUser u = personneService.retrievePersonLdap(entry.getKey());
-                entry.getValue().setDisplayNameRelation(u.getDisplayName());
+                List<IExternalUser> users = personneService.getExtDao().getByUids(uid2relation.keySet());
+                for (IExternalUser u : users) {
+                    RelationEleveContact rel = uid2relation.get(u.getId());
+                    if (rel != null) {
+                        rel.setDisplayNameRelation(u.getDisplayName());
+                    }
+                }
             } catch (Exception e) {
-                log.warn("Impossible de récupérer le displayName via LDAP pour {}", entry.getKey());
+                log.error("Erreur lors de la récupération batch LDAP : {}", e.getMessage());
             }
         }
-
         //BASE DE DONNÉES SI LDAP VIDE
         if (uid2relation.isEmpty()) {
             log.warn("LDAP vide pour l'élève {}. Tentative de secours en base de données.", eleve);

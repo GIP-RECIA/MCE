@@ -15,8 +15,11 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
+import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,17 +29,16 @@ import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.filter.AndFilter;
 import org.springframework.ldap.filter.EqualsFilter;
+import org.springframework.ldap.filter.OrFilter;
 import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.stereotype.Repository;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
-import lombok.extern.slf4j.Slf4j;
-
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -83,7 +85,35 @@ public class LdapUserDaoImp implements IExternalUserDao {
         return user;
     }
 
+    @Override
+    public List<IExternalUser> getByUids(Collection<String> uids) {
+        if (uids == null || uids.isEmpty()) {
+            return Collections.emptyList();
+        }
 
+        OrFilter orFilter = new OrFilter();
+        for (String uid : uids) {
+            orFilter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Filtre LDAP batch appliqué : {}", orFilter);
+        }
+
+        ContextMapper<IExternalUser> mapper = new LdapUserContextMapper(this.externalUserHelper);
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .attributes(externalUserHelper.getAttributes()
+                        .toArray(new String[externalUserHelper.getAttributes().size()]))
+                .base(externalUserHelper.getUserDNSubPath()).filter(orFilter);
+
+        try {
+            return ldapTemplate.search(query, mapper);
+        } catch (Exception e) {
+            log.error("Erreur lors de la recherche LDAP batch : {}", e.getMessage());
+            throw new RuntimeException("Erreur technique LDAP lors de la recherche batch", e);
+        }
+    }
 
     @Override
     public void updatePassword(String uid, String newHashedPassword) {
@@ -166,5 +196,4 @@ public class LdapUserDaoImp implements IExternalUserDao {
             throw new RuntimeException("LDAP email update failed", e);
         }
     }
-
 }
