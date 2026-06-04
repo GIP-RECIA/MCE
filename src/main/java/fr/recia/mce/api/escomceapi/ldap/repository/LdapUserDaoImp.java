@@ -196,4 +196,45 @@ public class LdapUserDaoImp implements IExternalUserDao {
             throw new RuntimeException("LDAP email update failed", e);
         }
     }
+
+    @Override
+    public void updateAvatarLDAP(String uid, String newAvatarUrl) {
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .base(externalUserHelper.getUserDNSubPath())
+                .filter(filter);
+
+        ModificationItem[] mods = new ModificationItem[]{
+                new ModificationItem(
+                        DirContext.REPLACE_ATTRIBUTE,
+                        new BasicAttribute(externalUserHelper.getUserAvatarAttribute(), newAvatarUrl))
+        };
+
+        ContextMapper<String> dnMapper = ctx -> {
+            DirContextAdapter adapter = (DirContextAdapter) ctx;
+            return adapter.getDn().toString();
+        };
+
+        try {
+            List<String> dns = ldapTemplate.search(query, dnMapper);
+
+            if (dns == null || dns.isEmpty()) {
+                specialLog.error("Audit [UPDATE_AVATAR] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
+                throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
+            }
+
+            String dn = dns.get(0);
+            log.debug("DN résolu pour uid={} : {}", uid, dn);
+
+            ldapTemplate.modifyAttributes(dn, mods);
+            log.info("Attribut LDAP {} mis à jour pour l'uid : {} au DN : {} avec la valeur : {}", 
+                    externalUserHelper.getUserAvatarAttribute(), uid, dn, newAvatarUrl);
+
+        } catch (Exception e) {
+            specialLog.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification LDAP | Détail : {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP avatar update failed", e);
+        }
+    }
 }

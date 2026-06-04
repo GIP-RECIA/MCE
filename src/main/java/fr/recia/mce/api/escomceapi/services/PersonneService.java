@@ -15,12 +15,15 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
+import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
+import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import lombok.Getter;
@@ -34,13 +37,30 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.Iterator;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Date;
 import java.util.Objects;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.io.IOException;
 
 @Service
 @Getter
 @Slf4j
 public class PersonneService {
+
+    @Autowired
+    private MCEProperties mceProperties;
 
     @Autowired
     private APersonneRepository aPersonneRepository;
@@ -108,6 +128,133 @@ public class PersonneService {
         log.debug("retrievePersonLdap : {}", uid);
         return getUserLdap(uid);
 
+    }
+
+    /**
+     * Récupère le contenu binaire de l'avatar d'un utilisateur depuis le stockage local.
+     *
+     * @param uid L'UID de l'utilisateur.
+     * @return Les octets de l'image, ou null si aucune image n'est trouvée.
+     * @throws RuntimeException En cas d'erreur lors de la lecture du fichier.
+     */
+    public byte[] getAvatar(String uid) {
+        // Chemin physique : storagePath / uid / avatar0.jpg
+        Path path = Paths.get(mceProperties.getAvatar().getStoragePath(), uid, "avatar0.jpg");
+        if (!Files.exists(path)) {
+            log.warn("Avatar non trouvé pour l'UID [{}] à l'emplacement : {}", uid, path);
+            return null;
+        }
+        try {
+            return Files.readAllBytes(path);
+        } catch (java.io.IOException e) {
+            log.error("Erreur lors de la lecture de l'avatar pour l'UID [{}] : {}", uid, e.getMessage());
+            throw new RuntimeException("Erreur lors de la lecture de l'image", e);
+        }
+    }
+
+    /**
+     * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1),
+     * enregistre la nouvelle image, met à jour la base de données et synchronise le LDAP.
+     *
+     * @param uid         L'UID de l'utilisateur.
+     * @param fileContent Le contenu binaire de la nouvelle image.
+     * @throws PersonneNotFoundException Si l'utilisateur n'est pas trouvé en base.
+     * @throws RuntimeException          En cas d'erreur de stockage ou de synchronisation.
+     */
+    @Transactional
+    public void updateAvatar(String uid, byte[] fileContent) {
+        log.info("Mise à jour de la photo pour l'utilisateur [uid={}]", uid);
+
+        // 0. Validation de sécurité
+        if (fileContent.length > mceProperties.getAvatar().getMaxSize()) {
+            throw new InvalidAvatarException("Taille de l'avatar trop élevée (max " + mceProperties.getAvatar().getMaxSize() / 1024 + " Ko)");
+        }
+
+        try (ByteArrayInputStream is = new ByteArrayInputStream(fileContent)) {
+            ImageInputStream iis = ImageIO.createImageInputStream(is);
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                throw new InvalidAvatarException("Format d'image non valide");
+            }
+            
+            ImageReader reader = readers.next();
+            String format = reader.getFormatName().toLowerCase();
+            boolean formatAllowed = false;
+            for (String allowed : mceProperties.getAvatar().getAllowedTypes()) {
+                if (allowed.contains(format)) {
+                    formatAllowed = true;
+                    break;
+                }
+            }
+            
+            if (!formatAllowed) {
+                throw new InvalidAvatarException("Type d'image non autorisé : " + format);
+            }
+        } catch (IOException e) {
+            throw new InvalidAvatarException("Erreur lors de la lecture de l'image");
+        }
+
+        APersonne entity = aPersonneRepository.findByUid(uid);
+        if (entity == null) {
+            throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
+        }
+
+        // 1. Sauvegarde du fichier
+        String hash = uid;
+        Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), hash);
+
+        if (!Files.exists(storageDir)) {
+            try {
+                Files.createDirectories(storageDir);
+            } catch (IOException e) {
+                log.error("Impossible de créer le dossier de stockage : {}. Raison : {}", storageDir, e.getMessage(), e);
+                throw new RuntimeException("Impossible de créer le dossier de stockage", e);
+            }
+        }
+
+        // Lecture version actuelle dans la BDD
+        int nextVersion = 1;
+        String currentPhoto = entity.getPhoto();
+        if (currentPhoto != null && currentPhoto.contains("v=")) {
+            try {
+                nextVersion = Integer.parseInt(currentPhoto.substring(currentPhoto.lastIndexOf("v=") + 2)) + 1;
+            } catch (Exception e) {
+                log.warn("Impossible de lire la version actuelle, on réinitialise à 1");
+            }
+        }
+
+        Path path0 = storageDir.resolve("avatar0.jpg");
+        Path path1 = storageDir.resolve("avatar1.jpg");
+
+        // Rotation cyclique
+        try {
+            if (Files.exists(path0)) {
+                if (Files.exists(path1)) Files.delete(path1);
+                Files.move(path0, path1);
+            }
+            Files.write(path0, fileContent);
+        } catch (IOException e) {
+            log.error("Erreur de gestion des fichiers avatar pour l'UID [{}]: {}", uid, e.getMessage());
+            throw new RuntimeException("Erreur lors de l'enregistrement", e);
+        }
+
+        // Chemin relatif avec version globale
+        String relativePath = mceProperties.getAvatar().getBaseUrl() + hash + "/avatar0.jpg?v=" + nextVersion;
+
+        // 2. Mise à jour de l'entité
+        entity.setPhoto(relativePath);
+        entity.setDateModification(new Date());
+        aPersonneRepository.saveAndFlush(entity);
+
+        // 3. Mise à jour LDAP 
+        try {
+            getExtDao().updateAvatarLDAP(uid, relativePath);
+        } catch (Exception e) {
+            log.warn("Impossible de mettre à jour LDAP pour l'UID [{}]: {}", uid, e.getMessage());
+        }
+
+        // 4. Invalidation du cache
+        clearUserCaches(uid);
     }
 
     @Transactional

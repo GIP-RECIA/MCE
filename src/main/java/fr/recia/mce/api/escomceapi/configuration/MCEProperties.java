@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.configuration;
 
+import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
@@ -36,6 +37,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 public class MCEProperties {
 
     private CorsProperties cors = new CorsProperties();
+    private AvatarProperties avatar = new AvatarProperties();
     private CustomLdapProperties ldap = new CustomLdapProperties();
     private ServiceProperties service = new ServiceProperties();
     private SoffitProperties soffit = new SoffitProperties();
@@ -51,6 +53,7 @@ public class MCEProperties {
     public String toString() {
         return "{\n\"MCEProperties\":{"
                 + ",\n\t \"cors\":" + cors
+                + ",\n\t \"avatar\":" + avatar
                 + ",\n\t \"ldap\":" + ldap
                 + ",\n\t \"service\":" + service
                 + ",\n\t \"soffit\":" + soffit

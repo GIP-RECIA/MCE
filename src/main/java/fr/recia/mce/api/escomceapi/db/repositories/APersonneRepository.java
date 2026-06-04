@@ -28,6 +28,9 @@ import java.util.List;
 @Repository
 public interface APersonneRepository extends AbstractRepository<APersonne, Long> {
 
+    @Query("SELECT a FROM APersonne a WHERE a.uid = :uid")
+    APersonne findByUid(final String uid);
+
     @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, s, l) " +
             "FROM APersonne a " +
             "JOIN Login l ON a.id = l.aPersonneByAPersonneLogin " +

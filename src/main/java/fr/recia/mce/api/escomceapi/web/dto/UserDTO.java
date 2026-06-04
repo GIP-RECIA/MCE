@@ -38,6 +38,7 @@ public class UserDTO {
     private String userMail;
     private Date bod;
     private String avatar;
+    private String avatarUrl;
     private String etat;
     private Boolean mdp;
     private List<String> userPublic;

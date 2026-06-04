@@ -99,10 +99,14 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Autowired
     private PersonneService personneService;
 
+    @Autowired
+    private MCEProperties mceProperties;
+
     private Pattern groupsWithSSHAPassword;
 
     public UserDTOFactoryImpl(MCEProperties mceProperties) {
         this.serviceProperties = mceProperties.getService();
+        this.mceProperties = mceProperties;
     }
 
     @Override
@@ -318,12 +322,23 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
             }
 
-            return new UserDTO(model.getAPersonneBase().getId(), model.getUid(), model.getDisplayName(),
+            String avatarUrl = null;
+            if (model.getAPersonneBase().getPhoto() != null) {
+                // Construction dynamique : base-url + uid + /avatar0.jpg + timestamp
+                avatarUrl = mceProperties.getAvatar().getBaseUrl() 
+                            + model.getUid() + "/avatar0.jpg?" + System.currentTimeMillis();
+                log.debug("URL de l'avatar générée pour l'UID [{}]: {}", model.getUid(), avatarUrl);
+            }
+
+            UserDTO user = new UserDTO(model.getAPersonneBase().getId(), model.getUid(), model.getDisplayName(),
                     userIdentifiant,
                     model.getStructureDto().getDisplayName(),
                     model.getMailFixe(), model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
                     passEditable, userPublic,
                     listMenuTab(model.getAPersonneBase().getCategorie()), showGeneralInfo(), respEleves, eleves, null);
+            
+            user.setAvatarUrl(avatarUrl);
+            return user;
 
         }
 

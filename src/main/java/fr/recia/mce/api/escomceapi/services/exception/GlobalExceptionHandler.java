@@ -30,6 +30,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("WEAK_PASSWORD", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidAvatarException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAvatar(InvalidAvatarException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_AVATAR", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

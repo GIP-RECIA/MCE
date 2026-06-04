@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
@@ -174,6 +175,44 @@ public class PersonneRestController {
 
         personneService.updateEmail(uid, request.getEmail());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{uid}/avatar")
+    public ResponseEntity<Void> updateAvatar(
+            @PathVariable String uid,
+            @RequestParam("file") MultipartFile file) throws Exception {
+
+        log.debug("Réception d'une requête d'upload d'avatar pour l'UID [{}]", uid);
+        log.debug("Fichier reçu : nom={}, type={}, taille={} octets", 
+                file.getOriginalFilename(), file.getContentType(), file.getSize());
+
+        String currentUid = getCurrentUid();
+        if (!currentUid.equals(uid)) {
+            log.warn("Tentative d'upload d'avatar non autorisée pour UID [{}] par l'utilisateur [{}]", uid, currentUid);
+            throw new AccessDeniedException("Vous ne pouvez modifier que votre propre avatar");
+        }
+
+        personneService.updateAvatar(uid, file.getBytes());
+        log.debug("Avatar mis à jour avec succès pour l'UID [{}]", uid);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Récupère l'image de l'avatar d'un utilisateur.
+     * 
+     * @param uid    L'UID de l'utilisateur.
+     * @param suffix Suffixe optionnel permettant d'ignorer les extensions de fichier (ex: .jpg).
+     * @return La réponse contenant l'image en octets.
+     */
+    @GetMapping("/{uid}/avatar{suffix:.*}")
+    public ResponseEntity<byte[]> getAvatar(@PathVariable String uid, @PathVariable(required = false) String suffix) {
+        byte[] image = personneService.getAvatar(uid);
+        if (image == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .header("Content-Type", "image/jpeg")
+                .body(image);
     }
 
 

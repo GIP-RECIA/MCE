@@ -57,6 +57,8 @@ public class CustomLdapProperties {
         @NotBlank
         private String groupAttribute = "isMemberOf";
 
+        private String avatarAttribute = "ESCOPersonPhoto";
+
         private String eleveRelation;
 
         private String eleveTuteurEntr;

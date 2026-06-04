@@ -13,18 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.ldap.repository;
+package fr.recia.mce.api.escomceapi.services.exception;
 
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
-
-import java.util.Collection;
-import java.util.List;
-
-public interface IExternalUserDao {
-
-    IExternalUser getUserByUid(final String uid);
-    List<IExternalUser> getByUids(final Collection<String> uids);
-    void updatePassword(final String uid, final String newHashedPassword);
-    void updateEmail(final String uid, final String newEmail);
-    void updateAvatarLDAP(final String uid, final String newAvatarUrl);
+/**
+ * Exception levée lors d'une validation d'avatar échouée.
+ */
+public class InvalidAvatarException extends RuntimeException {
+    public InvalidAvatarException(String message) {
+        super(message);
+    }
 }
