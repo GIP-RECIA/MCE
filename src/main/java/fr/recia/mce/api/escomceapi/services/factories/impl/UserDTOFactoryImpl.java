@@ -324,9 +324,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             String avatarUrl = null;
             if (model.getAPersonneBase().getPhoto() != null) {
-                // Construction dynamique : base-url + uid + /avatar0.jpg + timestamp
+                // Construction dynamique : base-url + uid + /avatar0.jpg
                 avatarUrl = mceProperties.getAvatar().getBaseUrl() 
-                            + model.getUid() + "/avatar0.jpg?" + System.currentTimeMillis();
+                            + model.getUid() + "/avatar0.jpg";
                 log.debug("URL de l'avatar générée pour l'UID [{}]: {}", model.getUid(), avatarUrl);
             }
 

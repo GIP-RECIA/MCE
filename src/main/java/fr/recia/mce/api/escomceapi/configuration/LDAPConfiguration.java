@@ -51,7 +51,9 @@ public class LDAPConfiguration {
                 ldapProperties.getUserBranch().getOtherBackendAttributes(),
                 ldapProperties.getUserBranch().getOtherDisplayedAttributes(),
                 ldapProperties.getUserBranch().getBaseDN());
-        log.debug("Configuration LDAP : bean ExternalUserHelper initialisé avec les propriétés : {}", ldapUser);
+        if (log.isDebugEnabled()) {
+            log.debug("Configuration LDAP : bean ExternalUserHelper initialisé avec les propriétés : {}", ldapUser);
+        }
 
         return ldapUser;
     }

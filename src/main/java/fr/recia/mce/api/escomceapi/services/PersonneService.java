@@ -152,6 +152,19 @@ public class PersonneService {
         }
     }
 
+    private String getHashFromUid(String uid) {
+        if (uid == null || uid.length() < 2) {
+            return uid;
+        }
+        
+        char[] tab = uid.toCharArray();
+        int res = 0;
+        for (char c : tab) {
+            res = (res * 100) + c;
+        }
+        return String.format("%x", res);
+    }
+
     /**
      * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1),
      * enregistre la nouvelle image, met à jour la base de données et synchronise le LDAP.
@@ -200,7 +213,7 @@ public class PersonneService {
         }
 
         // 1. Sauvegarde du fichier
-        String hash = uid;
+        String hash = getHashFromUid(uid);
         Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), hash);
 
         if (!Files.exists(storageDir)) {

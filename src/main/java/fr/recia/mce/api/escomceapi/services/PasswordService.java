@@ -293,9 +293,12 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         log.debug("vérificationSSHA — {} groupe(s) trouvé(s) pour l'uid={} :", groups.size(), person.getUid());
 
         boolean matched = false;
+        boolean debug = log.isDebugEnabled();
         for (String group : groups) {
             boolean matches = pattern.matcher(group).matches();
-            log.debug("  → groupe='{}' | correspondance={}", group, matches);
+            if (debug) {
+                log.debug("  → groupe='{}' | correspondance={}", group, matches);
+            }
             if (matches) {
                 matched = true;
             }
@@ -408,9 +411,12 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         log.debug("vérificationSamba — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
 
         boolean matched = false;
+        boolean debug = log.isDebugEnabled();
         for (String group : groups) {
             boolean matches = pattern.matcher(group).find();
-            log.debug("  → groupe='{}' | correspondance={}", group, matches);
+            if (debug) {
+                log.debug("  → groupe='{}' | correspondance={}", group, matches);
+            }
             if (matches) {
                 matched = true;
             }

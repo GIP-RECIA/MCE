@@ -82,8 +82,10 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             return null;
         }
 
-        log.debug("DEBUG: Inspection des attributs de l'utilisateur : {}", person.getId());
-        log.debug("DEBUG: Attributs complets disponibles : {}", person.toString());
+        if (log.isDebugEnabled()) {
+            log.debug("DEBUG: Inspection des attributs de l'utilisateur : {}", person.getId());
+            log.debug("DEBUG: Attributs complets disponibles : {}", person.toString());
+        }
 
         ClasseGroupeDTO cg = new ClasseGroupeDTO();
         SubSectionEleve sectionEleve = new SubSectionEleve();
@@ -198,13 +200,17 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             Map<String, List<String>> classes, Map<String, List<String>> groups,
             Map<String, Map<String, ClasseGroupe>> profMap) {
         Pattern pattern = Pattern.compile(regexCG);
-        log.debug("DEBUG: retriveClassesGroupsOfPerson avec attributs={}", (Object)attributs);
+        if (log.isDebugEnabled()) {
+            log.debug("DEBUG: retriveClassesGroupsOfPerson avec attributs={}", (Object)attributs);
+        }
 
         Map<String, ClasseGroupe> cgMap = new HashMap<>();
 
         for (String ldapAttr : attributs) {
             List<String> ldapLines = person.getAttribute(ldapAttr);
-            log.debug("DEBUG: Traitement attribut LDAP {} : {}", ldapAttr, ldapLines);
+            if (log.isDebugEnabled()) {
+                log.debug("DEBUG: Traitement attribut LDAP {} : {}", ldapAttr, ldapLines);
+            }
 
             if (ldapLines != null) {
 
@@ -248,7 +254,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         }
 
         // Check if it’s a class or a group and add to respective lists
-        log.debug("DEBUG handleEleve: ldapAttr={}, classAttrs={}, groupAttrs={}", ldapAttr, Arrays.toString(classAttrs), Arrays.toString(groupAttrs));
+        if (log.isDebugEnabled()) {
+            log.debug("DEBUG handleEleve: ldapAttr={}, classAttrs={}, groupAttrs={}", ldapAttr, Arrays.toString(classAttrs), Arrays.toString(groupAttrs));
+        }
         
         boolean isClassAttr = Arrays.asList(classAttrs).contains(ldapAttr);
         boolean isGroupAttr = Arrays.asList(groupAttrs).contains(ldapAttr);
