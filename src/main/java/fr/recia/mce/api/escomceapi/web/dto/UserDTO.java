@@ -32,6 +32,10 @@ public class UserDTO {
 
     private Long id;
     private String uid;
+    private String givenName;
+    private String sn;
+    private String civilite;
+    private String categorie;
     private String userName;
     private String identifiant;
     private String etab;
@@ -48,7 +52,7 @@ public class UserDTO {
     private List<RelationEleveContact> relationEleve;
     private List<RelationEleveContact> apprentis;
 
-    public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String userMail, Date bod,
+    public UserDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, String identifiant, String etab, String userMail, Date bod,
                    String avatar, String etat, Boolean mdp, List<String> userPublic, List<String> listMenu,
                    InfoGeneralDTO fonctionClassesGroupe,
                    List<RelationEleveContact> parentEleve,
@@ -58,6 +62,10 @@ public class UserDTO {
         this.id = id;
         this.uid = uid;
         this.userName = userName;
+        this.givenName = givenName;
+        this.sn = sn;
+        this.civilite = civilite;
+        this.categorie = categorie;
         this.identifiant = identifiant;
         this.etab = etab;
         this.userMail = userMail;
@@ -110,7 +118,7 @@ public class UserDTO {
 
     public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String userMail, Date bod,
                    String avatar, String etat, List<String> listMenu) {
-        this(id, uid, userName, identifiant, etab, userMail, bod, avatar, etat,
+        this(id, uid, userName, null, null, null, null, identifiant, etab, userMail, bod, avatar, etat,
                 null, null, listMenu, null, null, null, null);
     }
 

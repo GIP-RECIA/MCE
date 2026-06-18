@@ -331,6 +331,10 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             }
 
             UserDTO user = new UserDTO(model.getAPersonneBase().getId(), model.getUid(), model.getDisplayName(),
+                    model.getAPersonneBase().getGivenName(),
+                    model.getAPersonneBase().getSn(),
+                    model.getAPersonneBase().getCivilite(),
+                    model.getAPersonneBase().getCategorie(),
                     userIdentifiant,
                     model.getStructureDto().getDisplayName(),
                     model.getMailFixe(), model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
