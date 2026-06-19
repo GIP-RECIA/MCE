@@ -40,6 +40,25 @@ spring:
 #         include:
 #         - '*'
 
+springdoc:
+    swagger-ui:
+        path: /swagger-ui.html
+        enabled: true
+    api-docs:
+        path: /v3/api-docs
+        enabled: true
+    # Si tu as Spring Security, autorise l'accès à Swagger
+    packages-to-scan: fr.recia.mce.api.escomceapi.web.rest
+
+logging:
+    file:
+        path:
+    level:
+        root: ERROR
+        fr.recia.mce: DEBUG
+        MCE_SPECIAL_LOGGER: INFO
+#    org.hibernate.SQL: ERROR
+
 app:
     service:
         classe-properties: 
@@ -78,7 +97,21 @@ app:
     
     soffit:
         jwt-signature-key: 
-    
+
+
+    avatar:
+        # Remplacez 'lycees.test.recia.dev' par le domaine officiel de production
+        # URL de base pour construire les liens des avatars et servir de modèle pour le stockage
+        # Le frontend appellera cet endpoint pour récupérer l'image servie par Spring Boot
+        base-url:
+        # Répertoire physique sur le serveur où les fichiers images sont enregistrés
+        storage-path:
+        max-size: 524288
+        allowed-types:
+            - image/jpeg
+            - image/png
+            - image/jpg
+
     cors:
         enable: true
         allow-credentials: true

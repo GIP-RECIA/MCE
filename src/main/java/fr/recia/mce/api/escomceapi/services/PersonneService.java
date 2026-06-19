@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.services;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
@@ -28,12 +29,14 @@ import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -281,9 +284,18 @@ public class PersonneService {
             throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
         }
 
+        if (!canEditPersonalEmail(personneDTO)) {
+            specialLog.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", uid);
+            throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
+        }
+
         APersonne entity = personneDTO.getApersonne();
-        entity.setEmail(newEmail);
-//        entity.setEmailPersonnel(newEmail);
+
+//        adresse email interne a l ent
+//        entity.setEmail(newEmail);
+
+        // addresse email externe a l ent
+        entity.setEmailPersonnel(newEmail);
         entity.setDateModification(new Date());
 
         aPersonneRepository.saveAndFlush(entity);
@@ -302,6 +314,19 @@ public class PersonneService {
         clearUserCaches(uid);
 
         specialLog.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
+    }
+
+    private boolean canEditPersonalEmail(PersonneDTO personne) {
+        EnumPublic publicProfile = personne.getEnumPublic();
+        APersonne base = personne.getAPersonneBase();
+
+        if (publicProfile == null || base == null) {
+            return false;
+        }
+
+        return publicProfile.isEleve()
+                || StringUtils.isNotBlank(base.getEmailPersonnel())
+                || StringUtils.isBlank(base.getEmail());
     }
 
     private void clearUserCaches(String uid) {

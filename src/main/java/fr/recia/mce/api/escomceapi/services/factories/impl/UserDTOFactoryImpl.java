@@ -276,6 +276,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         List<RelationEleveContact> respEleves;
         List<RelationEleveContact> eleves;
         Boolean passEditable = false;
+        Boolean canEditEmail = false;
         Boolean eduConnect = false;
         Boolean passEtab = false;
 
@@ -296,11 +297,21 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             EnumPublic pub = model.getEnumPublic();
             if (pub != null) {
+                // Logique pour le mot de passe
                 if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
                         || !model.getMailFixe().matches("[^@]+@ac-orleans-tours.fr")) {
 
                     passEditable = pub.isConnectOk();
                     eduConnect = pub.isEduconnect();
+                }
+
+                // Logique pour l'email (Tableau de règles)
+                if (pub.isEleve()) {
+                    canEditEmail = true; // Élèves : toujours autorisé
+                } else if (model.getAPersonneBase().getEmailPersonnel() != null && !model.getAPersonneBase().getEmailPersonnel().isEmpty()) {
+                    canEditEmail = true; // Utilisateurs ayant déjà saisi un email perso
+                } else if (model.getMailFixe() == null || model.getMailFixe().isEmpty()) {
+                    canEditEmail = true; // Utilisateurs sans email fixe
                 }
 
                 if (pub.isPassEtab()) {
@@ -335,9 +346,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     model.getAPersonneBase().getSn(),
                     model.getAPersonneBase().getCivilite(),
                     model.getAPersonneBase().getCategorie(),
+                    canEditEmail,
                     userIdentifiant,
                     model.getStructureDto().getDisplayName(),
-                    model.getMailFixe(), model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
+                    model.getAPersonneBase().getEmail(),
+                    model.getAPersonneBase().getEmailPersonnel(),
+                    model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
                     passEditable, userPublic,
                     listMenuTab(model.getAPersonneBase().getCategorie()), showGeneralInfo(), respEleves, eleves, null);
             

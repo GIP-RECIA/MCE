@@ -2,6 +2,7 @@ package fr.recia.mce.api.escomceapi.web.rest.service;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.security.access.AccessDeniedException;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -170,6 +172,7 @@ class PersonneServiceTest {
             APersonne aPersonne = new APersonne();
             aPersonne.setUid(uid);
             PersonneDTO personneDTO = new PersonneDTO(aPersonne);
+            personneDTO.setEnumPublic(EnumPublic.ELEVE);
             String newEmail = "new@recia.fr";
 
             when(aPersonneRepository.getPersonneByUid(uid)).thenReturn(personneDTO);
@@ -178,7 +181,8 @@ class PersonneServiceTest {
             personneService.updateEmail(uid, newEmail);
 
             // Assert
-            assertThat(aPersonne.getEmail()).isEqualTo(newEmail);
+            assertThat(aPersonne.getEmail()).isNull();
+            assertThat(aPersonne.getEmailPersonnel()).isEqualTo(newEmail);
             assertThat(aPersonne.getDateModification()).isNotNull();
 
             verify(aPersonneRepository).saveAndFlush(aPersonne);
@@ -208,6 +212,7 @@ class PersonneServiceTest {
             // Arrange
             APersonne aPersonne = new APersonne();
             PersonneDTO personneDTO = new PersonneDTO(aPersonne);
+            personneDTO.setEnumPublic(EnumPublic.ELEVE);
             when(aPersonneRepository.getPersonneByUid(uid)).thenReturn(personneDTO);
             doThrow(new RuntimeException("LDAP Read-only")).when(extDao).updateEmail(anyString(), anyString());
 
@@ -218,6 +223,25 @@ class PersonneServiceTest {
 
             // La DB est mise à jour avant (transactional)
             verify(aPersonneRepository).saveAndFlush(aPersonne);
+        }
+
+        @Test
+        @DisplayName("Échec : email personnel non modifiable pour un personnel avec email fixe")
+        void updateEmail_NotEditableForStaffWithFixedEmailAndNoPersonalEmail() {
+            APersonne aPersonne = new APersonne();
+            aPersonne.setUid(uid);
+            aPersonne.setEmail("user@ac-orleans-tours.fr");
+            PersonneDTO personneDTO = new PersonneDTO(aPersonne);
+            personneDTO.setEnumPublic(EnumPublic.EDUCATION);
+
+            when(aPersonneRepository.getPersonneByUid(uid)).thenReturn(personneDTO);
+
+            assertThatThrownBy(() -> personneService.updateEmail(uid, "new@test.fr"))
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("email personnel");
+
+            verify(aPersonneRepository, never()).saveAndFlush(any());
+            verifyNoInteractions(extDao);
         }
     }
 }
