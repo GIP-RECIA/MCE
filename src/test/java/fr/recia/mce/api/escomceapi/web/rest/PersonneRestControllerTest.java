@@ -490,7 +490,23 @@ class PersonneRestControllerTest {
             mockMvc.perform(put(BASE_URL + USER + "/update-email")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                    .andExpect(jsonPath("$.message").value("Les adresses email ne correspondent pas"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests du point d'accès avatar")
+    class AvatarTests {
+
+        @Test
+        @DisplayName("Avatar non trouvé retourne 404 avec PersonneNotFoundException")
+        void shouldReturnNotFoundWhenAvatarIsNull() throws Exception {
+            when(personneService.getAvatar(USER)).thenReturn(null);
+
+            mockMvc.perform(get(BASE_URL + USER + "/avatar.jpg"))
+                    .andExpect(status().isNotFound());
         }
     }
 

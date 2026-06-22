@@ -342,7 +342,7 @@ public class PersonneService {
                 || StringUtils.isBlank(base.getEmail());
     }
 
-    private void clearUserCaches(String uid) {
+    public void clearUserCaches(String uid) {
         Cache dbCache = cacheManager.getCache("personneDBCache");
         if (dbCache != null) {
             dbCache.evict(uid);
