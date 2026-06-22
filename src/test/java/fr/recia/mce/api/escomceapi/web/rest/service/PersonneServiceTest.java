@@ -48,6 +48,7 @@ class PersonneServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(cacheManager.getCache(anyString())).thenReturn(cache);
+        lenient().when(cache.get(uid, PersonneDTO.class)).thenReturn(null);
     }
 
     @Nested

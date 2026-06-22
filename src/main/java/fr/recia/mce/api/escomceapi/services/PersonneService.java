@@ -79,14 +79,21 @@ public class PersonneService {
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
-    @Cacheable(cacheNames = "personneDBCache", key = "#uid")
     public PersonneDTO getUserByUid(String uid) {
-        log.debug("Recherche base de données : récupération de PersonneDTO pour l'uid [{}]", uid);
+        Cache cache = cacheManager.getCache("personneDBCache");
+        PersonneDTO cached = cache.get(uid, PersonneDTO.class);
+        if (cached != null) {
+            log.debug("Cache hit pour 'personneDBCache' : Données DB chargées pour l'uid [{}]", uid);
+            return cached;
+        }
+
+        log.debug("Cache miss pour 'personneDBCache' : Récupération des données DB pour l'uid [{}]", uid);
 
         PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
 
         if (personne != null) {
             loadLdapUser(personne, uid);
+            cache.putIfAbsent(uid, personne);
         }
 
         log.debug("Recherche base de données terminée pour l'uid [{}] : Résultat={}", uid, personne);

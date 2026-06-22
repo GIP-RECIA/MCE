@@ -81,12 +81,10 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     int grpCodeContact = 5;
     int grpCodePaiement = 6;
 
-    private void analyseMaitre(final String eleve, final String ldapAttr,
+    private void analyseMaitre(final IExternalUser personne, final String ldapAttr,
             final String type,
             final boolean autorite,
             final Map<String, RelationEleveContact> uid2relation) {
-
-        IExternalUser personne = personneService.retrievePersonLdap(eleve);
 
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
@@ -124,14 +122,11 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     /**
      * Analyse les relations LDAP élève/contact et alimente la map des relations.
      *
-     * @param eleve UID de l'élève
      * @param ldapAttr attribut LDAP contenant les relations
      * @param uid2relation map des relations
      */
-    private void analyse(final String eleve, final String ldapAttr,
+    private void analyse(final IExternalUser personne, final String ldapAttr,
             final Map<String, RelationEleveContact> uid2relation) {
-
-        IExternalUser personne = personneService.retrievePersonLdap(eleve);
 
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
@@ -192,11 +187,17 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         // LDAP
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
 
+        IExternalUser personne = personneService.retrievePersonLdap(eleve);
+        if (personne == null) {
+            log.warn("Aucune donnée LDAP trouvée pour l'élève {}", eleve);
+            return Collections.emptyList();
+        }
+
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
         String eleveTuteurEntr = extUserHelper.getUserEleveTuteurAttribute();
 
-        analyse(eleve, eleveRelation, uid2relation);
-        analyseMaitre(eleve, eleveTuteurEntr, "Maitre", false, uid2relation);
+        analyse(personne, eleveRelation, uid2relation);
+        analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
 
         // Remplissage des noms via LDAP
         if (!uid2relation.isEmpty()) {
