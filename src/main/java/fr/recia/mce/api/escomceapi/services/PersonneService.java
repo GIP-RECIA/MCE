@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.services;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
@@ -327,8 +328,13 @@ public class PersonneService {
         EnumPublic publicProfile = personne.getEnumPublic();
         APersonne base = personne.getAPersonneBase();
 
-        if (publicProfile == null || base == null) {
-            return false;
+        if (base == null) return false;
+
+        if (publicProfile == null) {
+            EnumCategorie cat = EnumCategorie.fromString(base.getCategorie());
+            return cat == EnumCategorie.ELEVE
+                    || StringUtils.isNotBlank(base.getEmailPersonnel())
+                    || StringUtils.isBlank(base.getEmail());
         }
 
         return publicProfile.isEleve()
