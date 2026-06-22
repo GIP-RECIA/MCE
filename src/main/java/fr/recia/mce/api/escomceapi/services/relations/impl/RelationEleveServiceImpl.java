@@ -196,8 +196,16 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
         String eleveTuteurEntr = extUserHelper.getUserEleveTuteurAttribute();
 
-        analyse(personne, eleveRelation, uid2relation);
-        analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
+        boolean hasRelation = personne.getAttribute(eleveRelation) != null;
+        boolean hasTuteur = personne.getAttribute(eleveTuteurEntr) != null;
+
+        if (!hasRelation && !hasTuteur) {
+            log.debug("Aucun attribut de relation LDAP présent pour l'utilisateur {}", eleve);
+            return Collections.emptyList();
+        }
+
+        if (hasRelation) analyse(personne, eleveRelation, uid2relation);
+        if (hasTuteur) analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
 
         // Remplissage des noms via LDAP
         if (!uid2relation.isEmpty()) {
