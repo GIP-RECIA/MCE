@@ -24,6 +24,7 @@ import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.entities.AFonction;
 import fr.recia.mce.api.escomceapi.db.repositories.AFonctionRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
+import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,7 +59,7 @@ public class FonctionService {
         AFonction aFonction = aFonctionRepository.findById(id)
                 .orElseThrow(() -> {
                     log.error("Impossible de mettre à jour la fonction : fonction introuvable avec l'ID : {}", id);
-                    return new RuntimeException("Fonction non trouvée avec l'id : " + id);
+                    return new PersonneNotFoundException("Fonction non trouvée avec l'id : " + id);
                 });
         if (active) {
             aFonction.setDateFin(null);

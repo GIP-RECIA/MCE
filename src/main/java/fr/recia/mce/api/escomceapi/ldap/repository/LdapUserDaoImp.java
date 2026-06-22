@@ -142,7 +142,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
 
             if (dns == null || dns.isEmpty()) {
                 specialLog.error("Audit [UPDATE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour", uid);
-                throw new RuntimeException("Utilisateur LDAP introuvable : " + uid);
+                throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
             }
 
             String dn = dns.get(0);

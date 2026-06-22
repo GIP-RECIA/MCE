@@ -19,6 +19,7 @@ import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
@@ -157,7 +158,7 @@ public class PersonneRestController {
      * @param request objet contenant le nouvel email
      */
     @PutMapping("/{uid}/update-email")
-    public ResponseEntity<Void> updateEmail(
+    public ResponseEntity<?> updateEmail(
             @PathVariable String uid,
             @Valid @RequestBody EmailUpdateRequestDTO request) {
 
@@ -170,7 +171,8 @@ public class PersonneRestController {
 
         if (!request.getEmail().equals(request.getConfirmEmail())) {
             log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
         }
 
         personneService.updateEmail(uid, request.getEmail());
@@ -208,7 +210,7 @@ public class PersonneRestController {
     public ResponseEntity<byte[]> getAvatar(@PathVariable String uid, @PathVariable(required = false) String suffix) {
         byte[] image = personneService.getAvatar(uid);
         if (image == null) {
-            return ResponseEntity.notFound().build();
+            throw new PersonneNotFoundException("Avatar non trouvé pour l'uid : " + uid);
         }
         return ResponseEntity.ok()
                 .header("Content-Type", "image/jpeg")
