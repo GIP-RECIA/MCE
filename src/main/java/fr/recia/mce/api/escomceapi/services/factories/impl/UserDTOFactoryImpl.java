@@ -283,7 +283,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         structureService.getAllStructures();
 
         if (model != null && extModel != null) {
-            Collection<RelationEleveContact> respCol = iRelationEleveService.allRelationEleves(model.getUid());
+            Collection<RelationEleveContact> respCol = iRelationEleveService.allRelationEleves(extModel);
             if (respCol != null) {
                 respEleves = new ArrayList<>(respCol);
             } else {

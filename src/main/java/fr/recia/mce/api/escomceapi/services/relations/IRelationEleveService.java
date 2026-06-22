@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.services.relations;
 import java.util.Collection;
 import java.util.List;
 
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 
 public interface IRelationEleveService {
@@ -31,6 +32,12 @@ public interface IRelationEleveService {
      * @return La collection des relations de l'eleve.
      */
     public Collection<RelationEleveContact> allRelationEleves(String eleve);
+
+    /**
+     * Même que {@link #allRelationEleves(String)} mais avec l'objet LDAP déjà chargé.
+     * Évite un appel LDAP redondant quand l'appelant a déjà l'{@link IExternalUser}.
+     */
+    public Collection<RelationEleveContact> allRelationEleves(IExternalUser personne);
 
     /**
      * Donne tous les élèves en relation avec un parent.

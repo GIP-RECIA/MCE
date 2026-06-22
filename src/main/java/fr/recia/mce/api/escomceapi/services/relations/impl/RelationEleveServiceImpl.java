@@ -177,21 +177,20 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
      */
     @Override
     public Collection<RelationEleveContact> allRelationEleves(String eleve) {
-
-        if (eleve == null || eleve.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        log.debug("Recherche des relations parents pour l'élève : {}", eleve);
-
-        // LDAP
-        Map<String, RelationEleveContact> uid2relation = new HashMap<>();
+        if (eleve == null || eleve.trim().isEmpty()) return Collections.emptyList();
 
         IExternalUser personne = personneService.retrievePersonLdap(eleve);
         if (personne == null) {
             log.warn("Aucune donnée LDAP trouvée pour l'élève {}", eleve);
             return Collections.emptyList();
         }
+
+        return allRelationEleves(personne);
+    }
+
+    @Override
+    public Collection<RelationEleveContact> allRelationEleves(IExternalUser personne) {
+        Map<String, RelationEleveContact> uid2relation = new HashMap<>();
 
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
         String eleveTuteurEntr = extUserHelper.getUserEleveTuteurAttribute();
@@ -200,7 +199,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         boolean hasTuteur = personne.getAttribute(eleveTuteurEntr) != null;
 
         if (!hasRelation && !hasTuteur) {
-            log.debug("Aucun attribut de relation LDAP présent pour l'utilisateur {}", eleve);
+            log.debug("Aucun attribut de relation LDAP présent pour l'utilisateur {}", personne.getId());
             return Collections.emptyList();
         }
 
@@ -223,16 +222,15 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         }
         //BASE DE DONNÉES SI LDAP VIDE
         if (uid2relation.isEmpty()) {
-            log.warn("LDAP vide pour l'élève {}. Tentative de secours en base de données.", eleve);
+            log.warn("LDAP vide pour l'utilisateur {}. Tentative de secours en base de données.", personne.getId());
 
             try {
-                List<RelationEleveContact> dbRelations = aPersonneRepository.findAllParentOfEleve(eleve);
+                List<RelationEleveContact> dbRelations = aPersonneRepository.findAllParentOfEleve(personne.getId());
 
                 if (dbRelations != null && !dbRelations.isEmpty()) {
-                    log.info("Secours DB réussi : {} relation(s) trouvée(s) pour l'élève {}",
-                            dbRelations.size(), eleve);
+                    log.info("Secours DB réussi : {} relation(s) trouvée(s) pour l'utilisateur {}",
+                            dbRelations.size(), personne.getId());
 
-                    // Log détaillé pour voir exactement ce qui est renvoyé
                     for (RelationEleveContact r : dbRelations) {
                         log.debug("  → Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
                                 r.getUidRelation(),
@@ -243,16 +241,15 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
                     return dbRelations;
                 } else {
-                    log.warn("Aucune relation trouvée en base non plus pour l'élève {}", eleve);
+                    log.warn("Aucune relation trouvée en base non plus pour l'utilisateur {}", personne.getId());
                 }
             } catch (Exception e) {
-                log.error("Erreur lors du secours DB pour l'élève {} : {}", eleve, e.getMessage(), e);
+                log.error("Erreur lors du secours DB pour l'utilisateur {} : {}", personne.getId(), e.getMessage(), e);
             }
         }
 
-        // Si LDAP a trouvé des relations, on les retourne
         if (!uid2relation.isEmpty()) {
-            log.debug("LDAP a trouvé {} relation(s) pour l'élève {}", uid2relation.size(), eleve);
+            log.debug("LDAP a trouvé {} relation(s) pour l'utilisateur {}", uid2relation.size(), personne.getId());
         }
 
         return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();

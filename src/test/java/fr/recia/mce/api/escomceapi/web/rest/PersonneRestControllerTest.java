@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.SoffitInterceptor;
+import java.util.List;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
@@ -27,6 +28,7 @@ import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
@@ -408,6 +410,46 @@ class PersonneRestControllerTest {
 
             mockMvc.perform(get(BASE_URL + enfantId))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("Sérialisation UserDTO avec parentEleve contenant PersonneDTO + APersonne")
+        void shouldSerializeUserDtoWithParentEleve() throws Exception {
+            String enfantId = "F20102xc";
+
+            APersonne childEntity = new APersonne();
+            childEntity.setId(1L);
+            childEntity.setUid(enfantId);
+            childEntity.setSn("VAR");
+            childEntity.setGivenName("Sara");
+            childEntity.setDisplayName("Sara VAR");
+            childEntity.setCategorie("ELEVE");
+
+            AStructure structure = new AStructure();
+            structure.setNom("College");
+            childEntity.setAStructure(structure);
+
+            PersonneDTO personneDTO = new PersonneDTO(childEntity);
+
+            RelationEleveContact rel = new RelationEleveContact(RelationEleveContact.SensRel.ELEVE2CONTACT);
+            rel.setUidRelation("pierrevar");
+            rel.setDisplayNameRelation("Pierre VAR");
+            rel.setTypeRelation("Autorite_parentale");
+            rel.setEleve(personneDTO);
+
+            UserDTO enfant = new UserDTO();
+            enfant.setUid(enfantId);
+            enfant.setUserName("Sara VAR");
+            enfant.setCategorie("ELEVE");
+            enfant.setParentEleve(List.of(rel));
+
+            when(userDTOFactory.from(enfantId)).thenReturn(enfant);
+
+            mockMvc.perform(get(BASE_URL + enfantId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uid").value(enfantId))
+                    .andExpect(jsonPath("$.parentEleve[0].uidRelation").value("pierrevar"))
+                    .andExpect(jsonPath("$.parentEleve[0].eleve.uid").value(enfantId));
         }
     }
 

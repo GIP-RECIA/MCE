@@ -36,6 +36,7 @@ import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -44,6 +45,7 @@ import lombok.Setter;
 @Table(name = "apersonne", uniqueConstraints = {
 		@UniqueConstraint(columnNames = { "source", "cle" }),
 		@UniqueConstraint(columnNames = "uid") })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 public class APersonne implements Serializable {
