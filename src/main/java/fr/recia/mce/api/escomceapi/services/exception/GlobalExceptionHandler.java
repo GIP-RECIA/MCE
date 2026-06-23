@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
     // Toujours en dernier
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-        log.error("Une erreur inattendue s'est produite lors du traitement de la requête - Détail : {} | Trace : ", ex.getMessage(), ex);
+        log.error("Une erreur inattendue s'est produite lors du traitement de la requête - Détail : {}", ex.getMessage());
         return ResponseEntity.internalServerError()
                 .body(new ErrorResponse("INTERNAL_SERVER_ERROR", "Une erreur interne est survenue"));
     }

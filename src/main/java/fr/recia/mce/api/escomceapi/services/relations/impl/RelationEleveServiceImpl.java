@@ -154,7 +154,9 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                         re.setAutoriteParental(true);
                         String code = m.group(grpTypRel);
                         re.setTypeRelation(code);
-                        log.debug("code lien famille = " + code + " " + val);
+                        if (log.isDebugEnabled()) {
+                            log.debug("code lien famille = " + code + " " + val);
+                        }
 
                     }
                 }
@@ -244,7 +246,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                     log.warn("Aucune relation trouvée en base non plus pour l'utilisateur {}", personne.getId());
                 }
             } catch (Exception e) {
-                log.error("Erreur lors du secours DB pour l'utilisateur {} : {}", personne.getId(), e.getMessage(), e);
+                log.error("Erreur lors du secours DB pour l'utilisateur {} : {}", personne.getId(), e.getMessage());
             }
         }
 

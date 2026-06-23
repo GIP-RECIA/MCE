@@ -22,11 +22,14 @@ import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +46,8 @@ public class PersonneRestController {
     private final PersonneService personneService;
     private final IUserDTOFactory userDTOFactory;
     private final SoffitHolder soffitHolder;
+
+    private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory, SoffitHolder soffitHolder) {
         this.personneService = personneService;
@@ -143,7 +148,7 @@ public class PersonneRestController {
         String currentUid = getCurrentUid();
 
         if (!currentUid.equals(uid)) {
-            log.warn("Tentative de changement de mot de passe non autorisée pour uid={}", uid);
+            specialLog.warn("Audit [CHANGE_PASSWORD] : Tentative de changement de mot de passe non autorisée pour uid={}", uid);
             throw new AccessDeniedException("Vous ne pouvez modifier que votre propre mot de passe");
         }
 

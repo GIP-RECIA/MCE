@@ -75,10 +75,10 @@ public class LdapUserDaoImp implements IExternalUserDao {
         try {
             user = ldapTemplate.searchForObject(query, mapper);
         } catch (EmptyResultDataAccessException e) {
-            specialLog.warn("Audit [GET_USER_BY_ID] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP | Détail : {}", uid, e.getMessage());
+            log.warn("Audit [GET_USER_BY_ID] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP | Détail : {}", uid, e.getMessage());
             throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
         } catch (Exception e) {
-            specialLog.error("Audit [GET_USER_BY_ID] : REFUSÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la recherche LDAP | Détail : {}", uid, e.getMessage());
+            log.error("Audit [GET_USER_BY_ID] : REFUSÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la recherche LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP", e);
         }
 
@@ -149,7 +149,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("DN résolu pour uid={} : {}", uid, dn);
 
             ldapTemplate.modifyAttributes(dn, mods);
-            log.info("Mot de passe LDAP mis à jour pour l'uid : {} au DN : {}", uid, dn);
+            specialLog.info("Audit [UPDATE_PASSWORD] : SUCCÈS pour l'utilisateur [{}]", uid);
 
         } catch (Exception e) {
             specialLog.error("Audit [UPDATE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
@@ -181,7 +181,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             List<String> dns = ldapTemplate.search(query, dnMapper);
 
             if (dns == null || dns.isEmpty()) {
-                specialLog.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour", uid);
+                log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour", uid);
                 throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
             }
 
@@ -192,7 +192,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.info("Email LDAP mis à jour pour l'uid : {} au DN : {} avec le nouvel email : {}", uid, dn, newEmail);
 
         } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
+            log.error("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP email update failed", e);
         }
     }
@@ -221,7 +221,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             List<String> dns = ldapTemplate.search(query, dnMapper);
 
             if (dns == null || dns.isEmpty()) {
-                specialLog.error("Audit [UPDATE_AVATAR] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
+                log.error("Audit [UPDATE_AVATAR] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
                 throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
             }
 
@@ -233,7 +233,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
                     externalUserHelper.getUserAvatarAttribute(), uid, dn, newAvatarUrl);
 
         } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification LDAP | Détail : {}", uid, e.getMessage());
+            log.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP avatar update failed", e);
         }
     }

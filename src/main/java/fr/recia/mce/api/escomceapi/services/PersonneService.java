@@ -27,7 +27,6 @@ import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
-import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -77,8 +76,6 @@ public class PersonneService {
 
     @Autowired
     private transient IExternalUserDao extDao;
-
-    private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     public PersonneDTO getUserByUid(String uid) {
         Cache cache = cacheManager.getCache("personneDBCache");
@@ -231,7 +228,7 @@ public class PersonneService {
             try {
                 Files.createDirectories(storageDir);
             } catch (IOException e) {
-                log.error("Impossible de créer le dossier de stockage : {}. Raison : {}", storageDir, e.getMessage(), e);
+                log.error("Impossible de créer le dossier de stockage : {}. Raison : {}", storageDir, e.getMessage());
                 throw new RuntimeException("Impossible de créer le dossier de stockage", e);
             }
         }
@@ -288,12 +285,12 @@ public class PersonneService {
         // 1. Update in Database
         PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
         if (personneDTO == null) {
-            specialLog.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
+            log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
             throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
         }
 
         if (!canEditPersonalEmail(personneDTO)) {
-            specialLog.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", uid);
+            log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", uid);
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
         }
 
@@ -314,14 +311,14 @@ public class PersonneService {
             getExtDao().updateEmail(uid, newEmail);
             log.debug("Email mis à jour dans l'annuaire LDAP pour l'uid : {}", uid);
         } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Échec de la mise à jour LDAP | Détail : {}", uid, e.getMessage());
+            log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Échec de la mise à jour LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("Erreur lors de la mise à jour de l'email dans l'annuaire", e);
         }
 
         // 3. Clear Caches
         clearUserCaches(uid);
 
-        specialLog.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
+        log.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
     }
 
     private boolean canEditPersonalEmail(PersonneDTO personne) {

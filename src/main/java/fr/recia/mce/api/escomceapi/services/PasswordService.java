@@ -702,7 +702,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
      */
     @Transactional
     public void savePasswordToHistory(PersonneDTO personne, String hashLdap) {
-        log.info("Sauvegarde du mot de passe dans l'historique pour l'utilisateur {}", personne.getUid());
+        specialLog.info("Audit [SAVE_PASSWORD_HISTORY] : Sauvegarde du mot de passe dans l'historique pour l'utilisateur {}", personne.getUid());
 
         APersonne aPersonne = personne.getAPersonneBase();
         Date today = new Date();
@@ -720,7 +720,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         });
 
         if (alreadyToday) {
-            log.warn("Une entrée existe pour aujourd'hui, mise à jour du hash pour l'utilisateur {}", personne.getUid());
+            specialLog.warn("Audit [SAVE_PASSWORD_HISTORY] : Une entrée existe pour aujourd'hui, mise à jour du hash pour l'utilisateur {}", personne.getUid());
             cerberePasswordRepository.updatePasswordForToday(aPersonne.getId(), hashLdap);
         } else {
             CerberePassword cp = new CerberePassword(aPersonne, hashLdap, today);
