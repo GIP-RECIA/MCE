@@ -16,6 +16,7 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
@@ -76,6 +77,9 @@ public class PersonneService {
 
     @Autowired
     private transient IExternalUserDao extDao;
+
+    @Autowired
+    private MailProperties mailProperties;
 
     public PersonneDTO getUserByUid(String uid) {
         Cache cache = cacheManager.getCache("personneDBCache");
@@ -292,6 +296,20 @@ public class PersonneService {
         if (!canEditPersonalEmail(personneDTO)) {
             log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", uid);
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
+        }
+
+        // Validation du format email
+        if (!newEmail.matches(mailProperties.getRegexValideAddr())) {
+            throw new IllegalArgumentException("Le format de l'adresse email n'est pas valide");
+        }
+
+        // Vérification des domaines exclus
+        String domain = newEmail.substring(newEmail.lastIndexOf('@') + 1);
+        String[] excludedDomains = mailProperties.getRegexsDomainesExclus().split("\\s+");
+        for (String excluded : excludedDomains) {
+            if (domain.equalsIgnoreCase(excluded.trim())) {
+                throw new IllegalArgumentException("Le domaine de l'adresse email est exclu");
+            }
         }
 
         APersonne entity = personneDTO.getApersonne();

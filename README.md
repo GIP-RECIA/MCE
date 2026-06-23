@@ -2,7 +2,7 @@
 Mon Compte ENT
 
 
-# Règles de modification du mail personnel
+# Gestion du mail
 
 ## Tableau de référence
 
@@ -38,8 +38,6 @@ Si un non-élève arrive avec :
 → il peut modifier son mail personnel.  
 Si pendant la même session il **vide ou supprime** son mail personnel, `mailEditable` reste à `true` : il peut encore corriger son mail dans la même session.
 
-# Gestion du mail
-
 ## Endpoint
 
 `PUT /api/personne/mce/{uid}/update-email`
@@ -56,15 +54,17 @@ PUT /{uid}/update-email
   │     ├─ Validation email == confirmEmail           (lignes 171-174)
   │     └─ Appel personneService.updateEmail()        (ligne 176)
   │
-  ├─ [2] PersonneService.updateEmail()               (PersonneService.java:277)
-  │     ├─ Récupération PersonneDTO                   (ligne 281)
-  │     ├─ Vérification canEditPersonalEmail()        (lignes 287-290)
-  │     ├─ setEmailPersonnel(newEmail)                (ligne 298)
-  │     ├─ setDateModification(new Date())            (ligne 299)
-  │     ├─ saveAndFlush()                             (ligne 301)
-  │     ├─ Mise à jour LDAP : updateEmail()           (ligne 306)
-  │     ├─ Éviction du cache                          (ligne 314)
-  │     └─ Audit log                                  (ligne 316)
+  ├─ [2] PersonneService.updateEmail()               (PersonneService.java:282)
+  │     ├─ Récupération PersonneDTO                   (ligne 286)
+  │     ├─ Vérification canEditPersonalEmail()        (lignes 292-295)
+  │     ├─ Validation format email (regex)            (lignes 298-300)
+  │     ├─ Validation domaine exclu                   (lignes 303-310)
+  │     ├─ setEmailPersonnel(newEmail)                (ligne 314)
+  │     ├─ setDateModification(new Date())            (ligne 315)
+  │     ├─ saveAndFlush()                             (ligne 317)
+  │     ├─ Mise à jour LDAP : updateEmail()           (ligne 322)
+  │     ├─ Éviction du cache                          (ligne 330)
+  │     └─ Audit log                                  (ligne 332)
   │
   └─ [3] Return 204 No Content
 ```
@@ -75,7 +75,11 @@ PUT /{uid}/update-email
 
 **Controller** : `email == confirmEmail` → 400 si différent
 
-**Service** : `canEditPersonalEmail()` (PersonneService.java:319-330)
+**Service** : `canEditPersonalEmail()` (PersonneService.java:324-340)
+
+**Service — Format** : l'email doit correspondre à la regex configurée (`mail.regexValideAddr`), sinon → 400 `BAD_REQUEST`
+
+**Service — Domaines exclus** : le domaine de l'email (partie après `@`) ne doit pas figurer dans la liste `mail.regexsDomainesExclus`, sinon → 400 `BAD_REQUEST`
 
 | Type | Mail fixe (`email`) | Mail perso (`emailPersonnel`) | Peut modifier ? |
 |------|---------------------|-------------------------------|-----------------|
@@ -103,6 +107,7 @@ PUT /{uid}/update-email
 | `APersonne.java:103-107` | Entité : colonnes `email` / `emailPersonnel` |
 | `LdapUserDaoImp.java:161` | Synchro LDAP : attribut `mail` |
 | `CustomLdapProperties.java:52` | Configuration défaut `mailAttribute` |
+| `MailProperties.java` | Configuration regex format + domaines exclus |
 
 ## Configuration (`application.yml`)
 
@@ -111,6 +116,10 @@ app:
   ldap:
     user-branch:
       mail-attribute: 'mail'         # Attribut LDAP cible (défaut)
+
+mail:
+  regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
+  regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
 ```
 
 # Gestion des mots de passe
