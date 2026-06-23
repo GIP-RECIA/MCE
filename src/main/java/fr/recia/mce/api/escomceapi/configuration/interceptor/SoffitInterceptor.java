@@ -43,7 +43,6 @@ public class SoffitInterceptor implements HandlerInterceptor {
     public SoffitInterceptor(SoffitHolder soffitHolder) {
         this.soffitHolder = soffitHolder;
     }
-/*
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
@@ -95,42 +94,4 @@ public class SoffitInterceptor implements HandlerInterceptor {
         return true;
     }
 
-*/
-@Override
-public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-        throws Exception {
-
-    String path = request.getRequestURI().substring(request.getContextPath().length());
-
-    if (!path.startsWith("/api")) {
-        return true;
-    }
-
-    String token = request.getHeader("Authorization");
-
-    if (token == null || !token.startsWith("Bearer ")) {
-        log.debug("No Authorization header found or header does not start with 'Bearer ' for request path: {}", path);
-        return true;
-    }
-
-    try {
-        String jwt = token.replace("Bearer ", "");
-        String payload = new String(Base64.getUrlDecoder().decode(jwt.split("\\.")[1]));
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<String, Object> soffit = objectMapper.readValue(payload, new TypeReference<>() {});
-
-        log.debug("Payload JWT décodé avec succès : {}", soffit);
-
-        String sub = (String) soffit.get("sub");
-        soffitHolder.setSub(sub);
-
-        log.debug("User 'sub' extracted from JWT: {}", sub);
-
-    } catch (Exception e) {
-        log.error("Authentication failed: Error parsing Soffit JWT token - Detail: {}", e.getMessage());
-    }
-
-    return true;
-}
 }
