@@ -2,8 +2,15 @@ server:
     port: 8090
     servlet:
         context-path: /
+    error:
+        path: /error
 
 spring:
+    mvc:
+        throw-exception-if-no-handler-found: true
+    web:
+        resources:
+            add-mappings: false
     cache:
         jcache:
             config: "classpath:ehcache.xml"
@@ -57,7 +64,7 @@ logging:
         root: ERROR
         fr.recia.mce: DEBUG
         MCE_SPECIAL_LOGGER: INFO
-#    org.hibernate.SQL: ERROR
+    org.hibernate.SQL: ERROR
 
 app:
     service:
@@ -111,6 +118,11 @@ app:
             - image/jpeg
             - image/png
             - image/jpg
+
+mail:
+    regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
+    regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
+    domainesConfiance: 'ac-orleans-tours.fr educagri.fr recia.fr'
 
     cors:
         enable: true
