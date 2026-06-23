@@ -56,11 +56,6 @@ Quand le frontend récupère le profil utilisateur, le `email` (mail fixe) affic
 ## Configuration (`application.yml`)
 
 ```yaml
-app:
-  ldap:
-    user-branch:
-      mail-attribute: 'mail'         # Attribut LDAP cible (défaut)
-
 mail:
   regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
   regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
