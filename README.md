@@ -38,6 +38,21 @@ Si un non-élève arrive avec :
 → il peut modifier son mail personnel.  
 Si pendant la même session il **vide ou supprime** son mail personnel, `mailEditable` reste à `true` : il peut encore corriger son mail dans la même session.
 
+## Filtrage du mail affiché (mailFixeConfiance)
+
+Quand le frontend récupère le profil utilisateur, le `email` (mail fixe) affiché dépend du niveau de confiance :
+
+- **Domaines de confiance** (`mail.domainesConfiance`) : si le domaine du `mailFixe` est dans cette liste, le mail est considéré comme fiable (`mailFixeConfiance = true`) et affiché directement.
+- **Personnel** (`EnumPublic.PERSONNEL`) : si l'utilisateur est un personnel, son mail est toujours considéré comme fiable.
+- **Sinon** : le système va chercher un mail préalablement confirmé dans la table `cerbere_confirmation` (où `confirmation` n'est pas null). Si aucun mail confirmé n'existe, le `mailFixe` est utilisé par défaut.
+
+| Condition | mailFixeConfiance | email affiché |
+|-----------|-------------------|---------------|
+| Domaine dans `domainesConfiance` | `true` | `mailFixe` |
+| Utilisateur `PERSONNEL` | `true` | `mailFixe` |
+| Domaine non fiable + mail confirmé en DB | `false` | Mail confirmé |
+| Domaine non fiable + aucun mail confirmé | `false` | `mailFixe` (fallback) |
+
 ## Configuration (`application.yml`)
 
 ```yaml
@@ -49,6 +64,7 @@ app:
 mail:
   regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
   regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
+  domainesConfiance: 'ac-orleans-tours.fr educagri.fr recia.fr'
 ```
 
 # Gestion des mots de passe

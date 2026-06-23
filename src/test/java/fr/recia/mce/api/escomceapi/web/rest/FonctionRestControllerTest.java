@@ -70,6 +70,12 @@ class FonctionRestControllerTest {
     @MockBean
     private fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository fonctionRepository;
 
+    @MockBean
+    private fr.recia.mce.api.escomceapi.configuration.bean.MailProperties mailProperties;
+
+    @MockBean
+    private fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository cerbereConfirmationRepository;
+
     @Test
     @DisplayName("Mise à jour de dateFin réussie")
     void shouldUpdateDateFinSuccessfully() throws Exception {

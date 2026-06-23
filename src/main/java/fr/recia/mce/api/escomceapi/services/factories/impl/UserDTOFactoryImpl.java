@@ -30,15 +30,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
@@ -101,6 +104,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private MCEProperties mceProperties;
+
+    @Autowired
+    private MailProperties mailProperties;
+
+    @Autowired
+    private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     private Pattern groupsWithSSHAPassword;
 
@@ -321,6 +330,31 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             }
 
+            // Détermination du mail à afficher (mailFixe ou confirmé)
+            String resolvedEmail = model.getAPersonneBase().getEmail();
+            String mailFixe = model.getMailFixe();
+            Boolean mailFixeConfiance = false;
+
+            if (mailFixe != null && !mailFixe.isEmpty()) {
+                String domain = mailFixe.substring(mailFixe.lastIndexOf('@') + 1);
+                String[] trustedDomains = mailProperties.getDomainesConfiance().split("\\s+");
+                for (String trusted : trustedDomains) {
+                    if (domain.equalsIgnoreCase(trusted.trim())) {
+                        mailFixeConfiance = true;
+                        break;
+                    }
+                }
+                if (pub == EnumPublic.PERSONNEL) {
+                    mailFixeConfiance = true;
+                }
+                if (!mailFixeConfiance) {
+                    List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(model.getAPersonneBase().getId());
+                    if (!confirmed.isEmpty()) {
+                        resolvedEmail = confirmed.get(0).getMail();
+                    }
+                }
+            }
+
             String userIdentifiant = Boolean.TRUE.equals(passEditable) ? model.getIdentifiant() : null;
             List<String> userPublic = new ArrayList<>();
 
@@ -349,7 +383,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     canEditEmail,
                     userIdentifiant,
                     model.getStructureDto().getDisplayName(),
-                    model.getAPersonneBase().getEmail(),
+                    resolvedEmail,
                     model.getAPersonneBase().getEmailPersonnel(),
                     model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
                     passEditable, userPublic,
