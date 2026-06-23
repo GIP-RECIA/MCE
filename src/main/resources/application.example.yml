@@ -22,7 +22,21 @@ spring:
         username: 
         password: 
 
-    jpa:
+domaine:
+    gestion-recia:
+        - lycees.netocentre.fr
+        - cfa.netocentre.fr
+        - www.chercan.fr
+    gestion-include:
+        - "0370074E"
+        - "0410860M"
+        - "0280957N"
+        - "0180037T"
+        - "0180766K"
+        - "0360718K"
+    gestion-exclude: []
+
+jpa:
         show-sql: true 
         hibernate:
             naming:
@@ -83,7 +97,6 @@ app:
         custom-params:
             lien-edu: 
             lien-pass-etab: 
-            domaine-etab-recia: 
     ldap:
         user-branch:
             eleve-relation: 

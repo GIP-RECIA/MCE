@@ -61,7 +61,82 @@ mail:
   regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
   domainesConfiance: 'ac-orleans-tours.fr educagri.fr recia.fr'
 ```
+ 
+# Gestion du réseau des établissements (domaine.gestion.recia)
+ 
+Définit si le réseau d'un établissement est **géré par le GIP RECIA**, ce qui permet d'afficher le lien de changement de mot de passe établissement (`pwd.escolan.recia.fr`) et d'adapter le message ÉduConnect.
+ 
+## Propriétés (`application.yml`)
+ 
+```yaml
+domaine:
+  gestion-recia:
+    - lycees.netocentre.fr
+    - cfa.netocentre.fr
+    - www.chercan.fr
+  gestion-include:
+    - "0370074E"
+    - "0410860M"
+    - "0280957N"
+    - "0180037T"
+    - "0180766K"
+    - "0360718K"
+  gestion-exclude: []
+```
+ 
+## Logique
 
+La méthode `isReseauRecia(PersonneDTO)` itère sur chaque UAI de la personne (`ESCOUAI`), cherche la structure correspondante via `findStructureByUai(uai)`, puis délègue à `isReseauRecia(IExternalStructure)` :
+
+```
+                    PersonneDTO
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │  Pour chaque UAI      │
+            │  (ESCOUAI)            │
+            └──────────┬────────────┘
+                       │
+                       ▼
+            ┌───────────────────────┐
+            │ findStructureByUai()  │
+            └──────────┬────────────┘
+                       │
+                       ▼
+                    Structure
+                        │
+                        ▼
+            Domaine dans setDomaineEtabRecia ?
+                        │
+            ┌───────────┴───────────┐
+            │ OUI                   │ NON
+            ▼                       ▼
+    UAI dans exclude ?        UAI dans include ?
+            │                       │
+    ┌───────┴───────┐       ┌───────┴───────┐
+    │ OUI    │ NON  │       │ OUI    │ NON  │
+    │ false  │ true │       │ true   │ false│
+    └───────┴───────┘       └───────┴───────┘
+```
+
+Une seule UAI valide suffit à retourner `true` (comportement OR).
+
+## Code
+
+| Fichier | Rôle |
+|---------|------|
+| `DomaineProperties.java` | `@ConfigurationProperties(prefix = "domaine")` |
+| `StructureServiceImpl.java` | `isReseauRecia(PersonneDTO)` → itère UAI → `findStructureByUai` → `isReseauRecia(IExternalStructure)` → `isDomaineRecia()` |
+| `UserDTOFactoryImpl.java:327` | `passEtab = structureService.isReseauRecia(model)` |
+ 
+## Résumé
+ 
+| Propriété | Rôle |
+|-----------|------|
+| `domaine.gestion-recia` | Domaines des établissements gérés par RECIA |
+| `domaine.gestion-include` | UAI/SIREN inclus en forcé (cités scolaires) |
+| `domaine.gestion-exclude` | UAI/SIREN exclus même si domaine RECIA |
+ 
 # Gestion des mots de passe
 
 ## Endpoint
