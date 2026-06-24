@@ -85,7 +85,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private IExternalUser externalUser;
     private PersonneDTO personneDTO;
 
-    private ServiceProperties serviceProperties;
+    private final ServiceProperties serviceProperties;
 
     @Autowired
     private SoffitHolder soffitHolder;
@@ -116,6 +116,10 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public UserDTOFactoryImpl(MCEProperties mceProperties) {
         this.serviceProperties = mceProperties.getService();
         this.mceProperties = mceProperties;
+        String regex = this.serviceProperties.getCustomParams().getRegexGroupsWithSshaPass();
+        if (regex != null) {
+            this.groupsWithSSHAPassword = Pattern.compile(regex);
+        }
     }
 
     @Override
@@ -162,11 +166,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         boolean isRegion = false;
         String source = personne.getSource();
 
-        try {
-            ds = (structure).getDomSource();
-
-        } catch (Exception e) {
-            log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
+        if (structure != null) {
+            try {
+                ds = structure.getDomSource();
+            } catch (Exception e) {
+                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
+            }
         }
 
         if (source != null) {
@@ -178,45 +183,54 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         switch (enumCat) {
             case ELEVE:
-                switch (ds) {
-                    case CFA:
-                        res = EnumPublic.APPRENANT;
-                        break;
-                    case AC:
-                        res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
-                        break;
-                    case GIP:
-                    case LA:
-                    case COLL:
-                    default:
-                        res = EnumPublic.ELEVE;
+                if (ds != null) {
+                    switch (ds) {
+                        case CFA:
+                            res = EnumPublic.APPRENANT;
+                            break;
+                        case AC:
+                            res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
+                            break;
+                        case GIP:
+                        case LA:
+                        case COLL:
+                        default:
+                            res = EnumPublic.ELEVE;
+                    }
+                } else {
+                    res = EnumPublic.ELEVE;
                 }
-
                 break;
 
             case PARENT:
-                switch (ds) {
-                    case AC:
+                if (ds != null) {
+                    if (ds == DomSource.AC) {
                         res = isLocalUser ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
-                        break;
-                    default:
+                    } else {
                         res = EnumPublic.PARENT;
+                    }
+                } else {
+                    res = EnumPublic.PARENT;
                 }
                 break;
 
             case PROF:
-                switch (ds) {
-                    case AC:
-                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
-                        break;
-                    case LA:
-                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
-                        break;
-                    case CFA:
-                    case GIP:
-                    case COLL:
-                    default:
-                        res = EnumPublic.PERSONNEL;
+                if (ds != null) {
+                    switch (ds) {
+                        case AC:
+                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                            break;
+                        case LA:
+                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                            break;
+                        case CFA:
+                        case GIP:
+                        case COLL:
+                        default:
+                            res = EnumPublic.PERSONNEL;
+                    }
+                } else {
+                    res = EnumPublic.PERSONNEL;
                 }
                 break;
 
@@ -231,32 +245,40 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     break;
                 }
             case NON_PROF_ETAB:
-                switch (ds) {
-                    case AC:
-                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
-                        break;
-                    case LA:
-                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
-                        break;
-                    case CFA:
-                    case GIP:
-                    case COLL:
-                    default:
-                        res = EnumPublic.PERSONNEL;
+                if (ds != null) {
+                    switch (ds) {
+                        case AC:
+                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                            break;
+                        case LA:
+                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                            break;
+                        case CFA:
+                        case GIP:
+                        case COLL:
+                        default:
+                            res = EnumPublic.PERSONNEL;
+                    }
+                } else {
+                    res = EnumPublic.PERSONNEL;
                 }
                 break;
 
             case NON_PROF_ACAD:
-                switch (ds) {
-                    case AC:
-                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
-                        break;
-                    case LA:
-                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
-                        break;
-                    // $CASES-OMITTED$
-                    default:
-                        res = EnumPublic.AUTRE;
+                if (ds != null) {
+                    switch (ds) {
+                        case AC:
+                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                            break;
+                        case LA:
+                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                            break;
+                        // $CASES-OMITTED$
+                        default:
+                            res = EnumPublic.AUTRE;
+                    }
+                } else {
+                    res = EnumPublic.AUTRE;
                 }
                 break;
             case AUTRE:
@@ -265,14 +287,14 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         }
 
         personne.setEnumPublic(res);
-        groupsWithSSHAPassword = Pattern
-                .compile(this.serviceProperties.getCustomParams().getRegexGroupsWithSshaPass());
 
-        if (groupsWithSSHAPassword != null && ds == DomSource.GIP) {
-            List<String> attrs = personne.getExtUser().getAttribute("isMemberOf");
-            if (attrs != null) {
-                personne.setSSHAPass(attrs.stream().anyMatch(s -> groupsWithSSHAPassword.matcher(s).matches()));
-
+        if (groupsWithSSHAPassword != null && DomSource.GIP.equals(ds)) {
+            IExternalUser extUser = personne.getExtUser();
+            if (extUser != null) {
+                List<String> attrs = extUser.getAttribute("isMemberOf");
+                if (attrs != null) {
+                    personne.setSSHAPass(attrs.stream().anyMatch(s -> groupsWithSSHAPassword.matcher(s).matches()));
+                }
             }
         }
 
@@ -284,14 +306,20 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         List<RelationEleveContact> respEleves;
         List<RelationEleveContact> eleves;
-        Boolean passEditable = false;
-        Boolean canEditEmail = false;
-        Boolean eduConnect = false;
-        Boolean passEtab = false;
+        boolean passEditable = false;
+        boolean canEditEmail = false;
+        boolean eduConnect = false;
+        boolean passEtab = false;
 
         structureService.getAllStructures();
 
         if (model != null && extModel != null) {
+            APersonne base = model.getAPersonneBase();
+            if (base == null) {
+                log.error("Données de base absentes pour l'utilisateur [uid={}]", model.getUid());
+                return null;
+            }
+
             Collection<RelationEleveContact> respCol = iRelationEleveService.allRelationEleves(extModel);
             if (respCol != null) {
                 respEleves = new ArrayList<>(respCol);
@@ -300,7 +328,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             }
 
             Collection<RelationEleveContact> elevesCol = iRelationEleveService
-                    .allEleveEnRelation(model.getAPersonneBase().getId());
+                    .allEleveEnRelation(base.getId());
 
             eleves = new ArrayList<>(elevesCol);
 
@@ -317,7 +345,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 // Logique pour l'email (Tableau de règles)
                 if (pub.isEleve()) {
                     canEditEmail = true; // Élèves : toujours autorisé
-                } else if (model.getAPersonneBase().getEmailPersonnel() != null && !model.getAPersonneBase().getEmailPersonnel().isEmpty()) {
+                } else if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()) {
                     canEditEmail = true; // Utilisateurs ayant déjà saisi un email perso
                 } else if (model.getMailFixe() == null || model.getMailFixe().isEmpty()) {
                     canEditEmail = true; // Utilisateurs sans email fixe
@@ -331,9 +359,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             }
 
             // Détermination du mail à afficher (mailFixe ou confirmé)
-            String resolvedEmail = model.getAPersonneBase().getEmail();
+            String resolvedEmail = base.getEmail();
             String mailFixe = model.getMailFixe();
-            Boolean mailFixeConfiance = false;
+            boolean mailFixeConfiance = false;
 
             if (mailFixe != null && !mailFixe.isEmpty()) {
                 String domain = mailFixe.substring(mailFixe.lastIndexOf('@') + 1);
@@ -348,46 +376,46 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     mailFixeConfiance = true;
                 }
                 if (!mailFixeConfiance) {
-                    List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(model.getAPersonneBase().getId());
+                    List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(base.getId());
                     if (!confirmed.isEmpty()) {
                         resolvedEmail = confirmed.get(0).getMail();
                     }
                 }
             }
 
-            String userIdentifiant = Boolean.TRUE.equals(passEditable) ? model.getIdentifiant() : null;
+            String userIdentifiant = passEditable ? model.getIdentifiant() : null;
             List<String> userPublic = new ArrayList<>();
 
-            if (Boolean.TRUE.equals(eduConnect)) {
+            if (eduConnect) {
                 userPublic.add(this.serviceProperties.getCustomParams().getLienEdu());
-                if (Boolean.TRUE.equals(passEtab)) {
+                if (passEtab) {
                     userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
                 }
-            } else if (Boolean.TRUE.equals(passEtab)) {
+            } else if (passEtab) {
                 userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
             }
 
             String avatarUrl = null;
-            if (model.getAPersonneBase().getPhoto() != null) {
+            if (base.getPhoto() != null) {
                 // Construction dynamique : base-url + uid + /avatar0.jpg
                 avatarUrl = mceProperties.getAvatar().getBaseUrl() 
                             + model.getUid() + "/avatar0.jpg";
                 log.debug("URL de l'avatar générée pour l'UID [{}]: {}", model.getUid(), avatarUrl);
             }
 
-            UserDTO user = new UserDTO(model.getAPersonneBase().getId(), model.getUid(), model.getDisplayName(),
-                    model.getAPersonneBase().getGivenName(),
-                    model.getAPersonneBase().getSn(),
-                    model.getAPersonneBase().getCivilite(),
-                    model.getAPersonneBase().getCategorie(),
+            UserDTO user = new UserDTO(base.getId(), model.getUid(), model.getDisplayName(),
+                    base.getGivenName(),
+                    base.getSn(),
+                    base.getCivilite(),
+                    base.getCategorie(),
                     canEditEmail,
                     userIdentifiant,
                     model.getStructureDto().getDisplayName(),
                     resolvedEmail,
-                    model.getAPersonneBase().getEmailPersonnel(),
-                    model.getNaissance(), model.getAvatarUrl(), model.getAPersonneBase().getEtat(),
+                    base.getEmailPersonnel(),
+                    model.getNaissance(), model.getAvatarUrl(), base.getEtat(),
                     passEditable, userPublic,
-                    listMenuTab(model.getAPersonneBase().getCategorie()), showGeneralInfo(), respEleves, eleves, null);
+                    listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
             
             user.setAvatarUrl(avatarUrl);
             return user;
@@ -455,11 +483,17 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             return null;
         }
 
+        APersonne base = personneDTO.getAPersonneBase();
+        if (base == null) {
+            log.warn("Données de base absentes pour les informations générales.");
+            return null;
+        }
+
         InfoGeneralDTO infoGeneral = null;
 
         List<FonctionDTO> listFonctions;
 
-        Long id = personneDTO.getAPersonneBase().getId();
+        Long id = base.getId();
         log.debug("Récupération des informations générales pour l'ID utilisateur : {}", id);
 
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
@@ -467,26 +501,27 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         listFonctions = new ArrayList<>(fonctions);
         log.debug("{} fonction(s) trouvée(s) pour l'ID utilisateur : {}", listFonctions.size(), id);
 
-        ClasseGroupeDTO classes = classeGroupeService.calculCG(personneDTO.getExtUser());
+        IExternalUser extUser = personneDTO.getExtUser();
+        ClasseGroupeDTO classes = extUser != null ? classeGroupeService.calculCG(extUser) : null;
 
         infoGeneral = new InfoGeneralDTO(listFonctions, classes);
 
         return infoGeneral;
     }
 
-    private boolean isSubOk() {
+    private boolean isSubInvalid() {
 
-        final boolean isOk = soffitHolder.getSub() != null && !soffitHolder.getSub().startsWith("guest");
-        if (!isOk)
+        final boolean isNotOk = soffitHolder.getSub() == null || soffitHolder.getSub().startsWith("guest");
+        if (isNotOk)
             log.info("Requête refusée : l'utilisateur est un invité ou n'a pas de réclamation 'sub' (sub : {})", soffitHolder.getSub());
 
-        return isOk;
+        return isNotOk;
     }
 
     @Override
     public UserDTO getCurrentUser() {
 
-        if (!isSubOk())
+        if (isSubInvalid())
             return null;
         final UserDTO user = from(soffitHolder.getSub());
 
@@ -499,7 +534,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Override
     public void changePassword(String uid, PasswordChangeRequestDTO req) {
 
-        if (!isSubOk()) {
+        if (isSubInvalid()) {
             throw new SecurityException("No authorization");
         }
 

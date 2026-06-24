@@ -70,11 +70,4 @@ public class Personne {
         return null;
     }
 
-    public boolean isSSHAPass() {
-        return isSSHAPass;
-    }
-
-    public void setSSHAPass(boolean isSSHAPass) {
-        this.isSSHAPass = isSSHAPass;
-    }
 }

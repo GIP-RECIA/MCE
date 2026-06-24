@@ -144,27 +144,27 @@ public class APersonne implements Serializable {
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
 	@JsonIgnore
-	private Set<Login> loginsForApersonneLogin = new HashSet<Login>(0);
+	private Set<Login> loginsForApersonneLogin = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneAlias")
 	@JsonIgnore
-	private Set<Login> loginsForApersonneAlias = new HashSet<Login>(0);
+	private Set<Login> loginsForApersonneAlias = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByIdParent")
 	@JsonIgnore
-	private Set<CerbereEnfant> cerbereEnfantsForIdParent = new HashSet<CerbereEnfant>(0);
+	private Set<CerbereEnfant> cerbereEnfantsForIdParent = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByIdEnfant")
 	@JsonIgnore
-	private Set<CerbereEnfant> cerbereEnfantsForIdEnfant = new HashSet<CerbereEnfant>(0);
+	private Set<CerbereEnfant> cerbereEnfantsForIdEnfant = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
 	@JsonIgnore
-	private Set<CerbereConfirmation> cerbereConfirmations = new HashSet<CerbereConfirmation>(0);
+	private Set<CerbereConfirmation> cerbereConfirmations = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
 	@JsonIgnore
-	private Set<Login> loginsForApersonneOldAlias = new HashSet<Login>(0);
+	private Set<Login> loginsForApersonneOldAlias = new HashSet<>(0);
 
 	@JsonIgnore
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
@@ -172,19 +172,19 @@ public class APersonne implements Serializable {
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
 	@JsonIgnore
-	private Set<AStructure> astructuresForResponsableId = new HashSet<AStructure>(0);
+	private Set<AStructure> astructuresForResponsableId = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
 	@JsonIgnore
-	private Set<AStructure> astructuresForContactId = new HashSet<AStructure>(0);
+	private Set<AStructure> astructuresForContactId = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
 	@JsonIgnore
-	private Set<AStructure> astructuresForContactId_1 = new HashSet<AStructure>(0);
+	private Set<AStructure> astructuresForContactId_1 = new HashSet<>(0);
 
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
 	@JsonIgnore
-	private Set<AStructure> astructuresForResponsableId_1 = new HashSet<AStructure>(0);
+	private Set<AStructure> astructuresForResponsableId_1 = new HashSet<>(0);
 
 	public APersonne() {
 	}

@@ -15,6 +15,9 @@
  */
 package fr.recia.mce.api.escomceapi.db.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum EnumCategorie {
 
     AUTRE(""),
@@ -31,13 +34,6 @@ public enum EnumCategorie {
 
     private EnumCategorie(String dbname) {
         this.dbname = dbname.intern();
-    }
-
-    /**
-     * @return the dbname
-     */
-    public String getDbname() {
-        return dbname;
     }
 
     public static EnumCategorie fromString(String dbname) {

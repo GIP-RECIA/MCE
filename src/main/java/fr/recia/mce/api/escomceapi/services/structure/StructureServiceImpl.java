@@ -49,10 +49,10 @@ public class StructureServiceImpl implements IStructureService {
     private List<IExternalStructure> allStructures;
 
     private final Map<String, IExternalStructure> siren2structure = Collections
-            .synchronizedMap(new HashMap<String, IExternalStructure>());
+            .synchronizedMap(new HashMap<>());
 
     private final Map<String, IExternalStructure> uai2structure = Collections
-            .synchronizedMap(new HashMap<String, IExternalStructure>());
+            .synchronizedMap(new HashMap<>());
 
     private final Set<String> setDomaineEtabRecia = new HashSet<>();
     private final Set<String> setIncludeEtabRecia = new HashSet<>();

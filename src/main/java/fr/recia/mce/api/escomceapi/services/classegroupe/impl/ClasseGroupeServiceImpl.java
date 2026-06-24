@@ -244,8 +244,6 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             Map<String, List<String>> classes, Map<String, List<String>> groups) {
 
         ClasseGroupe sourceData = eleveMap.computeIfAbsent(siren, k -> new ClasseGroupe());
-        List<String> cls = new ArrayList<>();
-        List<String> grp = new ArrayList<>();
 
         // Set the name (only if it hasn't been set yet)
         if (sourceData.getNameEtab() != null) {
@@ -265,8 +263,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             if (sourceData.getClasses() == null) {
                 sourceData.setClasses(new ArrayList<>());
             }
-            cls.add(value);
-            classes.put(siren, cls);
+            classes.put(siren, new ArrayList<>(List.of(value)));
             sourceData.getClasses().add(value);
         }
 
@@ -274,8 +271,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             if (sourceData.getGroupes() == null) {
                 sourceData.setGroupes(new ArrayList<>());
             }
-            grp.add(value);
-            groups.put(siren, grp);
+            groups.put(siren, new ArrayList<>(List.of(value)));
             sourceData.getGroupes().add(value);
         }
 
@@ -294,15 +290,11 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         ClasseGroupe sourceData = matMap.get(matiere);
         sourceData.setNameEtab(siren);
 
-        List<String> cls = new ArrayList<>();
-        List<String> grp = new ArrayList<>();
-
         // Check if it’s a class or a group and add to respective lists
         if (ldapAttr.contains(classAttrs[1])) {
             if (sourceData.getClasses() == null) {
                 sourceData.setClasses(new ArrayList<>());
             }
-            cls.add(value);
             sourceData.getClasses().add(value); // Add the class value
         }
 
@@ -310,7 +302,6 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             if (sourceData.getGroupes() == null) {
                 sourceData.setGroupes(new ArrayList<>());
             }
-            grp.add(value);
             sourceData.getGroupes().add(value); // Add the group value
         }
 
@@ -325,10 +316,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
         if (valuesAttr != null) {
 
-            for (String enseignement : valuesAttr) {
-                enseignements.add(enseignement);
-
-            }
+            enseignements.addAll(valuesAttr);
         }
 
         return enseignements;

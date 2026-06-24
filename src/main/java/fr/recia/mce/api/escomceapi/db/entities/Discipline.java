@@ -52,7 +52,7 @@ public class Discipline {
     private String source;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "discipline")
-    private Set<Fonction> fonctions = new HashSet<Fonction>(0);
+    private Set<Fonction> fonctions = new HashSet<>(0);
 
     public Discipline() {
     }

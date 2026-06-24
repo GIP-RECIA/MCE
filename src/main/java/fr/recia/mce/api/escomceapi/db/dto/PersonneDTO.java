@@ -157,7 +157,7 @@ public class PersonneDTO extends Personne {
     /**
      * Change le flag doForward en base
      * 
-     * @param doForward
+     * @param doForward nouvelle valeur du flag
      */
     protected void setForward(final boolean doForward) {
         aPersonneBase.setDoForward(doForward);
@@ -176,7 +176,7 @@ public class PersonneDTO extends Personne {
     /**
      * fixe le mot de passe en base.
      * 
-     * @param password
+     * @param password nouveau mot de passe
      */
     public void setDbPassword(final String password) {
         aPersonneBase.setPassword(password);
@@ -186,7 +186,7 @@ public class PersonneDTO extends Personne {
     /**
      * Fixe l'état de la personne.
      * 
-     * @param etat
+     * @param etat nouvel état
      */
     protected void setEtat(final String etat) {
         aPersonneBase.setEtat(etat);
@@ -197,7 +197,7 @@ public class PersonneDTO extends Personne {
      * met a jour l'url de la photo dans sarapis mais pas dans ldap
      * pour la mise a jour dans les 2 utiliser DaoServicePersonne.setPhotoUrl
      * 
-     * @param url
+     * @param url nouvelle URL de l'avatar
      */
     @Override
     public void setAvatarUrl(String url) {
@@ -219,7 +219,7 @@ public class PersonneDTO extends Personne {
     /**
      * Modifie la date de modification.
      * 
-     * @param dateModification
+     * @param dateModification nouvelle date
      */
     public void setDateModification(final Date dateModification) {
         aPersonneBase.setDateModification(dateModification);
@@ -241,7 +241,7 @@ public class PersonneDTO extends Personne {
     /**
      * Fixe la date de signature de la charte.
      * 
-     * @param datedesignature
+     * @param datedesignature date de signature
      */
     public void setDateValideCharte(final Date datedesignature) {
         aPersonneBase.setValidationCharte(datedesignature);
