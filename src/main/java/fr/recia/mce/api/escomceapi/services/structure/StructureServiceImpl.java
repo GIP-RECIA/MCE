@@ -144,6 +144,11 @@ public class StructureServiceImpl implements IStructureService {
     @Override
     public boolean isReseauRecia(PersonneDTO p) {
 
+        if (p.getExtUser() == null) {
+            log.info("→ Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
+            return false;
+        }
+
         List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
 
         log.info("=== isReseauRecia pour uid={} ===", p.getUid());

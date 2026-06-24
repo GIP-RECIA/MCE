@@ -264,7 +264,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
     }
 
     private boolean requiresSSHA(PersonneDTO person) {
-        String uid = (person != null) ? person.getUid() : "unknown";
+        if (person == null) return false;
+        String uid = person.getUid() != null ? person.getUid() : "unknown";
         String regex = mceProperties.getService()
                 .getCustomParams()
                 .getRegexGroupsWithSshaPass();
@@ -375,7 +376,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
     }
 
     private boolean requiresSamba(PersonneDTO person) {
-        String uid = (person != null) ? person.getUid() : "unknown";
+        if (person == null) return false;
+        String uid = person.getUid() != null ? person.getUid() : "unknown";
         String regex = mceProperties.getService()
                 .getCustomParams()
                 .getRegexGroupsWithSambaNt();
