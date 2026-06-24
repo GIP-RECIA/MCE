@@ -15,10 +15,8 @@
  */
 package fr.recia.mce.api.escomceapi.configuration.interceptor;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,7 +26,6 @@ import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;

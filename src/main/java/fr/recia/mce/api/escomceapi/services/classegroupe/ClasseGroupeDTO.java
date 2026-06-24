@@ -15,14 +15,12 @@
  */
 package fr.recia.mce.api.escomceapi.services.classegroupe;
 
-import fr.recia.mce.api.escomceapi.services.beans.ClasseGroupe;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionEleve;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionProf;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.util.Map;
 
 @Getter
 @Setter

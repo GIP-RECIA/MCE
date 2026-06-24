@@ -25,14 +25,11 @@ import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
-import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -53,10 +50,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
 import java.util.Objects;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.io.IOException;
 
 @Service
 @Getter

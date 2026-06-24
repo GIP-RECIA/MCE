@@ -21,13 +21,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties.RelationProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
@@ -70,16 +71,28 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     @Autowired
     private ExternalUserHelper extUserHelper;
 
-    private String regex = "uid=(\\w+),.*";
-    private Pattern pattern = Pattern.compile(regex);
+    private final String regex;
+    private final Pattern pattern;
+    private final Pattern patternRelation;
+    private final int grpUid;
+    private final int grpTypRel;
+    private final int grpRespFinance;
+    private final int grpRespLegal;
+    private final int grpCodeContact;
+    private final int grpCodePaiement;
 
-    Pattern patternRelation = Pattern.compile("uid=(\\w+),[^$]+\\$([^$]+)\\$([^$]+)\\$(1|2)\\$([^$]+)\\$([^$]+)");
-    int grpUid = 1;
-    int grpTypRel = 2;
-    int grpRespFinance = 3;
-    int grpRespLegal = 4;
-    int grpCodeContact = 5;
-    int grpCodePaiement = 6;
+    public RelationEleveServiceImpl(MCEProperties mceProperties) {
+        RelationProperties relProps = mceProperties.getService().getRelationProperties();
+        this.regex = relProps.getRegexUid();
+        this.pattern = Pattern.compile(regex);
+        this.patternRelation = Pattern.compile(relProps.getRegexRelation());
+        this.grpUid = relProps.getGroupUid();
+        this.grpTypRel = relProps.getGroupTypRel();
+        this.grpRespFinance = relProps.getGroupRespFinance();
+        this.grpRespLegal = relProps.getGroupRespLegal();
+        this.grpCodeContact = relProps.getGroupCodeContact();
+        this.grpCodePaiement = relProps.getGroupCodePaiement();
+    }
 
     private void analyseMaitre(final IExternalUser personne, final String ldapAttr,
             final String type,
@@ -170,7 +183,6 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     /**
      * Retourne toutes les relations d'un élève.
      * Ordre :
-     *
      *   LDAP
      *   base de données si LDAP vide
      *

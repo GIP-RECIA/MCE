@@ -1,5 +1,7 @@
 package fr.recia.mce.api.escomceapi.services.relations.impl;
 
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
@@ -8,12 +10,13 @@ import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -36,8 +39,31 @@ class RelationEleveServiceImplTest {
     @Mock
     private ExternalUserHelper extUserHelper;
 
-    @InjectMocks
+    @Mock
+    private MCEProperties mceProperties;
+
     private RelationEleveServiceImpl relationEleveService;
+
+    @BeforeEach
+    void setUp() {
+        ServiceProperties serviceProperties = new ServiceProperties();
+        ServiceProperties.RelationProperties relProps = serviceProperties.getRelationProperties();
+        relProps.setRegexUid("uid=(\\w+),.*");
+        relProps.setRegexRelation("uid=(\\w+),[^$]+\\$([^$]+)\\$([^$]+)\\$(1|2)\\$([^$]+)\\$([^$]+)");
+        relProps.setGroupUid(1);
+        relProps.setGroupTypRel(2);
+        relProps.setGroupRespFinance(3);
+        relProps.setGroupRespLegal(4);
+        relProps.setGroupCodeContact(5);
+        relProps.setGroupCodePaiement(6);
+
+        when(mceProperties.getService()).thenReturn(serviceProperties);
+
+        relationEleveService = new RelationEleveServiceImpl(mceProperties);
+        ReflectionTestUtils.setField(relationEleveService, "aPersonneRepository", aPersonneRepository);
+        ReflectionTestUtils.setField(relationEleveService, "personneService", personneService);
+        ReflectionTestUtils.setField(relationEleveService, "extUserHelper", extUserHelper);
+    }
 
     private static final String STUDENT_UID = "F20102xc";
     private static final String PARENT_UID = "pierrevar";

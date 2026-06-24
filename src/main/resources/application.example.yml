@@ -97,6 +97,15 @@ app:
         custom-params:
             lien-edu: 
             lien-pass-etab: 
+        relation-properties:
+            regex-uid: 
+            regex-relation: 
+            group-uid: 
+            group-typ-rel: 
+            group-resp-finance: 
+            group-resp-legal: 
+            group-code-contact: 
+            group-code-paiement: 
     ldap:
         user-branch:
             eleve-relation: 

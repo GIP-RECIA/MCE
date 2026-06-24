@@ -16,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
-import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.entities.AFonction;
 import fr.recia.mce.api.escomceapi.db.repositories.AFonctionRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
