@@ -76,10 +76,12 @@ public class PersonneService {
 
     public PersonneDTO getUserByUid(String uid) {
         Cache cache = cacheManager.getCache("personneDBCache");
-        PersonneDTO cached = cache.get(uid, PersonneDTO.class);
-        if (cached != null) {
-            log.debug("Cache hit pour 'personneDBCache' : Données DB chargées pour l'uid [{}]", uid);
-            return cached;
+        if (cache != null) {
+            PersonneDTO cached = cache.get(uid, PersonneDTO.class);
+            if (cached != null) {
+                log.debug("Cache hit pour 'personneDBCache' : Données DB chargées pour l'uid [{}]", uid);
+                return cached;
+            }
         }
 
         log.debug("Cache miss pour 'personneDBCache' : Récupération des données DB pour l'uid [{}]", uid);
@@ -88,7 +90,9 @@ public class PersonneService {
 
         if (personne != null) {
             loadLdapUser(personne, uid);
-            cache.putIfAbsent(uid, personne);
+            if (cache != null) {
+                cache.putIfAbsent(uid, personne);
+            }
         }
 
         log.debug("Recherche base de données terminée pour l'uid [{}] : Résultat={}", uid, personne);
@@ -101,16 +105,20 @@ public class PersonneService {
 
         Cache cache = cacheManager.getCache("personneLDAPCache");
 
-        IExternalUser getUser = cache.get(uid, IExternalUser.class);
-        if (!Objects.isNull(getUser)) {
-            log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
-            return getUser;
+        if (cache != null) {
+            IExternalUser getUser = cache.get(uid, IExternalUser.class);
+            if (!Objects.isNull(getUser)) {
+                log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
+                return getUser;
+            }
         }
 
         try {
             log.debug("Cache miss pour 'personneLDAPCache' : Récupération des données LDAP depuis l'annuaire pour l'uid [{}]", uid);
             userLdap = getExtDao().getUserByUid(uid);
-            cache.putIfAbsent(uid, userLdap);
+            if (cache != null) {
+                cache.putIfAbsent(uid, userLdap);
+            }
 
         } catch (Exception e) {
             log.error("Échec du chargement des données LDAP pour l'uid [{}] - Détail : {}", uid, e.getMessage());

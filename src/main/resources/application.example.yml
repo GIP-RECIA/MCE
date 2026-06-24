@@ -47,12 +47,12 @@ jpa:
                 format_sql: true
         
 
-    ldap:
-        base:
-        urls:
-            - ldap://
-        username: 
-        password: 
+ldap:
+    base:
+    urls:
+        - ldap://
+    username:
+    password:
 
 # management:
 #   endpoints:
