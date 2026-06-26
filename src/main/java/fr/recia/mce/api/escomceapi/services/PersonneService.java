@@ -151,8 +151,7 @@ public class PersonneService {
      * @throws RuntimeException En cas d'erreur lors de la lecture du fichier.
      */
     public byte[] getAvatar(String uid) {
-        String hash = getHashFromUid(uid);
-        Path path = Paths.get(mceProperties.getAvatar().getStoragePath(), hash, "avatar0.jpg");
+        Path path = Paths.get(mceProperties.getAvatar().getStoragePath(), uid, "avatar0.jpg");
         if (!Files.exists(path)) {
             log.warn("Avatar non trouvé pour l'UID [{}] à l'emplacement : {}", uid, path);
             return null;
@@ -265,7 +264,7 @@ public class PersonneService {
         }
 
         // Chemin relatif avec version globale
-        String relativePath = mceProperties.getAvatar().getBaseUrl() + uid + "/avatar0.jpg?v=" + nextVersion;
+        String relativePath = mceProperties.getAvatar().getBaseUrl() + hash + "/avatar0.jpg?v=" + nextVersion;
 
         // 2. Mise à jour de l'entité
         entity.setPhoto(relativePath);
