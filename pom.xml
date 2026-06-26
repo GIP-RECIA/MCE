@@ -163,6 +163,24 @@
 
 	</dependencies>
 
+	<scm>
+		<connection>scm:git:ssh://git@github.com/GIP-RECIA/MCE.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/GIP-RECIA/MCE.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/GIP-RECIA/MCE.git</url>
+	</scm>
+
+	<distributionManagement>
+		<repository>
+			<id>esco-releases</id>
+			<url>https://nexus.recia.dev/content/repositories/releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>esco-snapshots</id>
+			<url>https://nexus.recia.dev/content/repositories/snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
+
 	<build>
 		<resources>
 			<resource>
