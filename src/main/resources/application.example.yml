@@ -135,6 +135,8 @@ app:
         base-url:
         # Répertoire physique sur le serveur où les fichiers images sont enregistrés
         storage-path:
+        filename: avatar0.jpg
+        filename-backup: avatar1.jpg
         max-size: 524288
         allowed-types:
             - image/jpeg

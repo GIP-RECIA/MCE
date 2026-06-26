@@ -41,4 +41,14 @@ public class AvatarProperties {
      * Chemin physique sur le serveur où les fichiers images des avatars sont enregistrés.
      */
     private String storagePath;
+
+    /**
+     * Nom du fichier image de l'avatar (ex: avatar0.jpg).
+     */
+    private String filename = "avatar0.jpg";
+
+    /**
+     * Nom du fichier de backup/rotation (ex: avatar1.jpg).
+     */
+    private String filenameBackup = "avatar1.jpg";
 }

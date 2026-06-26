@@ -151,9 +151,11 @@ public class PersonneService {
      * @throws RuntimeException En cas d'erreur lors de la lecture du fichier.
      */
     public byte[] getAvatar(String uid) {
-        Path path = Paths.get(mceProperties.getAvatar().getStoragePath(), uid, "avatar0.jpg");
+        String groupDir = uid.substring(0, 2);
+        String userDir = uid.substring(2);
+        Path path = Paths.get(mceProperties.getAvatar().getStoragePath(), groupDir, userDir, mceProperties.getAvatar().getFilename());
         if (!Files.exists(path)) {
-            log.warn("Avatar non trouvé pour l'UID [{}] à l'emplacement : {}", uid, path);
+            log.warn("Avatar non trouvé pour le hash [{}] à l'emplacement : {}", uid, path);
             return null;
         }
         try {
@@ -226,7 +228,9 @@ public class PersonneService {
 
         // 1. Sauvegarde du fichier
         String hash = getHashFromUid(uid);
-        Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), hash);
+        String groupDir = hash.substring(0, 2);
+        String userDir = hash.substring(2);
+        Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), groupDir, userDir);
 
         if (!Files.exists(storageDir)) {
             try {
@@ -248,8 +252,10 @@ public class PersonneService {
             }
         }
 
-        Path path0 = storageDir.resolve("avatar0.jpg");
-        Path path1 = storageDir.resolve("avatar1.jpg");
+        String filename = mceProperties.getAvatar().getFilename();
+        String filenameBackup = mceProperties.getAvatar().getFilenameBackup();
+        Path path0 = storageDir.resolve(filename);
+        Path path1 = storageDir.resolve(filenameBackup);
 
         // Rotation cyclique
         try {
@@ -264,7 +270,7 @@ public class PersonneService {
         }
 
         // Chemin relatif avec version globale
-        String relativePath = mceProperties.getAvatar().getBaseUrl() + hash + "/avatar0.jpg?v=" + nextVersion;
+        String relativePath = mceProperties.getAvatar().getBaseUrl() + hash + "/" + filename + "?v=" + nextVersion;
 
         // 2. Mise à jour de l'entité
         entity.setPhoto(relativePath);
