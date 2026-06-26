@@ -145,6 +145,22 @@ Une seule UAI valide suffit à retourner `true` (comportement OR).
 
 L'authentification est gérée par **Soffit** (JWT) — il n'y a pas de login local. Le mot de passe n'est utilisé que pour le **changement** (vérification de l'ancien mot de passe).
 
+## Autorisation
+
+Le champ `mdp` (Boolean) dans le DTO utilisateur détermine si l'utilisateur peut changer son mot de passe. Il est calculé via `EnumPublic.isConnectOk()` :
+
+| `mdp = false` (ne peut PAS changer) | `mdp = true` (peut changer) |
+|---|---|
+| `EDUCATION` (personnel EN) | `PERSONNEL` |
+| `AGRI` (enseignement agricole) | `PARENT` |
+| `CVDL` (Région CVL) | `ELEVE` (agricole non CFA) |
+| `ELEVE_EDUC` (élève EN) | `APPRENANT` (CFA) |
+| `PARENT_EDUC` (parent EN) | `EXTERIEUR`, `AUTRE` |
+
+Si `EnumPublic` est nul, `mdp` reste `false` → pas de changement possible.
+
+Exception : un `EDUCATION` avec un `mailFixe` en `@ac-orleans-tours.fr` est aussi bloqué.
+
 ## Algorithme de hachage
 
 - **Argon2** (via Spring Security `Argon2PasswordEncoder`) — utilisé pour tous les nouveaux mots de passe
@@ -198,3 +214,68 @@ app:
 ## Journalisation
 
 Un logger d'audit dédié (`MCE_SPECIAL_LOGGER`) enregistre toutes les opérations dans `mce-password.log` (rotation quotidienne).
+
+# Gestion des avatars
+
+## Endpoints
+
+| Méthode | Endpoint | Rôle |
+|---------|----------|------|
+| `POST` | `/api/personne/mce/{uid}/avatar` | Upload d'un avatar |
+| `GET` | `/api/personne/mce/{hash}/avatar0.jpg` | Récupération de l'image |
+
+## Upload (`updateAvatar`)
+
+1. Validation de sécurité (taille max, type MIME)
+2. L'UID est hashé via `getHashFromUid(uid)` → `f2d9ad63`
+3. Les 2 premiers caractères du hash forment le `groupDir` → `f2/`
+4. Le reste forme le `userDir` → `9ad63/`
+5. Sauvegarde physique : `{storagePath}/{groupDir}/{userDir}/avatar0.jpg`
+6. Rotation : l'ancien fichier devient `avatar1.jpg`
+7. URL stockée en BDD : `{baseUrl}/{hash}/avatar0.jpg?v={version}`
+8. L'attribut LDAP `ESCOPersonPhoto` est mis à jour
+
+## Structure disque
+
+```
+{storagePath}/
+├── f2/
+│   └── 9ad63/
+│       ├── avatar0.jpg   ← actuel
+│       └── avatar1.jpg   ← backup (précédente version)
+├── 0a/
+│   └── 7184af21/
+│       ├── avatar0.jpg
+│       └── avatar1.jpg
+```
+
+## Configuration (`application.yml`)
+
+```yaml
+app:
+  avatar:
+    base-url: '/annuaire_images/avatars/'    # URL publique
+    storage-path: '/mnt/frene/var/www/images/avatars'  # Chemin disque
+    filename: avatar0.jpg
+    filename-backup: avatar1.jpg
+    max-size: 524288                         # 512 Ko
+    allowed-types:
+      - image/jpeg
+      - image/png
+      - image/jpg
+
+  ldap:
+    user-branch:
+      avatar-attribute: 'ESCOPersonPhoto'
+```
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---------|------|
+| `PersonneService.java:153` | `getAvatar()` — lecture fichier |
+| `PersonneService.java:189` | `updateAvatar()` — upload + rotation + LDAP |
+| `UserDTOFactoryImpl.java:398` | Construction de l'URL dans le DTO |
+| `PersonneRestController.java:187` | Endpoint POST upload |
+| `PersonneRestController.java:214` | Endpoint GET image |
+| `AvatarProperties.java` | Configuration des propriétés |
