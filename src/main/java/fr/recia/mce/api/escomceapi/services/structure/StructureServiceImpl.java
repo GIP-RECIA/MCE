@@ -97,7 +97,7 @@ public class StructureServiceImpl implements IStructureService {
     public IExternalStructure findStructureBySiren(String siren) {
 
         if (isStructureLoaded()) {
-            log.info("Recherche de structure avec le SIREN : {}", siren);
+            log.debug("Recherche de structure avec le SIREN : {}", siren);
 
             return siren2structure.get(siren);
         }
@@ -108,7 +108,7 @@ public class StructureServiceImpl implements IStructureService {
     @Override
     public IExternalStructure findStructureByUai(String uai) {
         if (isStructureLoaded()) {
-            log.info("Recherche de structure avec l'UAI : {}", uai);
+            log.debug("Recherche de structure avec l'UAI : {}", uai);
 
             return uai2structure.get(uai);
         }
@@ -119,25 +119,25 @@ public class StructureServiceImpl implements IStructureService {
     @Override
     public boolean isReseauRecia(IExternalStructure str) {
         String uaiOrSiren = str.getUai();
-        log.info("  └─ isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}",
+        log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}",
                 uaiOrSiren, (Object) str.getDomaines());
 
         if (isDomaineRecia(str)) {
-            log.info("    ✓ Domaine RECIA détecté");
+            log.debug("    ** Domaine RECIA détecté");
             if (uaiOrSiren != null && setExcludeEtabRecia.contains(uaiOrSiren)) {
-                log.info("    ✗ UAI '{}' dans la liste d'exclusion {} → EXCLU", uaiOrSiren, setExcludeEtabRecia);
+                log.debug("    * UAI '{}' dans la liste d'exclusion {} → EXCLU", uaiOrSiren, setExcludeEtabRecia);
                 return false;
             }
-            log.info("    → ACCEPTÉ (domaine Recia, UAI non exclue)");
+            log.debug("    - ACCEPTÉ (domaine Recia, UAI non exclue)");
             return true;
         }
 
         if (uaiOrSiren != null && setIncludeEtabRecia.contains(uaiOrSiren)) {
-            log.info("    ✓ UAI '{}' dans la liste d'inclusion {} → INCLUS", uaiOrSiren, setIncludeEtabRecia);
+            log.debug("    UAI '{}' dans la liste d'inclusion {} → INCLUS", uaiOrSiren, setIncludeEtabRecia);
             return true;
         }
 
-        log.info("    ✗ Domaine non RECIA ET UAI '{}' pas dans inclusion {}", uaiOrSiren, setIncludeEtabRecia);
+        log.debug("    Domaine non RECIA ET UAI '{}' pas dans inclusion {}", uaiOrSiren, setIncludeEtabRecia);
         return false;
     }
 
@@ -145,44 +145,54 @@ public class StructureServiceImpl implements IStructureService {
     public boolean isReseauRecia(PersonneDTO p) {
 
         if (p.getExtUser() == null) {
-            log.info("→ Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
+            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
             return false;
         }
 
         List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
 
-        log.info("=== isReseauRecia pour uid={} ===", p.getUid());
-        log.info("ESCOUAI={}", uais);
+        log.debug("=== isReseauRecia pour uid={} ===", p.getUid());
+        log.debug("ESCOUAI={}", uais);
 
         if (uais == null || uais.isEmpty()) {
-            log.info("→ Résultat : uid={} N'APPARTIENT PAS au réseau Recia (pas d'UAI)", p.getUid());
+            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (pas d'UAI)", p.getUid());
             return false;
         }
 
         int index = 0;
         for (String uai : uais) {
             index++;
-            log.info(" [{}/{}] Recherche de la structure pour l'UAI '{}'...", index, uais.size(), uai);
+            if (log.isDebugEnabled()) {
+                log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}'...", index, uais.size(), uai);
+            }
             IExternalStructure str = findStructureByUai(uai);
 
             if (str == null) {
-                log.info("  → Aucune structure trouvée pour l'UAI '{}'", uai);
+                if (log.isDebugEnabled()) {
+                    log.debug("  - Aucune structure trouvée pour l'UAI '{}'", uai);
+                }
                 continue;
             }
 
-            log.info("  Structure trouvée : id={}, nom='{}', domaines={}",
-                    str.getId(), str.getDisplayName(), (Object) str.getDomaines());
+            if (log.isDebugEnabled()) {
+                log.debug("  Structure trouvée : id={}, nom='{}', domaines={}",
+                        str.getId(), str.getDisplayName(), (Object) str.getDomaines());
+            }
 
             boolean estRecia = isReseauRecia(str);
-            log.info("   isReseauRecia(str) pour UAI '{}' = {}", uai, estRecia);
+            if (log.isDebugEnabled()) {
+                log.debug("   isReseauRecia(str) pour UAI '{}' = {}", uai, estRecia);
+            }
 
             if (estRecia) {
-                log.info("→ Résultat final : uid={} APPARTIENT au réseau Recia (via UAI '{}')", p.getUid(), uai);
+                if (log.isDebugEnabled()) {
+                    log.debug("- Résultat final : uid={} APPARTIENT au réseau Recia (via UAI '{}')", p.getUid(), uai);
+                }
                 return true;
             }
         }
 
-        log.info("→ Résultat final : uid={} N'APPARTIENT PAS au réseau Recia (aucune UAI n'a matché)", p.getUid());
+        log.debug("- Résultat final : uid={} N'APPARTIENT PAS au réseau Recia (aucune UAI n'a matché)", p.getUid());
         return false;
     }
 

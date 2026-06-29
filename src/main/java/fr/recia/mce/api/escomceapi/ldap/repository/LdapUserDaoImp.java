@@ -189,7 +189,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("DN résolu pour uid={} : {}", uid, dn);
 
             ldapTemplate.modifyAttributes(dn, mods);
-            log.info("Email LDAP mis à jour pour l'uid : {} au DN : {} avec le nouvel email : {}", uid, dn, newEmail);
+            log.debug("Email LDAP mis à jour pour l'uid : {} au DN : {} avec le nouvel email : {}", uid, dn, newEmail);
 
         } catch (Exception e) {
             log.error("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
@@ -229,7 +229,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("DN résolu pour uid={} : {}", uid, dn);
 
             ldapTemplate.modifyAttributes(dn, mods);
-            log.info("Attribut LDAP {} mis à jour pour l'uid : {} au DN : {} avec la valeur : {}", 
+            log.debug("Attribut LDAP {} mis à jour pour l'uid : {} au DN : {} avec la valeur : {}", 
                     externalUserHelper.getUserAvatarAttribute(), uid, dn, newAvatarUrl);
 
         } catch (Exception e) {

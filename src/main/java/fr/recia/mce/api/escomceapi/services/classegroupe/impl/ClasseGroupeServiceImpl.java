@@ -168,9 +168,13 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             List<EnseignementProf> matListCG = mapListSectionProf.getOrDefault(siren, new ArrayList<>());
 
             matMap.forEach((matiere, sourceData) -> {
-                log.debug("DEBUG: Traitement matière code={} pour siren={}", matiere, siren);
+                if (log.isDebugEnabled()) {
+                    log.debug("DEBUG: Traitement matière code={} pour siren={}", matiere, siren);
+                }
                 String nameMatiere = findMatiere(person, siren, matiere);
-                log.debug("DEBUG: Matière trouvée pour code={} : {}", matiere, nameMatiere);
+                if (log.isDebugEnabled()) {
+                    log.debug("DEBUG: Matière trouvée pour code={} : {}", matiere, nameMatiere);
+                }
                 EnseignementProf ens = new EnseignementProf();
                 ens.setMatiere(nameMatiere);
                 ens.setCg(sourceData);
@@ -221,7 +225,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                         String value = matcher.group(2);
                         String matiere = matcher.group(4);
 
-                        log.debug("DEBUG: Match trouvé : siren={}, value={}, matiere={}", siren, value, matiere);
+                        if (log.isDebugEnabled()) {
+                            log.debug("DEBUG: Match trouvé : siren={}, value={}, matiere={}", siren, value, matiere);
+                        }
                         if (siren != null) {
 
                             if (matiere != null) {
@@ -232,7 +238,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                         }
 
                     } else {
-                        log.debug("DEBUG: Aucune correspondance pour la valeur {} avec le pattern", val);
+                        if (log.isDebugEnabled()) {
+                            log.debug("DEBUG: Aucune correspondance pour la valeur {} avec le pattern", val);
+                        }
                     }
                 }
             }
@@ -281,7 +289,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
     private void handleProf(Map<String, Map<String, ClasseGroupe>> profMap, String siren, String value, String matiere,
             String ldapAttr, Map<String, ClasseGroupe> cgMap) {
-        log.debug("DEBUG: handleProf appelé pour siren={} matiere={} value={} ldapAttr={}", siren, matiere, value, ldapAttr);
+        if (log.isDebugEnabled()) {
+            log.debug("DEBUG: handleProf appelé pour siren={} matiere={} value={} ldapAttr={}", siren, matiere, value, ldapAttr);
+        }
 
         profMap.putIfAbsent(siren, new HashMap<>());
         Map<String, ClasseGroupe> matMap = profMap.get(siren);
@@ -345,13 +355,17 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         }
         
         if (nomMatiere != null) {
-            log.debug("DEBUG: findMatiere trouvé via configuration pour siren={} code={} : {}", siren, code, nomMatiere);
+            if (log.isDebugEnabled()) {
+                log.debug("DEBUG: findMatiere trouvé via configuration pour siren={} code={} : {}", siren, code, nomMatiere);
+            }
             return nomMatiere;
         }
 
         // 2. Essayer de trouver via l'attribut ENTAuxEnsMatiereEnseignEtab
         List<String> attrMatiereEnseignEtab = person.getAttribute("ENTAuxEnsMatiereEnseignEtab");
-        log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour siren={} code={} : attr={}", siren, code, attrMatiereEnseignEtab);
+        if (log.isDebugEnabled()) {
+            log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour siren={} code={} : attr={}", siren, code, attrMatiereEnseignEtab);
+        }
         if (attrMatiereEnseignEtab != null) {
             Pattern patternMatiere = Pattern.compile("ENTStructureSIREN=(\\w+).+\\$([^$]+)");
             for (String matEtab : attrMatiereEnseignEtab) {
@@ -361,14 +375,18 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                     String libelleMatiere = matcher.group(2); 
                     
                     if (struct.equals(siren)) {
-                        log.debug("DEBUG: trouvé via ENTAuxEnsMatiereEnseignEtab : siren={} nom={}", struct, libelleMatiere);
+                        if (log.isDebugEnabled()) {
+                            log.debug("DEBUG: trouvé via ENTAuxEnsMatiereEnseignEtab : siren={} nom={}", struct, libelleMatiere);
+                        }
                         return libelleMatiere;
                     }
                 }
             }
         }
 
-        log.debug("DEBUG: findMatiere non trouvé pour siren={} code={}", siren, code);
+        if (log.isDebugEnabled()) {
+            log.debug("DEBUG: findMatiere non trouvé pour siren={} code={}", siren, code);
+        }
         return code; // Retourner le code si aucun nom trouvé
     }
 }

@@ -151,18 +151,24 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 if (val != null) {
                     Matcher m = patternRelation.matcher(val);
                     if (!m.matches()) {
-                        log.debug("Analyse LDAP : La valeur '{}' ne correspond pas au modèle de relation : {}", val, patternRelation.pattern());
+                        if (log.isDebugEnabled()) {
+                            log.debug("Analyse LDAP : La valeur '{}' ne correspond pas au modèle de relation : {}", val, patternRelation.pattern());
+                        }
                     } else {
                         String uid = m.group(grpUid);
                         RelationEleveContact re = uid2relation.get(uid);
-                        log.debug("re : {}", re);
+                        if (log.isDebugEnabled()) {
+                            log.debug("re : {}", re);
+                        }
 
                         if (re == null) {
                             re = new RelationEleveContact(SensRel.ELEVE2CONTACT);
                             // re.setEleve(eleve);
                             re.setUidRelation(uid);
                             uid2relation.put(uid, re);
-                            log.debug("compteur");
+                            if (log.isDebugEnabled()) {
+                                log.debug("compteur");
+                            }
                         }
                         re.setAutoriteParental(true);
                         String code = m.group(grpTypRel);
@@ -175,10 +181,11 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 }
             }
         }
-        log.debug("valeursLDAP : {}", uid2relation);
+        if (log.isDebugEnabled()) {
+            log.debug("valeursLDAP : {}", uid2relation);
+        }
 
     }
-
 
     /**
      * Retourne toutes les relations d'un élève.
@@ -246,11 +253,13 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                             dbRelations.size(), personne.getId());
 
                     for (RelationEleveContact r : dbRelations) {
-                        log.debug("  → Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
-                                r.getUidRelation(),
-                                r.getDisplayNameRelation(),
-                                r.getTypeRelation(),
-                                r.getLienParente());
+                        if (log.isDebugEnabled()) {
+                            log.debug("  - Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
+                                    r.getUidRelation(),
+                                    r.getDisplayNameRelation(),
+                                    r.getTypeRelation(),
+                                    r.getLienParente());
+                        }
                     }
 
                     return dbRelations;
@@ -343,7 +352,9 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                             log.warn("Échec du chargement des détails de l'apprenti pour l'UID [{}] : Détail : {}", uid, e.getMessage());
                         }
                     } else {
-                        log.debug("Analyse LDAP : Le DN de l'apprenti '{}' ne correspond pas au modèle UID : {}", val, pattern.pattern());
+                        if (log.isDebugEnabled()) {
+                            log.debug("Analyse LDAP : Le DN de l'apprenti '{}' ne correspond pas au modèle UID : {}", val, pattern.pattern());
+                        }
                     }
                 }
             }
