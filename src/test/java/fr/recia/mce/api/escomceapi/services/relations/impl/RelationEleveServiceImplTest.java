@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.services.relations.impl;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
+import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
@@ -26,6 +27,7 @@ import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -37,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -170,6 +173,84 @@ class RelationEleveServiceImplTest {
     }
 
     @Test
+    @DisplayName("allRelationEleves(IExternalUser) : attribut relation LDAP présent → parsing réussi")
+    void shouldParseLdapRelationAttribute() {
+        IExternalUser personne = mock(IExternalUser.class);
+        when(extUserHelper.getUserEleveRelationAttribute()).thenReturn("ENTElevePersRelEleve");
+        when(extUserHelper.getUserEleveTuteurAttribute()).thenReturn("ENTEleveEntrTutStage");
+        when(personne.getId()).thenReturn(STUDENT_UID);
+        when(personne.getAttribute("ENTElevePersRelEleve"))
+                .thenReturn(List.of("uid=pierrevar,ou=people,dc=esco-centre,dc=fr$1$Autorite_parentale$1$CodeContact$CodePaiement"));
+        when(personne.getAttribute("ENTEleveEntrTutStage")).thenReturn(null);
+
+        IExternalUser parentUser = mock(IExternalUser.class);
+        when(parentUser.getId()).thenReturn(PARENT_UID);
+        when(parentUser.getDisplayName()).thenReturn("Pierre VAR");
+        when(personneService.getExtDao()).thenReturn(mock(fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao.class));
+        when(personneService.getExtDao().getByUids(any())).thenReturn(List.of(parentUser));
+
+        Collection<RelationEleveContact> result = relationEleveService.allRelationEleves(personne);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result).hasSize(1);
+        RelationEleveContact rel = result.iterator().next();
+        assertThat(rel.getUidRelation()).isEqualTo(PARENT_UID);
+        assertThat(rel.isAutoriteParental()).isTrue();
+        assertThat(rel.getTypeRelation()).isEqualTo("1");
+    }
+
+    @Test
+    @DisplayName("allRelationEleves(IExternalUser) : attribut relation LDAP présent avec type detalillé")
+    void shouldParseLdapRelationWithFullCode() {
+        IExternalUser personne = mock(IExternalUser.class);
+        when(extUserHelper.getUserEleveRelationAttribute()).thenReturn("ENTElevePersRelEleve");
+        when(extUserHelper.getUserEleveTuteurAttribute()).thenReturn("ENTEleveEntrTutStage");
+        when(personne.getId()).thenReturn(STUDENT_UID);
+        when(personne.getAttribute("ENTElevePersRelEleve"))
+                .thenReturn(List.of("uid=pierrevar,ou=people,dc=esco-centre,dc=fr$Autorite_parentale$Père$2$CodeContact$CodePaiement"));
+        when(personne.getAttribute("ENTEleveEntrTutStage")).thenReturn(null);
+
+        IExternalUser parentUser = mock(IExternalUser.class);
+        when(parentUser.getId()).thenReturn(PARENT_UID);
+        when(parentUser.getDisplayName()).thenReturn("Pierre VAR");
+        when(personneService.getExtDao()).thenReturn(mock(fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao.class));
+        when(personneService.getExtDao().getByUids(any())).thenReturn(List.of(parentUser));
+
+        Collection<RelationEleveContact> result = relationEleveService.allRelationEleves(personne);
+
+        assertThat(result).isNotEmpty();
+        RelationEleveContact rel = result.iterator().next();
+        assertThat(rel.getTypeRelation()).isEqualTo("Autorite_parentale");
+    }
+
+    @Test
+    @DisplayName("allRelationEleves(IExternalUser) : attribut tuteur LDAP présent → analyseMaitre")
+    void shouldParseLdapTuteurAttribute() {
+        IExternalUser personne = mock(IExternalUser.class);
+        when(extUserHelper.getUserEleveRelationAttribute()).thenReturn("ENTElevePersRelEleve");
+        when(extUserHelper.getUserEleveTuteurAttribute()).thenReturn("ENTEleveEntrTutStage");
+        when(personne.getId()).thenReturn(STUDENT_UID);
+        when(personne.getAttribute("ENTElevePersRelEleve")).thenReturn(null);
+        when(personne.getAttribute("ENTEleveEntrTutStage"))
+                .thenReturn(List.of("uid=pierrevar,ou=people,dc=esco-centre,dc=fr"));
+
+        IExternalUser parentUser = mock(IExternalUser.class);
+        when(parentUser.getId()).thenReturn(PARENT_UID);
+        when(parentUser.getDisplayName()).thenReturn("Pierre VAR");
+        when(personneService.getExtDao()).thenReturn(mock(fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao.class));
+        when(personneService.getExtDao().getByUids(any())).thenReturn(List.of(parentUser));
+
+        Collection<RelationEleveContact> result = relationEleveService.allRelationEleves(personne);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result).hasSize(1);
+        RelationEleveContact rel = result.iterator().next();
+        assertThat(rel.getUidRelation()).isEqualTo(PARENT_UID);
+        assertThat(rel.getTypeRelation()).isEqualTo("Maitre");
+        assertThat(rel.isAutoriteParental()).isFalse();
+    }
+
+    @Test
     @DisplayName("allRelationEleves(String) : UID null → retourne vide")
     void shouldReturnEmptyForNullUid() {
         Collection<RelationEleveContact> result = relationEleveService.allRelationEleves((String) null);
@@ -183,5 +264,43 @@ class RelationEleveServiceImplTest {
 
         Collection<RelationEleveContact> result = relationEleveService.allRelationEleves("inconnu");
         assertThat(result).isEmpty();
+    }
+
+    @Nested
+    @DisplayName("allEleveEnRelation")
+    class AllEleveEnRelationTests {
+
+        @Test
+        @DisplayName("Avec enfants en DB → retourne les relations")
+        void withChildren() {
+            AStructure structure = new AStructure();
+            structure.setNom("College");
+
+            APersonne enfantEntity = new APersonne();
+            enfantEntity.setId(1L);
+            enfantEntity.setUid(STUDENT_UID);
+            enfantEntity.setDisplayName("Sara VAR");
+
+            PersonneDTO enfant = new PersonneDTO(enfantEntity);
+
+            when(aPersonneRepository.findAllEnfantOf(42L))
+                    .thenReturn(List.of(enfant));
+
+            Collection<RelationEleveContact> result = relationEleveService.allEleveEnRelation(42L);
+
+            assertThat(result).isNotEmpty();
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("Aucun enfant en DB → retourne vide")
+        void noChildren() {
+            when(aPersonneRepository.findAllEnfantOf(99L))
+                    .thenReturn(Collections.emptyList());
+
+            Collection<RelationEleveContact> result = relationEleveService.allEleveEnRelation(99L);
+
+            assertThat(result).isEmpty();
+        }
     }
 }
