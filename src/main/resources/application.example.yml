@@ -88,7 +88,7 @@ app:
             group-siren: 
             group-classe: 
             group-matiere: 
-        grp-pedago--properties: 
+        grp-pedago-properties: 
             ldap-attributs-classe: 
             regex-siren-and-classe: 
             group-siren: 
@@ -125,7 +125,7 @@ app:
             ville: 
     
     soffit:
-        jwt-signature-key: 
+        jwt-signature-key:
 
 
     avatar:
@@ -147,26 +147,3 @@ mail:
     regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
     regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
     domainesConfiance: 'ac-orleans-tours.fr educagri.fr recia.fr'
-
-    cors:
-        enable: true
-        allow-credentials: true
-        allowed-origins: >
-            http://localhost:5173
-        exposed-headers:
-            - x-auth-token
-            - x-requested-with
-            - x-xsrf-token
-        allowed-headers:
-            - content-type
-            - authorization
-            - x-com-persist
-            - X-Auth-Token
-            - x-auth-token
-            - x-requested-with
-            - x-xsrf-token
-        allowed-methods:
-            - GET
-            - PUT
-            - POST
-            - DELETE
