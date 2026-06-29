@@ -48,19 +48,17 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     Collection<PersonneDTO> findAllEnfantOf(Long parent);
 
     /**
-     * Fallback DB : Retourne les parents/tuteurs d'un élève
-     * (utilisé quand LDAP ne renvoie rien)
+     * Fallback DB : Retourne les parents/tuteurs d'un élève (utilisé quand LDAP ne renvoie rien)
      */
     @Query("SELECT new fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact(" +
-            "'CONTACT2ELEVE', " +           // sens = du parent vers l'enfant
-            "c.aPersonneByIdParent, " +     // le PARENT
-            "c.aPersonneByIdEnfant, " +     // l'ENFANT
+            "'CONTACT2ELEVE', " + // sens = du parent vers l'enfant
+            "c.aPersonneByIdParent, " + // le PARENT
+            "c.aPersonneByIdEnfant, " + // l'ENFANT
             "c.typeRelation, " +
             "c.lienParente, " +
             "true) " +
             "FROM CerbereEnfant c " +
             "WHERE c.aPersonneByIdEnfant.uid = :uidEleve")
     List<RelationEleveContact> findAllParentOfEleve(@Param("uidEleve") String uidEleve);
-
 
 }

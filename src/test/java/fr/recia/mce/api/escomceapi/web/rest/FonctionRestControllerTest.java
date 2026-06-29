@@ -82,8 +82,8 @@ class FonctionRestControllerTest {
         doNothing().when(fonctionService).updateDateFin(eq(fonctionId), eq(active));
 
         mockMvc.perform(put("/api/personne/fonction/" + fonctionId + "/dateFin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(active)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(active)))
                 .andExpect(status().isOk());
     }
 }

@@ -29,10 +29,10 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 public class HealthCheckController {
 
-  @GetMapping(value = "/health-check")
-  @ResponseStatus(HttpStatus.OK)
-  public void healthCheck(HttpServletRequest request, HttpServletResponse response) {
-    log.debug("Health check. HTTP 200: OK.");
-  }
+    @GetMapping(value = "/health-check")
+    @ResponseStatus(HttpStatus.OK)
+    public void healthCheck(HttpServletRequest request, HttpServletResponse response) {
+        log.debug("Health check. HTTP 200: OK.");
+    }
 
 }

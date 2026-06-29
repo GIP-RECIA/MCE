@@ -136,7 +136,9 @@ public class PersonneDTO extends Personne {
         if (mail == null) {
             if (aPersonneBase.getCategorie().equals("Eleve")) {
                 // add a condition only if its a student, isEleve()
-                log.warn("L'utilisateur [uid={}] n'a pas d'email principal en base de données. Tentative de récupération d'un email de secours depuis l'annuaire LDAP.", getUid());
+                log.warn(
+                        "L'utilisateur [uid={}] n'a pas d'email principal en base de données. Tentative de récupération d'un email de secours depuis l'annuaire LDAP.",
+                        getUid());
                 mail = getMailFromLdap();
             }
         }
@@ -156,8 +158,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Change le flag doForward en base
-     * 
-     * @param doForward nouvelle valeur du flag
+     *
+     * @param doForward
+     *            nouvelle valeur du flag
      */
     protected void setForward(final boolean doForward) {
         aPersonneBase.setDoForward(doForward);
@@ -166,7 +169,7 @@ public class PersonneDTO extends Personne {
 
     /**
      * Récupère le mot de passe en base
-     * 
+     *
      * @return le mot de passe codé ou non
      */
     protected String getDbPassword() {
@@ -175,8 +178,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * fixe le mot de passe en base.
-     * 
-     * @param password nouveau mot de passe
+     *
+     * @param password
+     *            nouveau mot de passe
      */
     public void setDbPassword(final String password) {
         aPersonneBase.setPassword(password);
@@ -185,8 +189,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Fixe l'état de la personne.
-     * 
-     * @param etat nouvel état
+     *
+     * @param etat
+     *            nouvel état
      */
     protected void setEtat(final String etat) {
         aPersonneBase.setEtat(etat);
@@ -194,10 +199,10 @@ public class PersonneDTO extends Personne {
     }
 
     /**
-     * met a jour l'url de la photo dans sarapis mais pas dans ldap
-     * pour la mise a jour dans les 2 utiliser DaoServicePersonne.setPhotoUrl
-     * 
-     * @param url nouvelle URL de l'avatar
+     * met a jour l'url de la photo dans sarapis mais pas dans ldap pour la mise a jour dans les 2 utiliser DaoServicePersonne.setPhotoUrl
+     *
+     * @param url
+     *            nouvelle URL de l'avatar
      */
     @Override
     public void setAvatarUrl(String url) {
@@ -218,8 +223,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Modifie la date de modification.
-     * 
-     * @param dateModification nouvelle date
+     *
+     * @param dateModification
+     *            nouvelle date
      */
     public void setDateModification(final Date dateModification) {
         aPersonneBase.setDateModification(dateModification);
@@ -240,8 +246,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Fixe la date de signature de la charte.
-     * 
-     * @param datedesignature date de signature
+     *
+     * @param datedesignature
+     *            date de signature
      */
     public void setDateValideCharte(final Date datedesignature) {
         aPersonneBase.setValidationCharte(datedesignature);

@@ -30,13 +30,7 @@ public class StructureDTO extends Structure {
     static private final Pattern P = Pattern.compile("(\\w+)-.+");
 
     public enum DomSource {
-        AC,
-        CFA,
-        GIP,
-        LA,
-        REGION,
-        COLL,
-        EF2S;
+        AC, CFA, GIP, LA, REGION, COLL, EF2S;
     }
 
     private final AStructure aStructure;
@@ -97,7 +91,8 @@ public class StructureDTO extends Structure {
                     domSource = DomSource.valueOf(m.group(1));
                     return domSource;
                 } catch (Exception e) {
-                    log.error("Échec de la correspondance de la source de structure '{}' avec une constante énumérée DomSource valide - Détail : {}", m.group(1), e.getMessage());
+                    log.error("Échec de la correspondance de la source de structure '{}' avec une constante énumérée DomSource valide - Détail : {}",
+                            m.group(1), e.getMessage());
                 }
             } else {
 

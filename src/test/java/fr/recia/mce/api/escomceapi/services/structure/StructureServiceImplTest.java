@@ -65,10 +65,10 @@ class StructureServiceImplTest {
 
     private void givenUaiMapping(String uai, IExternalStructure structure) {
         @SuppressWarnings("unchecked")
-        Map<String, IExternalStructure> map = (Map<String, IExternalStructure>)
-                ReflectionTestUtils.getField(service, "uai2structure");
+        Map<String, IExternalStructure> map = (Map<String, IExternalStructure>) ReflectionTestUtils.getField(service, "uai2structure");
         Map<String, IExternalStructure> newMap = new HashMap<>();
-        if (map != null) newMap.putAll(map);
+        if (map != null)
+            newMap.putAll(map);
         newMap.put(uai, structure);
         ReflectionTestUtils.setField(service, "uai2structure", newMap);
     }

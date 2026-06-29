@@ -33,7 +33,15 @@ public class ErrorResponse {
         this(code, message, null);
     }
 
-    public String getCode() { return code; }
-    public String getMessage() { return message; }
-    public List<String> getDetails() { return details; }
+    public String getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public List<String> getDetails() {
+        return details;
+    }
 }

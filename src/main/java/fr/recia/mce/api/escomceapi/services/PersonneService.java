@@ -146,9 +146,11 @@ public class PersonneService {
     /**
      * Récupère le contenu binaire de l'avatar d'un utilisateur depuis le stockage local.
      *
-     * @param uid L'UID de l'utilisateur.
+     * @param uid
+     *            L'UID de l'utilisateur.
      * @return Les octets de l'image, ou null si aucune image n'est trouvée.
-     * @throws RuntimeException En cas d'erreur lors de la lecture du fichier.
+     * @throws RuntimeException
+     *             En cas d'erreur lors de la lecture du fichier.
      */
     public byte[] getAvatar(String uid) {
         String groupDir = uid.substring(0, 2);
@@ -170,7 +172,7 @@ public class PersonneService {
         if (uid == null || uid.length() < 2) {
             return uid;
         }
-        
+
         char[] tab = uid.toCharArray();
         int res = 0;
         for (char c : tab) {
@@ -180,13 +182,17 @@ public class PersonneService {
     }
 
     /**
-     * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1),
-     * enregistre la nouvelle image, met à jour la base de données et synchronise le LDAP.
+     * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1), enregistre la nouvelle image, met à jour la base de données et
+     * synchronise le LDAP.
      *
-     * @param uid         L'UID de l'utilisateur.
-     * @param fileContent Le contenu binaire de la nouvelle image.
-     * @throws PersonneNotFoundException Si l'utilisateur n'est pas trouvé en base.
-     * @throws RuntimeException          En cas d'erreur de stockage ou de synchronisation.
+     * @param uid
+     *            L'UID de l'utilisateur.
+     * @param fileContent
+     *            Le contenu binaire de la nouvelle image.
+     * @throws PersonneNotFoundException
+     *             Si l'utilisateur n'est pas trouvé en base.
+     * @throws RuntimeException
+     *             En cas d'erreur de stockage ou de synchronisation.
      */
     @Transactional
     public void updateAvatar(String uid, byte[] fileContent) {
@@ -203,7 +209,7 @@ public class PersonneService {
             if (!readers.hasNext()) {
                 throw new InvalidAvatarException("Format d'image non valide");
             }
-            
+
             ImageReader reader = readers.next();
             String format = reader.getFormatName().toLowerCase();
             boolean formatAllowed = false;
@@ -213,7 +219,7 @@ public class PersonneService {
                     break;
                 }
             }
-            
+
             if (!formatAllowed) {
                 throw new InvalidAvatarException("Type d'image non autorisé : " + format);
             }
@@ -260,7 +266,8 @@ public class PersonneService {
         // Rotation cyclique
         try {
             if (Files.exists(path0)) {
-                if (Files.exists(path1)) Files.delete(path1);
+                if (Files.exists(path1))
+                    Files.delete(path1);
                 Files.move(path0, path1);
             }
             Files.write(path0, fileContent);
@@ -277,7 +284,7 @@ public class PersonneService {
         entity.setDateModification(new Date());
         aPersonneRepository.saveAndFlush(entity);
 
-        // 3. Mise à jour LDAP 
+        // 3. Mise à jour LDAP
         try {
             getExtDao().updateAvatarLDAP(uid, relativePath);
         } catch (Exception e) {
@@ -320,8 +327,8 @@ public class PersonneService {
 
         APersonne entity = personneDTO.getApersonne();
 
-//        adresse email interne a l ent
-//        entity.setEmail(newEmail);
+        // adresse email interne a l ent
+        // entity.setEmail(newEmail);
 
         // addresse email externe a l ent
         entity.setEmailPersonnel(newEmail);
@@ -349,7 +356,8 @@ public class PersonneService {
         EnumPublic publicProfile = personne.getEnumPublic();
         APersonne base = personne.getAPersonneBase();
 
-        if (base == null) return false;
+        if (base == null)
+            return false;
 
         if (publicProfile == null) {
             EnumCategorie cat = EnumCategorie.fromString(base.getCategorie());

@@ -29,8 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 public class RelationEleveContact {
 
     public enum SensRel {
-        CONTACT2ELEVE,   // Parent - Élève
-        ELEVE2CONTACT;   // Élève - Parent
+        CONTACT2ELEVE, // Parent - Élève
+        ELEVE2CONTACT; // Élève - Parent
     }
 
     private final boolean isEleve2Contact;
@@ -52,9 +52,7 @@ public class RelationEleveContact {
     }
 
     /**
-     * Constructeur utilisé par la requête JPQL
-     * parent  = le parent/tuteur
-     * enfant  = l'élève
+     * Constructeur utilisé par la requête JPQL parent = le parent/tuteur enfant = l'élève
      */
     public RelationEleveContact(
             String sensStr,

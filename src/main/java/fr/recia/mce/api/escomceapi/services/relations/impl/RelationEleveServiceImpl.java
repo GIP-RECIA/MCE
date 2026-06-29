@@ -39,23 +39,22 @@ import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact.SensRel;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import lombok.extern.slf4j.Slf4j;
 
-
-
-
 /**
  * Service de gestion des relations entre élèves et contacts.
  *
- * <p>Ce service agrège les relations issues :
+ * <p>
+ * Ce service agrège les relations issues :
  * <ul>
- *   <li>de l'annuaire LDAP </li>
- *   <li>de la base de données en fallback si LDAP est vide</li>
+ * <li>de l'annuaire LDAP</li>
+ * <li>de la base de données en fallback si LDAP est vide</li>
  * </ul>
  *
- * <p>Il permet notamment :
+ * <p>
+ * Il permet notamment :
  * <ul>
- *   <li>de récupérer les relations d'un élève vers ses contacts</li>
- *   <li>de récupérer les élèves liés à un parent/contact</li>
- *   <li>de récupérer les apprentis d'un maître</li>
+ * <li>de récupérer les relations d'un élève vers ses contacts</li>
+ * <li>de récupérer les élèves liés à un parent/contact</li>
+ * <li>de récupérer les apprentis d'un maître</li>
  * </ul>
  */
 @Service
@@ -122,7 +121,8 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                             re.setAutoriteParental(true);
                         }
                     } else {
-                        log.warn("Analyse LDAP : La valeur d'attribut '{}' pour l'ID élève {} ne correspond pas au modèle UID attendu : {}", val, personne.getId(), pattern.pattern());
+                        log.warn("Analyse LDAP : La valeur d'attribut '{}' pour l'ID élève {} ne correspond pas au modèle UID attendu : {}", val,
+                                personne.getId(), pattern.pattern());
                     }
                 }
             }
@@ -130,13 +130,13 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
     }
 
-
-
     /**
      * Analyse les relations LDAP élève/contact et alimente la map des relations.
      *
-     * @param ldapAttr attribut LDAP contenant les relations
-     * @param uid2relation map des relations
+     * @param ldapAttr
+     *            attribut LDAP contenant les relations
+     * @param uid2relation
+     *            map des relations
      */
     private void analyse(final IExternalUser personne, final String ldapAttr,
             final Map<String, RelationEleveContact> uid2relation) {
@@ -188,17 +188,16 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     }
 
     /**
-     * Retourne toutes les relations d'un élève.
-     * Ordre :
-     *   LDAP
-     *   base de données si LDAP vide
+     * Retourne toutes les relations d'un élève. Ordre : LDAP base de données si LDAP vide
      *
-     * @param eleve UID de l'élève
+     * @param eleve
+     *            UID de l'élève
      * @return collection de relations
      */
     @Override
     public Collection<RelationEleveContact> allRelationEleves(String eleve) {
-        if (eleve == null || eleve.trim().isEmpty()) return Collections.emptyList();
+        if (eleve == null || eleve.trim().isEmpty())
+            return Collections.emptyList();
 
         IExternalUser personne = personneService.retrievePersonLdap(eleve);
         if (personne == null) {
@@ -224,8 +223,10 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
             return Collections.emptyList();
         }
 
-        if (hasRelation) analyse(personne, eleveRelation, uid2relation);
-        if (hasTuteur) analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
+        if (hasRelation)
+            analyse(personne, eleveRelation, uid2relation);
+        if (hasTuteur)
+            analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
 
         // Remplissage des noms via LDAP
         if (!uid2relation.isEmpty()) {
@@ -241,7 +242,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                 log.error("Erreur lors de la récupération batch LDAP : {}", e.getMessage());
             }
         }
-        //BASE DE DONNÉES SI LDAP VIDE
+        // BASE DE DONNÉES SI LDAP VIDE
         if (uid2relation.isEmpty()) {
             log.warn("LDAP vide pour l'utilisateur {}. Tentative de secours en base de données.", personne.getId());
 
@@ -278,11 +279,11 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();
     }
 
-
     /**
      * Retourne tous les élèves associés à un parent.
      *
-     * @param parent identifiant du parent
+     * @param parent
+     *            identifiant du parent
      * @return relations parent → élèves
      */
     @Override

@@ -150,7 +150,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 EnumPublic ep = evalPublic(model);
                 log.debug("Profil public évalué avec succès pour l'utilisateur [uid={}] : {}", model.getUid(), ep.name());
             } catch (Exception e) {
-                log.error("Échec de l'évaluation du profil public pour l'utilisateur [uid={}] - Raison : Erreur technique lors du calcul du profil | Détail : {}", model.getUid(), e.getMessage());
+                log.error(
+                        "Échec de l'évaluation du profil public pour l'utilisateur [uid={}] - Raison : Erreur technique lors du calcul du profil | Détail : {}",
+                        model.getUid(), e.getMessage());
             }
         }
         return from(model, extModel);
@@ -170,7 +172,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             try {
                 ds = structure.getDomSource();
             } catch (Exception e) {
-                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
+                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(),
+                        e.getMessage());
             }
         }
 
@@ -182,19 +185,19 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
 
         switch (enumCat) {
-            case ELEVE:
+            case ELEVE :
                 if (ds != null) {
                     switch (ds) {
-                        case CFA:
+                        case CFA :
                             res = EnumPublic.APPRENANT;
                             break;
-                        case AC:
+                        case AC :
                             res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
                             break;
-                        case GIP:
-                        case LA:
-                        case COLL:
-                        default:
+                        case GIP :
+                        case LA :
+                        case COLL :
+                        default :
                             res = EnumPublic.ELEVE;
                     }
                 } else {
@@ -202,7 +205,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 }
                 break;
 
-            case PARENT:
+            case PARENT :
                 if (ds != null) {
                     if (ds == DomSource.AC) {
                         res = isLocalUser ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
@@ -214,19 +217,19 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 }
                 break;
 
-            case PROF:
+            case PROF :
                 if (ds != null) {
                     switch (ds) {
-                        case AC:
+                        case AC :
                             res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
                             break;
-                        case LA:
+                        case LA :
                             res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
                             break;
-                        case CFA:
-                        case GIP:
-                        case COLL:
-                        default:
+                        case CFA :
+                        case GIP :
+                        case COLL :
+                        default :
                             res = EnumPublic.PERSONNEL;
                     }
                 } else {
@@ -234,29 +237,29 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 }
                 break;
 
-            case ENTREPRISE:
-            case TUTEUR:
+            case ENTREPRISE :
+            case TUTEUR :
                 res = EnumPublic.EXTERIEUR;
                 break;
 
-            case NON_PROF_COL_LOCAL:
+            case NON_PROF_COL_LOCAL :
                 if (isRegion) {
                     res = EnumPublic.CVDL;
                     break;
                 }
-            case NON_PROF_ETAB:
+            case NON_PROF_ETAB :
                 if (ds != null) {
                     switch (ds) {
-                        case AC:
+                        case AC :
                             res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
                             break;
-                        case LA:
+                        case LA :
                             res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
                             break;
-                        case CFA:
-                        case GIP:
-                        case COLL:
-                        default:
+                        case CFA :
+                        case GIP :
+                        case COLL :
+                        default :
                             res = EnumPublic.PERSONNEL;
                     }
                 } else {
@@ -264,24 +267,24 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 }
                 break;
 
-            case NON_PROF_ACAD:
+            case NON_PROF_ACAD :
                 if (ds != null) {
                     switch (ds) {
-                        case AC:
+                        case AC :
                             res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
                             break;
-                        case LA:
+                        case LA :
                             res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
                             break;
                         // $CASES-OMITTED$
-                        default:
+                        default :
                             res = EnumPublic.AUTRE;
                     }
                 } else {
                     res = EnumPublic.AUTRE;
                 }
                 break;
-            case AUTRE:
+            case AUTRE :
                 res = EnumPublic.AUTRE;
                 break;
         }
@@ -414,7 +417,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     model.getNaissance(), model.getAvatarUrl(), base.getEtat(),
                     passEditable, userPublic,
                     listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
-            
+
             user.setAvatarUrl(avatarUrl);
             return user;
 
@@ -446,26 +449,26 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         EnumCategorie enumCat = EnumCategorie.fromString(code);
 
         switch (enumCat) {
-            case PROF:
-            case NON_PROF_ACAD:
-            case NON_PROF_ETAB:
+            case PROF :
+            case NON_PROF_ACAD :
+            case NON_PROF_ETAB :
                 menu.add(EnumOnglet.GENERALE.name());
                 menu.add(EnumOnglet.SERVICE.name());
                 break;
-            case ELEVE:
+            case ELEVE :
                 menu.add(EnumOnglet.GENERALE.name());
                 menu.add(EnumOnglet.SERVICE.name());
                 menu.add(EnumOnglet.PARENT_ELEVE.name());
                 break;
-            case PARENT:
+            case PARENT :
                 menu.add(EnumOnglet.SERVICE.name());
                 menu.add(EnumOnglet.RELATION_ELEVE.name());
                 break;
-            case TUTEUR:
+            case TUTEUR :
                 menu.add(EnumOnglet.SERVICE.name());
                 menu.add(EnumOnglet.APPRENTIS.name());
                 break;
-            default:
+            default :
                 menu.add(EnumOnglet.SERVICE.name());
                 break;
         }

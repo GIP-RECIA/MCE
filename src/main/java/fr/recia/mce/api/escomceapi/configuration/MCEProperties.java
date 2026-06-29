@@ -42,7 +42,6 @@ public class MCEProperties {
     private ServiceProperties service = new ServiceProperties();
     private SoffitProperties soffit = new SoffitProperties();
 
-
     @PostConstruct
     private void init() throws JsonProcessingException {
 

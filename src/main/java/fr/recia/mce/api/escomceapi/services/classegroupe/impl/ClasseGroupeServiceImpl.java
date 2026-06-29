@@ -120,7 +120,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
         retriveClassesGroupsOfPerson(groupAttrs, regexGroup, person, classes, groups,
                 profMap);
-        
+
         log.debug("DEBUG: Classes détectées : {}", classes);
         log.debug("DEBUG: Groupes détectés : {}", groups);
         log.debug("DEBUG: ProfMap (structure/matière) : {}", profMap);
@@ -205,7 +205,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
             Map<String, Map<String, ClasseGroupe>> profMap) {
         Pattern pattern = Pattern.compile(regexCG);
         if (log.isDebugEnabled()) {
-            log.debug("DEBUG: retriveClassesGroupsOfPerson avec attributs={}", (Object)attributs);
+            log.debug("DEBUG: retriveClassesGroupsOfPerson avec attributs={}", (Object) attributs);
         }
 
         Map<String, ClasseGroupe> cgMap = new HashMap<>();
@@ -263,7 +263,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         if (log.isDebugEnabled()) {
             log.debug("DEBUG handleEleve: ldapAttr={}, classAttrs={}, groupAttrs={}", ldapAttr, Arrays.toString(classAttrs), Arrays.toString(groupAttrs));
         }
-        
+
         boolean isClassAttr = Arrays.asList(classAttrs).contains(ldapAttr);
         boolean isGroupAttr = Arrays.asList(groupAttrs).contains(ldapAttr);
 
@@ -353,7 +353,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                 }
             }
         }
-        
+
         if (nomMatiere != null) {
             if (log.isDebugEnabled()) {
                 log.debug("DEBUG: findMatiere trouvé via configuration pour siren={} code={} : {}", siren, code, nomMatiere);
@@ -372,8 +372,8 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                 Matcher matcher = patternMatiere.matcher(matEtab);
                 if (matcher.find()) {
                     String struct = matcher.group(1);
-                    String libelleMatiere = matcher.group(2); 
-                    
+                    String libelleMatiere = matcher.group(2);
+
                     if (struct.equals(siren)) {
                         if (log.isDebugEnabled()) {
                             log.debug("DEBUG: trouvé via ENTAuxEnsMatiereEnseignEtab : siren={} nom={}", struct, libelleMatiere);

@@ -27,8 +27,7 @@ public enum EnumPublic {
      */
     AGRI,
     /**
-     * personnel de la region centre val de loir!
-     * ¡attention il y a aussi les personnes des collectivites sans controle!
+     * personnel de la region centre val de loir! ¡attention il y a aussi les personnes des collectivites sans controle!
      */
     CVDL,
     /**
@@ -65,30 +64,29 @@ public enum EnumPublic {
     AUTRE;
 
     /**
-     * Public donnant droit de se connecter.
-     * les autres doivent passer par cas.
+     * Public donnant droit de se connecter. les autres doivent passer par cas.
      */
     public boolean isConnectOk() {
         switch (this) {
-            case EDUCATION:
-            case AGRI:
-            case CVDL:
-            case ELEVE_EDUC:
-            case PARENT_EDUC:
+            case EDUCATION :
+            case AGRI :
+            case CVDL :
+            case ELEVE_EDUC :
+            case PARENT_EDUC :
                 return false;
             // $CASES-OMITTED$
-            default:
+            default :
                 return true;
         }
     }
 
     public boolean isEleve() {
         switch (this) {
-            case ELEVE_EDUC:
-            case ELEVE:
-            case APPRENANT:
+            case ELEVE_EDUC :
+            case ELEVE :
+            case APPRENANT :
                 return true;
-            default:
+            default :
                 return false;
         }
 
@@ -96,40 +94,39 @@ public enum EnumPublic {
 
     public boolean isParent() {
         switch (this) {
-            case PARENT:
-            case PARENT_EDUC:
+            case PARENT :
+            case PARENT_EDUC :
                 return true;
-            default:
+            default :
                 return false;
         }
     }
 
     public boolean isEduconnect() {
         switch (this) {
-            case PARENT_EDUC:
-            case ELEVE_EDUC:
+            case PARENT_EDUC :
+            case ELEVE_EDUC :
                 return true;
-            default:
+            default :
                 return false;
         }
     }
 
     /**
-     * Donne les populations pouvant changer leurs mots de passe établissement.
-     * ne suffit pas a donner le liens il faut par ailleur verifier le périmetre
+     * Donne les populations pouvant changer leurs mots de passe établissement. ne suffit pas a donner le liens il faut par ailleur verifier le périmetre
      * (sont'il géré par le gip)
      */
     public boolean isPassEtab() {
         switch (this) {
-            case EDUCATION:
-            case AGRI:
-            case CVDL:
-            case PERSONNEL:
-            case ELEVE_EDUC:
-            case APPRENANT:
-            case ELEVE:
+            case EDUCATION :
+            case AGRI :
+            case CVDL :
+            case PERSONNEL :
+            case ELEVE_EDUC :
+            case APPRENANT :
+            case ELEVE :
                 return true;
-            default:
+            default :
                 return false;
         }
     }

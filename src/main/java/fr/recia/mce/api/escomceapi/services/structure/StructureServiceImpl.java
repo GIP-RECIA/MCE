@@ -202,7 +202,9 @@ public class StructureServiceImpl implements IStructureService {
             return false;
 
         if (setDomaineEtabRecia.isEmpty()) {
-            log.warn("Erreur de configuration : La propriété 'domaine.gestion-recia' est vide. Impossible de déterminer le statut du réseau Recia pour la structure [id={}].", struct.getId());
+            log.warn(
+                    "Erreur de configuration : La propriété 'domaine.gestion-recia' est vide. Impossible de déterminer le statut du réseau Recia pour la structure [id={}].",
+                    struct.getId());
             return false;
         }
 
@@ -213,7 +215,8 @@ public class StructureServiceImpl implements IStructureService {
                     return true;
             }
         } else {
-            log.error("Erreur de cohérence des données : La structure [id={}, nom={}] n'a aucun attribut de domaine défini. (Contexte : isDomaineRecia)", struct.getId(), struct.getDisplayName());
+            log.error("Erreur de cohérence des données : La structure [id={}, nom={}] n'a aucun attribut de domaine défini. (Contexte : isDomaineRecia)",
+                    struct.getId(), struct.getDisplayName());
         }
 
         return false;

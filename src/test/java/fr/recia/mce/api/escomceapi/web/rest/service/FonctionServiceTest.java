@@ -55,7 +55,7 @@ class FonctionServiceTest {
     void testGetAllFonctionOfPersonne() {
         FonctionDTO f1 = new FonctionDTO("maths", "teacher", "source", "123");
         f1.setStruct(null);
-        
+
         FonctionDTO f2 = new FonctionDTO("physics", "teacher", "source", "456");
         f2.setStruct(mock(fr.recia.mce.api.escomceapi.ldap.IExternalStructure.class));
 
@@ -74,7 +74,7 @@ class FonctionServiceTest {
     void testUpdateDateFin_Active() {
         AFonction aFonction = new AFonction();
         aFonction.setDateFin(new Date());
-        
+
         when(aFonctionRepository.findById(1L)).thenReturn(Optional.of(aFonction));
 
         fonctionService.updateDateFin(1L, true);
@@ -86,7 +86,7 @@ class FonctionServiceTest {
     @Test
     void testUpdateDateFin_Inactive() {
         AFonction aFonction = new AFonction();
-        
+
         when(aFonctionRepository.findById(1L)).thenReturn(Optional.of(aFonction));
 
         fonctionService.updateDateFin(1L, false);

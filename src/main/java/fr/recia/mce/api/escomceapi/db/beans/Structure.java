@@ -113,7 +113,8 @@ public class Structure implements Comparable<Structure> {
         Structure other = (Structure) obj;
         if (siren == null) {
             return other.siren == null;
-        } else return siren.equals(other.siren);
+        } else
+            return siren.equals(other.siren);
     }
 
 }

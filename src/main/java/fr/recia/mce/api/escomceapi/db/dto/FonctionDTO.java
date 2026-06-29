@@ -93,7 +93,8 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
             return false;
         if (structure == null) {
             return other.structure == null;
-        } else return structure.equals(other.structure);
+        } else
+            return structure.equals(other.structure);
     }
 
     // public FonctionDTO(final AFonction af, final Fonction f, final

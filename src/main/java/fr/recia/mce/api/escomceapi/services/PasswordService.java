@@ -63,7 +63,7 @@ public class PasswordService {
 
     private static final Argon2PasswordEncoder argon2Encoder = new Argon2PasswordEncoder();
 
-//    private static final Pattern HASH_PATTERN = Pattern.compile("\\{((SSHA)|(ARGON2))\\}(.+)");
+    // private static final Pattern HASH_PATTERN = Pattern.compile("\\{((SSHA)|(ARGON2))\\}(.+)");
     private static final Pattern HASH_PATTERN = Pattern.compile("\\{([A-Z0-9]+)\\}(.+)");
 
     public enum Algo {
@@ -85,7 +85,6 @@ public class PasswordService {
     @Autowired
     private ExternalUserHelper externalUserHelper;
 
-
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     // ---------------------------------------------------------------
@@ -100,110 +99,106 @@ public class PasswordService {
     }
 
     /**
-     * Résultat du parsing d'un hash LDAP stocké.
-     * Contient l'algo détecté et les données associées (digest + salt pour SSHA,
-     * hash brut pour ARGON2).
+     * Résultat du parsing d'un hash LDAP stocké. Contient l'algo détecté et les données associées (digest + salt pour SSHA, hash brut pour ARGON2).
      */
     private static class ParsedPassword {
-        final Algo   algo;
+        final Algo algo;
         final byte[] digest; // SSHA uniquement
-        final byte[] salt;   // SSHA uniquement
-        final String hash;   // ARGON2 uniquement
+        final byte[] salt; // SSHA uniquement
+        final String hash; // ARGON2 uniquement
 
         /** Constructeur SSHA */
         ParsedPassword(byte[] digest, byte[] salt) {
-            this.algo   = Algo.SSHA;
+            this.algo = Algo.SSHA;
             this.digest = digest;
-            this.salt   = salt;
-            this.hash   = null;
+            this.salt = salt;
+            this.hash = null;
         }
 
         /** Constructeur ARGON2 */
         ParsedPassword(String hash) {
-            this.algo   = Algo.ARGON2;
+            this.algo = Algo.ARGON2;
             this.digest = null;
-            this.salt   = null;
-            this.hash   = hash;
+            this.salt = null;
+            this.hash = hash;
         }
     }
 
-@Transactional(propagation = Propagation.REQUIRES_NEW)
-public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request) {
 
-    if (person == null) {
-        specialLog.error("Audit [CHANGE_PASSWORD] : REFUSÉ - Raison : Objet personne nul (méthode : changePassword)");
-        throw new PersonneNotFoundException("Utilisateur introuvable");
-    }
-
-    String uid = person.getUid() != null ? person.getUid() : "unknown";
-
-    try {
-        validateRequest(person, request);
-
-    } catch (WeakPasswordException e) {
-        specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
-        throw e;
-
-    } catch (IllegalArgumentException e) {
-        specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de vérification du mot de passe | Détail : {}", uid, e.getMessage());
-        throw e;
-    }
-
-    try {
-        boolean ok = verifyPassword(person, request.getOldPass(), false);
-
-        if (!ok) {
-            throw new IllegalArgumentException("Ancien mot de passe incorrect");
+        if (person == null) {
+            specialLog.error("Audit [CHANGE_PASSWORD] : REFUSÉ - Raison : Objet personne nul (méthode : changePassword)");
+            throw new PersonneNotFoundException("Utilisateur introuvable");
         }
 
-    } catch (IllegalArgumentException e) {
-        throw e;
+        String uid = person.getUid() != null ? person.getUid() : "unknown";
 
-    } catch (Exception e) {
-        specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe", uid);
-        throw new RuntimeException("Erreur technique lors de la vérification", e);
-    }
+        try {
+            validateRequest(person, request);
 
+        } catch (WeakPasswordException e) {
+            specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
+            throw e;
 
-
-    try {
-
-
-        // Choix de l'algo selon les groupes LDAP
-//            Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
-        Algo algo = Algo.ARGON2;
-
-        boolean withSamba = requiresSamba(person);
-
-
-        // Vérifier que le nouveau mot de passe n'a pas déjà été utilisé
-        if (isPasswordAlreadyUsed(person, request.getNewPass())) {
-            throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
+        } catch (IllegalArgumentException e) {
+            specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de vérification du mot de passe | Détail : {}", uid,
+                    e.getMessage());
+            throw e;
         }
 
+        try {
+            boolean ok = verifyPassword(person, request.getOldPass(), false);
 
-        PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo);
+            if (!ok) {
+                throw new IllegalArgumentException("Ancien mot de passe incorrect");
+            }
 
-    // Clore l'ancien mot de passe dans l'historique
+        } catch (IllegalArgumentException e) {
+            throw e;
+
+        } catch (Exception e) {
+            specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe",
+                    uid);
+            throw new RuntimeException("Erreur technique lors de la vérification", e);
+        }
+
+        try {
+
+            // Choix de l'algo selon les groupes LDAP
+            // Algo algo = requiresSSHA(person) ? Algo.SSHA : Algo.ARGON2;
+            Algo algo = Algo.ARGON2;
+
+            boolean withSamba = requiresSamba(person);
+
+            // Vérifier que le nouveau mot de passe n'a pas déjà été utilisé
+            if (isPasswordAlreadyUsed(person, request.getNewPass())) {
+                throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
+            }
+
+            PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo);
+
+            // Clore l'ancien mot de passe dans l'historique
             closeLastPassword(person);
 
-    // Sauvegarder le nouveau dans l'historique
+            // Sauvegarder le nouveau dans l'historique
             savePasswordToHistory(person, result.ldapHash);
 
-         updatePasswordInDatabase(person, result);
-         updatePasswordInLdap(uid, result.ldapHash);
+            updatePasswordInDatabase(person, result);
+            updatePasswordInLdap(uid, result.ldapHash);
 
-        specialLog.info("Audit [CHANGE_PASSWORD] : SUCCÈS pour l'utilisateur [{}]", uid);
+            specialLog.info("Audit [CHANGE_PASSWORD] : SUCCÈS pour l'utilisateur [{}]", uid);
 
-    } catch (WeakPasswordException | IllegalArgumentException e) {
-        specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de logique métier", uid);
-        throw e;
+        } catch (WeakPasswordException | IllegalArgumentException e) {
+            specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de logique métier", uid);
+            throw e;
 
-    } catch (Exception e) {
-        specialLog.error("Audit [CHANGE_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la mise à jour du mot de passe", uid);
-        throw new RuntimeException("Erreur technique", e);
+        } catch (Exception e) {
+            specialLog.error("Audit [CHANGE_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la mise à jour du mot de passe",
+                    uid);
+            throw new RuntimeException("Erreur technique", e);
+        }
     }
-}
     // ---------------------------------------------------------------
     // Génération du hash
     // ---------------------------------------------------------------
@@ -213,13 +208,13 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         PasswordResult result = new PasswordResult();
 
         switch (algo) {
-            case SSHA:
+            case SSHA :
                 result.ldapHash = makeSSHA(password);
                 break;
-            case ARGON2:
+            case ARGON2 :
                 result.ldapHash = PREFIXCODE_ARGON2 + argon2Encoder.encode(password);
                 break;
-            default:
+            default :
                 specialLog.warn("Audit [GENERATE_PASSWORD] : ÉCHEC - Détail : Algorithme non supporté demandé : {}", algo);
                 throw new IllegalStateException("Algo non supporté : " + algo);
         }
@@ -235,7 +230,6 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
 
         return result;
     }
-
 
     // ---------------------------------------------------------------
     // SSHA
@@ -253,18 +247,20 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
 
             byte[] combined = new byte[digest.length + salt.length];
             System.arraycopy(digest, 0, combined, 0, digest.length);
-            System.arraycopy(salt,   0, combined, digest.length, salt.length);
+            System.arraycopy(salt, 0, combined, digest.length, salt.length);
 
             return PREFIXCODE + new String(Base64.encodeBase64(combined, false), StandardCharsets.UTF_8);
 
         } catch (NoSuchAlgorithmException e) {
-            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé | Détail : algorithme requis pour SSHA cause = {}", e.getMessage());
+            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé | Détail : algorithme requis pour SSHA cause = {}",
+                    e.getMessage());
             throw new RuntimeException("Erreur SSHA", e);
         }
     }
 
     private boolean requiresSSHA(PersonneDTO person) {
-        if (person == null) return false;
+        if (person == null)
+            return false;
         String uid = person.getUid() != null ? person.getUid() : "unknown";
         String regex = mceProperties.getService()
                 .getCustomParams()
@@ -353,7 +349,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
 
     private static void E(byte[] key, byte[] data, byte[] out) {
         byte[] key7 = new byte[7];
-        byte[] e8   = new byte[8];
+        byte[] e8 = new byte[8];
         for (int i = 0; i < key.length / 7; i++) {
             System.arraycopy(key, i * 7, key7, 0, 7);
             DES des = new DES(key7);
@@ -376,7 +372,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
     }
 
     private boolean requiresSamba(PersonneDTO person) {
-        if (person == null) return false;
+        if (person == null)
+            return false;
         String uid = person.getUid() != null ? person.getUid() : "unknown";
         String regex = mceProperties.getService()
                 .getCustomParams()
@@ -435,16 +432,20 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
     /**
      * Analyse un hash LDAP stocké et retourne un {@link ParsedPassword} immuable.
      *
-     * <p>Formats supportés :</p>
+     * <p>
+     * Formats supportés :
+     * </p>
      * <ul>
-     *   <li>{SSHA}… — digest SHA-1 + salt encodés en Base64</li>
-     *   <li>{ARGON2}… — hash Argon2 brut</li>
+     * <li>{SSHA}… — digest SHA-1 + salt encodés en Base64</li>
+     * <li>{ARGON2}… — hash Argon2 brut</li>
      * </ul>
      *
-     * <p>Pattern à 4 groupes capturants (aligné sur {@code LdapPassword}) :
-     * {@code \{((SSHA)|(ARGON2))\}(.+)} — groupe(1) = algo, groupe(4) = contenu.</p>
+     * <p>
+     * Pattern à 4 groupes capturants (aligné sur {@code LdapPassword}) : {@code \{((SSHA)|(ARGON2))\}(.+)} — groupe(1) = algo, groupe(4) = contenu.
+     * </p>
      *
-     * @param codageLdap valeur brute lue depuis la base/LDAP
+     * @param codageLdap
+     *            valeur brute lue depuis la base/LDAP
      * @return {@link ParsedPassword} ou {@code null} si le format est invalide
      */
     private ParsedPassword parse(String codageLdap) {
@@ -456,15 +457,16 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
 
         Matcher m = HASH_PATTERN.matcher(codageLdap.trim());
         if (!m.matches()) {
-            specialLog.warn("Audit [PARSE] : ÉCHEC - Raison : Le hash ne correspond pas au format LDAP attendu (SSHA/ARGON2) | Détail : longueur_entrée={}", codageLdap.length());
+            specialLog.warn("Audit [PARSE] : ÉCHEC - Raison : Le hash ne correspond pas au format LDAP attendu (SSHA/ARGON2) | Détail : longueur_entrée={}",
+                    codageLdap.length());
             return null;
         }
 
-        Algo algo ;
+        Algo algo;
 
         try {
             algo = Algo.valueOf(m.group(1));
-        }catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             specialLog.error("Audit [PARSE] : ABANDONNÉ - Raison : Algorithme inconnu | Détail : algo={}", m.group(1));
             return null;
         }
@@ -472,7 +474,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         String content = m.group(2);
 
         switch (algo) {
-            case SSHA: {
+            case SSHA : {
                 try {
                     byte[] digestsalt = Base64.decodeBase64(content);
                     MessageDigest md = MessageDigest.getInstance("SHA-1");
@@ -484,25 +486,25 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
                     }
 
                     byte[] digest = Arrays.copyOf(digestsalt, digestSize);
-                    byte[] salt   = Arrays.copyOfRange(digestsalt, digestSize, digestsalt.length);
+                    byte[] salt = Arrays.copyOfRange(digestsalt, digestSize, digestsalt.length);
 
                     log.debug("parse() SSHA — empreinte : {} o, sel : {} o", digest.length, salt.length);
                     return new ParsedPassword(digest, salt);
 
                 } catch (NoSuchAlgorithmException e) {
-                    specialLog.error("Audit [PARSE] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé pour l'analyse SSHA | Détail : erreur={}", e.getMessage());
+                    specialLog.error("Audit [PARSE] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé pour l'analyse SSHA | Détail : erreur={}",
+                            e.getMessage());
                     return null;
                 }
             }
 
-            case ARGON2: {
+            case ARGON2 : {
                 log.debug("parse() ARGON2 — hash extrait");
                 return new ParsedPassword(content);
             }
         }
-        return null ;
+        return null;
     }
-
 
     // ---------------------------------------------------------------
     // Vérification
@@ -511,11 +513,16 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
     /**
      * Vérifie un mot de passe en clair contre le hash stocké.
      *
-     * <p>L'algorithme est détecté automatiquement via {@link #parse(String)}.</p>
+     * <p>
+     * L'algorithme est détecté automatiquement via {@link #parse(String)}.
+     * </p>
      *
-     * @param personne   utilisateur concerné
-     * @param input      mot de passe en clair à tester
-     * @param allowPlain autorise la comparaison directe si le hash n'a pas de préfixe
+     * @param personne
+     *            utilisateur concerné
+     * @param input
+     *            mot de passe en clair à tester
+     * @param allowPlain
+     *            autorise la comparaison directe si le hash n'a pas de préfixe
      * @return {@code true} si le mot de passe correspond
      */
     public boolean verifyPassword(PersonneDTO personne, String input, boolean allowPlain) {
@@ -530,12 +537,16 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         String stored = personne.getAPersonneBase().getPassword();
 
         if (stored == null || stored.isBlank()) {
-            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Aucun mot de passe trouvé en base de données pour cet utilisateur", uid);
+            specialLog.warn(
+                    "Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Aucun mot de passe trouvé en base de données pour cet utilisateur",
+                    uid);
             return false;
         }
 
         if (stored.startsWith(ACTIVE_PASSWORD)) {
-            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le compte est actif mais n'a aucun mot de passe utilisable défini", uid);
+            specialLog.warn(
+                    "Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le compte est actif mais n'a aucun mot de passe utilisable défini",
+                    uid);
             return false;
         }
 
@@ -544,8 +555,7 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
             if (allowPlain) {
                 boolean match = MessageDigest.isEqual(
                         stored.getBytes(StandardCharsets.UTF_8),
-                        input.getBytes(StandardCharsets.UTF_8)
-                );
+                        input.getBytes(StandardCharsets.UTF_8));
 
                 if (!match) {
                     specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Inadéquation du mot de passe en clair", uid);
@@ -554,14 +564,17 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
                 return match;
             }
 
-            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : La vérification du mot de passe en clair n'est pas autorisée par la configuration", uid);
+            specialLog.warn(
+                    "Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : La vérification du mot de passe en clair n'est pas autorisée par la configuration",
+                    uid);
             return false;
         }
 
         ParsedPassword parsed = parse(stored);
 
         if (parsed == null) {
-            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le hash du mot de passe stocké est corrompu ou illisible", uid);
+            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le hash du mot de passe stocké est corrompu ou illisible",
+                    uid);
             return false;
         }
 
@@ -569,16 +582,18 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
 
         switch (parsed.algo) {
 
-            case ARGON2:
+            case ARGON2 :
                 match = argon2Encoder.matches(input, parsed.hash);
                 break;
 
-            case SSHA:
+            case SSHA :
                 match = verifySSHA(parsed.digest, parsed.salt, input);
                 break;
 
-            default:
-                specialLog.error("Audit [VERIFY_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Algorithme inconnu dans le mot de passe stocké | Détail : algo={}", uid, parsed.algo);
+            default :
+                specialLog.error(
+                        "Audit [VERIFY_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Algorithme inconnu dans le mot de passe stocké | Détail : algo={}",
+                        uid, parsed.algo);
                 return false;
         }
 
@@ -593,9 +608,9 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
      * Vérifie un mot de passe contre un digest SSHA.
      *
      * <ol>
-     *   <li>clair en UTF-8 (cas normal)</li>
-     *   <li>{@code new String(clair.getBytes("UTF-8"), "ISO-8859-1")} — bytes UTF-8 relus en ISO</li>
-     *   <li>{@code new String(clair.getBytes("ISO-8859-1"), "UTF-8")} — bytes ISO relus en UTF-8</li>
+     * <li>clair en UTF-8 (cas normal)</li>
+     * <li>{@code new String(clair.getBytes("UTF-8"), "ISO-8859-1")} — bytes UTF-8 relus en ISO</li>
+     * <li>{@code new String(clair.getBytes("ISO-8859-1"), "UTF-8")} — bytes ISO relus en UTF-8</li>
      * </ol>
      */
 
@@ -632,7 +647,6 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         return Arrays.equals(expectedDigest, md.digest());
     }
 
-
     // ---------------------------------------------------------------
     // Validation
     // ---------------------------------------------------------------
@@ -655,7 +669,6 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
             throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'ancien");
         }
 
-
         if (!request.getNewPass().equals(request.getConfirmPass())) {
             throw new IllegalArgumentException("La confirmation du mot de passe ne correspond pas");
         }
@@ -665,8 +678,11 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
 
     /**
      * Vérifie si le mot de passe est assez fort et lance une exception si ce n'est pas le cas.
-     * @param pass Le mot de passe à valider.
-     * @throws WeakPasswordException Si le mot de passe ne respecte pas les critères de sécurité.
+     *
+     * @param pass
+     *            Le mot de passe à valider.
+     * @throws WeakPasswordException
+     *             Si le mot de passe ne respecte pas les critères de sécurité.
      */
     public static void isPasswordStrongEnough(String pass) {
         if (pass == null) {
@@ -683,24 +699,27 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         boolean hasSymbol = pass.matches(".*[^a-zA-Z0-9].*");
 
         int types = 0;
-        if (hasLower) types++;
-        if (hasUpper) types++;
-        if (hasDigit) types++;
-        if (hasSymbol) types++;
+        if (hasLower)
+            types++;
+        if (hasUpper)
+            types++;
+        if (hasDigit)
+            types++;
+        if (hasSymbol)
+            types++;
 
         if (types < 3) {
-            throw new WeakPasswordException("Le mot de passe doit contenir au moins trois types différents de caractères (minuscules, majuscules, chiffres, symboles)");
+            throw new WeakPasswordException(
+                    "Le mot de passe doit contenir au moins trois types différents de caractères (minuscules, majuscules, chiffres, symboles)");
         }
     }
-
 
     // ---------------------------------------------------------------
     // dbb
     // ---------------------------------------------------------------
 
     /**
-     * Enregistre le mot de passe actuel dans l'historique (table cerbere_password).
-     * En cas de modification multiple le même jour, le hash est mis à jour.
+     * Enregistre le mot de passe actuel dans l'historique (table cerbere_password). En cas de modification multiple le même jour, le hash est mis à jour.
      */
     @Transactional
     public void savePasswordToHistory(PersonneDTO personne, String hashLdap) {
@@ -712,7 +731,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         List<CerberePassword> existing = cerberePasswordRepository.findByAPersonne(aPersonne);
 
         boolean alreadyToday = existing.stream().anyMatch(cp -> {
-            if (cp.getDebut() == null) return false;
+            if (cp.getDebut() == null)
+                return false;
             java.util.Calendar c1 = java.util.Calendar.getInstance();
             java.util.Calendar c2 = java.util.Calendar.getInstance();
             c1.setTime(cp.getDebut());
@@ -748,7 +768,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
     }
 
     private boolean isToday(Date date) {
-        if (date == null) return false;
+        if (date == null)
+            return false;
         java.util.Calendar c1 = java.util.Calendar.getInstance();
         java.util.Calendar c2 = java.util.Calendar.getInstance();
         c1.setTime(date);
@@ -785,14 +806,15 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         }
 
         ParsedPassword parsed = parse(storedHash);
-        if (parsed == null) return false;
+        if (parsed == null)
+            return false;
 
         switch (parsed.algo) {
-            case ARGON2:
+            case ARGON2 :
                 return argon2Encoder.matches(input, parsed.hash);
-            case SSHA:
+            case SSHA :
                 return verifySSHA(parsed.digest, parsed.salt, input);
-            default:
+            default :
                 return false;
         }
     }
@@ -825,7 +847,8 @@ public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request)
         try {
             externalUserDao.updatePassword(uid, hash);
         } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid, e.getMessage());
+            specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid,
+                    e.getMessage());
             throw e;
         }
     }

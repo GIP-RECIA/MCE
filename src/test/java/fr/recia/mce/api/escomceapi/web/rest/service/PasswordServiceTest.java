@@ -200,9 +200,7 @@ class PasswordServiceTest {
             assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("abc DEF      "));
         }
 
-
     }
-
 
     @Nested
     @DisplayName("Tests de validation de requête - validateRequest")
@@ -213,9 +211,7 @@ class PasswordServiceTest {
         void shouldAcceptValidRequest() {
             PasswordChangeRequestDTO req = createRequest("OldPass123!", "NewPass123456!", "NewPass123456!");
 
-            assertThatNoException().isThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            );
+            assertThatNoException().isThrownBy(() -> passwordService.validateRequest(personneDTO, req));
         }
 
         @Test
@@ -223,9 +219,7 @@ class PasswordServiceTest {
         void shouldRejectNullOldPass() {
             PasswordChangeRequestDTO req = createRequest(null, strongPassword, strongPassword);
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Ancien mot de passe requis");
         }
@@ -235,9 +229,7 @@ class PasswordServiceTest {
         void shouldRejectBlankOldPass() {
             PasswordChangeRequestDTO req = createRequest("   ", strongPassword, strongPassword);
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Ancien mot de passe requis");
         }
@@ -247,9 +239,7 @@ class PasswordServiceTest {
         void shouldRejectNullNewPass() {
             PasswordChangeRequestDTO req = createRequest(strongPassword, null, null);
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Nouveau mot de passe requis");
         }
@@ -259,9 +249,7 @@ class PasswordServiceTest {
         void shouldRejectBlankNewPass() {
             PasswordChangeRequestDTO req = createRequest(strongPassword, "   ", "   ");
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Nouveau mot de passe requis");
         }
@@ -272,9 +260,7 @@ class PasswordServiceTest {
             String pass = strongPassword;
             PasswordChangeRequestDTO req = createRequest(pass, pass, pass);
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("différent de l'ancien");
         }
@@ -284,9 +270,7 @@ class PasswordServiceTest {
         void shouldRejectConfirmationMismatch() {
             PasswordChangeRequestDTO req = createRequest(strongPassword, "NewPass123456!", "WrongConfirm");
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("confirmation");
         }
@@ -296,22 +280,17 @@ class PasswordServiceTest {
         void shouldRejectWeakPassword() {
             PasswordChangeRequestDTO req = createRequest(strongPassword, "weak", "weak");
 
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, req)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
                     .isInstanceOf(WeakPasswordException.class);
         }
 
         @Test
         @DisplayName("Doit refuser si la requête est nulle")
         void shouldRejectNullRequest() {
-            assertThatThrownBy(() ->
-                    passwordService.validateRequest(personneDTO, null)
-            )
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, null))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
-
 
     @Nested
     @DisplayName("Tests de Parsing - parse ")
@@ -347,8 +326,7 @@ class PasswordServiceTest {
         @DisplayName("Doit retourner null pour un algo inconnu")
         void shouldReturnNullForUnknownAlgo() {
             assertThat((Object) ReflectionTestUtils.invokeMethod(
-                    passwordService, "parse", "{NEWALGO}somecontent"
-            )).isNull();
+                    passwordService, "parse", "{NEWALGO}somecontent")).isNull();
         }
 
         @Test
@@ -356,23 +334,19 @@ class PasswordServiceTest {
         void shouldReturnNullForInvalidHashFormat() {
             // pas de {} autour de l'algo
             assertThat((Object) ReflectionTestUtils.invokeMethod(
-                    passwordService, "parse", "SSHAsomehash"
-            )).isNull();
+                    passwordService, "parse", "SSHAsomehash")).isNull();
 
             // minuscules → regex n'accepte que majuscules
             assertThat((Object) ReflectionTestUtils.invokeMethod(
-                    passwordService, "parse", "{ssha}somehash"
-            )).isNull();
+                    passwordService, "parse", "{ssha}somehash")).isNull();
 
             // pas de contenu après {}
             assertThat((Object) ReflectionTestUtils.invokeMethod(
-                    passwordService, "parse", "{SSHA}"
-            )).isNull();
+                    passwordService, "parse", "{SSHA}")).isNull();
 
             // format complètement invalide
             assertThat((Object) ReflectionTestUtils.invokeMethod(
-                    passwordService, "parse", "randomstring"
-            )).isNull();
+                    passwordService, "parse", "randomstring")).isNull();
         }
 
     }
@@ -803,7 +777,7 @@ class PasswordServiceTest {
                 byte[] digest = md.digest();
                 byte[] combined = new byte[digest.length + salt.length];
                 System.arraycopy(digest, 0, combined, 0, digest.length);
-                System.arraycopy(salt,   0, combined, digest.length, salt.length);
+                System.arraycopy(salt, 0, combined, digest.length, salt.length);
 
                 CerberePassword cp = new CerberePassword();
                 cp.setPassword("{SSHA}" + Base64.encodeBase64String(combined));
@@ -945,7 +919,6 @@ class PasswordServiceTest {
         }
     }
 
-
     @Nested
     @DisplayName("Tests de makeSSHA")
     class MakeSshaTests {
@@ -999,7 +972,6 @@ class PasswordServiceTest {
             }
         }
     }
-
 
     @Nested
     @DisplayName("Tests de requiresSSHA")
@@ -1166,7 +1138,5 @@ class PasswordServiceTest {
             }
         }
     }
-
-
 
 }

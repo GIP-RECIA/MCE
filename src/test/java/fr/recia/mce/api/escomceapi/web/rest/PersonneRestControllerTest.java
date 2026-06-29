@@ -35,7 +35,6 @@ import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceI
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
-import fr.recia.mce.api.escomceapi.web.rest.PersonneRestController;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,8 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Test class for {@link PersonneRestController}.
- * Organized using @Nested and @DisplayName for better readability and structure.
+ * Test class for {@link PersonneRestController}. Organized using @Nested and @DisplayName for better readability and structure.
  */
 @WebMvcTest(PersonneRestController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -118,7 +116,6 @@ class PersonneRestControllerTest {
         return request;
     }
 
-
     @Nested
     @DisplayName("Tests du point d'accès /change-password")
     class PasswordChangeTests {
@@ -130,8 +127,8 @@ class PersonneRestControllerTest {
             doNothing().when(userDTOFactory).changePassword(eq(USER), any());
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNoContent());
 
             verify(userDTOFactory).changePassword(eq(USER), any());
@@ -143,8 +140,8 @@ class PersonneRestControllerTest {
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
 
             mockMvc.perform(post(BASE_URL + "autre.user/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden());
 
             verify(userDTOFactory, never()).changePassword(any(), any());
@@ -169,8 +166,8 @@ class PersonneRestControllerTest {
         @DisplayName("Mauvaise requête lorsque le corps de la requête est invalide")
         void shouldReturnBadRequestWhenBodyIsInvalid() throws Exception {
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
                     .andExpect(status().isBadRequest());
 
             verify(userDTOFactory, never()).changePassword(any(), any());
@@ -185,8 +182,8 @@ class PersonneRestControllerTest {
                     .when(userDTOFactory).changePassword(eq(USER), any());
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isInternalServerError());
 
             verify(userDTOFactory).changePassword(eq(USER), any());
@@ -199,8 +196,8 @@ class PersonneRestControllerTest {
             request.setOldPass(null);
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
 
             verify(userDTOFactory, never()).changePassword(any(), any());
@@ -213,8 +210,8 @@ class PersonneRestControllerTest {
             request.setNewPass(null);
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
 
             verify(userDTOFactory, never()).changePassword(any(), any());
@@ -230,8 +227,8 @@ class PersonneRestControllerTest {
                     .when(userDTOFactory).changePassword(eq(USER), any());
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
 
             verify(userDTOFactory).changePassword(eq(USER), any());
@@ -246,8 +243,8 @@ class PersonneRestControllerTest {
                     .when(userDTOFactory).changePassword(eq(USER), any());
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNotFound());
 
             verify(userDTOFactory).changePassword(eq(USER), any());
@@ -257,8 +254,8 @@ class PersonneRestControllerTest {
         @DisplayName("Mauvaise requête pour JSON malformé")
         void shouldReturnBadRequestForMalformedJson() throws Exception {
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("invalid json"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("invalid json"))
                     .andExpect(status().isBadRequest());
 
             verify(userDTOFactory, never()).changePassword(any(), any());
@@ -280,8 +277,8 @@ class PersonneRestControllerTest {
             }).when(userDTOFactory).changePassword(eq(USER), any());
 
             mockMvc.perform(post(BASE_URL + USER + "/change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
 
             verify(userDTOFactory).changePassword(eq(USER), any());
@@ -299,7 +296,6 @@ class PersonneRestControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(content().string(USER));
         }
-
 
         @Test
         void shouldGetPersonneByUidSuccessfully() throws Exception {
@@ -343,11 +339,30 @@ class PersonneRestControllerTest {
         @DisplayName("Obtenir la personne LDAP avec succès")
         void shouldGetPersonLdapSuccessfully() throws Exception {
             IExternalUser user = new IExternalUser() {
-                @Override public String getEmail() { return "test@example.com"; }
-                @Override public String getId() { return USER; }
-                @Override public String getDisplayName() { return "Test User"; }
-                @Override public java.util.Map<String, java.util.List<String>> getAttributes() { return java.util.Collections.emptyMap(); }
-                @Override public java.util.List<String> getAttribute(String name) { return java.util.Collections.emptyList(); }
+                @Override
+                public String getEmail() {
+                    return "test@example.com";
+                }
+
+                @Override
+                public String getId() {
+                    return USER;
+                }
+
+                @Override
+                public String getDisplayName() {
+                    return "Test User";
+                }
+
+                @Override
+                public java.util.Map<String, java.util.List<String>> getAttributes() {
+                    return java.util.Collections.emptyMap();
+                }
+
+                @Override
+                public java.util.List<String> getAttribute(String name) {
+                    return java.util.Collections.emptyList();
+                }
             };
             when(personneService.retrievePersonLdap(USER)).thenReturn(user);
 
@@ -463,8 +478,8 @@ class PersonneRestControllerTest {
             EmailUpdateRequestDTO request = buildValidEmailUpdateRequest();
 
             mockMvc.perform(put(BASE_URL + USER + "/update-email")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNoContent());
 
             verify(personneService).updateEmail(USER, "test@example.com");
@@ -476,8 +491,8 @@ class PersonneRestControllerTest {
             EmailUpdateRequestDTO request = buildValidEmailUpdateRequest();
 
             mockMvc.perform(put(BASE_URL + "autre.user/update-email")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden());
         }
 
@@ -488,8 +503,8 @@ class PersonneRestControllerTest {
             request.setConfirmEmail("wrong@example.com");
 
             mockMvc.perform(put(BASE_URL + USER + "/update-email")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
                     .andExpect(jsonPath("$.message").value("Les adresses email ne correspondent pas"));

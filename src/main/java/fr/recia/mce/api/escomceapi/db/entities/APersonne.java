@@ -43,210 +43,210 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "apersonne", uniqueConstraints = {
-		@UniqueConstraint(columnNames = { "source", "cle" }),
-		@UniqueConstraint(columnNames = "uid") })
+        @UniqueConstraint(columnNames = {"source", "cle"}),
+        @UniqueConstraint(columnNames = "uid")})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 public class APersonne implements Serializable {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "id", unique = true, nullable = false)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", unique = true, nullable = false)
+    private Long id;
 
-	@Version
-	@Column(name = "version", nullable = false)
-	private Long version;
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "structure_rattachement_fk")
-	@JsonIgnore
-	private AStructure aStructure;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "structure_rattachement_fk")
+    @JsonIgnore
+    private AStructure aStructure;
 
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "dateAcquittement", length = 19)
-	private Date dateAcquittement;
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "dateAcquittement", length = 19)
+    private Date dateAcquittement;
 
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "dateCreation")
-	private Date dateCreation;
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "dateCreation")
+    private Date dateCreation;
 
-	@Temporal(TemporalType.TIMESTAMP)
-	@Column(name = "dateModification", length = 19)
-	private Date dateModification;
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "dateModification", length = 19)
+    private Date dateModification;
 
-	@Temporal(TemporalType.DATE)
-	@Column(name = "anneeScolaire", length = 10)
-	private Date anneeScolaire;
+    @Temporal(TemporalType.DATE)
+    @Column(name = "anneeScolaire", length = 10)
+    private Date anneeScolaire;
 
-	@Column(name = "categorie")
-	private String categorie;
+    @Column(name = "categorie")
+    private String categorie;
 
-	@Column(name = "civilite")
-	private String civilite;
+    @Column(name = "civilite")
+    private String civilite;
 
-	@Column(name = "cle")
-	private String cle;
+    @Column(name = "cle")
+    private String cle;
 
-	@Column(name = "source")
-	private String source;
+    @Column(name = "source")
+    private String source;
 
-	@Column(name = "cn")
-	private String cn;
+    @Column(name = "cn")
+    private String cn;
 
-	@Temporal(TemporalType.DATE)
-	@Column(name = "dateNaissance", length = 10)
-	private Date dateNaissance;
+    @Temporal(TemporalType.DATE)
+    @Column(name = "dateNaissance", length = 10)
+    private Date dateNaissance;
 
-	@Column(name = "displayName")
-	private String displayName;
+    @Column(name = "displayName")
+    private String displayName;
 
-	@Column(name = "email")
-	private String email;
+    @Column(name = "email")
+    private String email;
 
-	@Column(name = "emailPersonnel")
-	private String emailPersonnel;
+    @Column(name = "emailPersonnel")
+    private String emailPersonnel;
 
-	@Column(name = "etat")
-	private String etat;
+    @Column(name = "etat")
+    private String etat;
 
-	@Column(name = "givenName")
-	private String givenName;
+    @Column(name = "givenName")
+    private String givenName;
 
-	@Column(name = "password")
-	private String password;
+    @Column(name = "password")
+    private String password;
 
-	@Column(name = "sn")
-	private String sn;
+    @Column(name = "sn")
+    private String sn;
 
-	@Column(name = "titre")
-	private String titre;
+    @Column(name = "titre")
+    private String titre;
 
-	@Column(name = "uid")
-	private String uid;
+    @Column(name = "uid")
+    private String uid;
 
-	@Temporal(TemporalType.DATE)
-	@Column(name = "validationCharte", length = 10)
-	private Date validationCharte;
+    @Temporal(TemporalType.DATE)
+    @Column(name = "validationCharte", length = 10)
+    private Date validationCharte;
 
-	@Column(name = "doForward")
-	private boolean doForward;
+    @Column(name = "doForward")
+    private boolean doForward;
 
-	@Column(name = "sambaLMPassword")
-	private String sambaLmpassword;
+    @Column(name = "sambaLMPassword")
+    private String sambaLmpassword;
 
-	@Column(name = "sambaNTPassword")
-	private String sambaNtpassword;
+    @Column(name = "sambaNTPassword")
+    private String sambaNtpassword;
 
-	@Column(name = "photo")
-	private String photo;
+    @Column(name = "photo")
+    private String photo;
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
-	@JsonIgnore
-	private Set<Login> loginsForApersonneLogin = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
+    @JsonIgnore
+    private Set<Login> loginsForApersonneLogin = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneAlias")
-	@JsonIgnore
-	private Set<Login> loginsForApersonneAlias = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneAlias")
+    @JsonIgnore
+    private Set<Login> loginsForApersonneAlias = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByIdParent")
-	@JsonIgnore
-	private Set<CerbereEnfant> cerbereEnfantsForIdParent = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByIdParent")
+    @JsonIgnore
+    private Set<CerbereEnfant> cerbereEnfantsForIdParent = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByIdEnfant")
-	@JsonIgnore
-	private Set<CerbereEnfant> cerbereEnfantsForIdEnfant = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByIdEnfant")
+    @JsonIgnore
+    private Set<CerbereEnfant> cerbereEnfantsForIdEnfant = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
-	@JsonIgnore
-	private Set<CerbereConfirmation> cerbereConfirmations = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
+    @JsonIgnore
+    private Set<CerbereConfirmation> cerbereConfirmations = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
-	@JsonIgnore
-	private Set<Login> loginsForApersonneOldAlias = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByAPersonneLogin")
+    @JsonIgnore
+    private Set<Login> loginsForApersonneOldAlias = new HashSet<>(0);
 
-	@JsonIgnore
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
-	private Set<CerberePassword> cerberePasswords = new HashSet<>(0);
+    @JsonIgnore
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonne")
+    private Set<CerberePassword> cerberePasswords = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
-	@JsonIgnore
-	private Set<AStructure> astructuresForResponsableId = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
+    @JsonIgnore
+    private Set<AStructure> astructuresForResponsableId = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
-	@JsonIgnore
-	private Set<AStructure> astructuresForContactId = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
+    @JsonIgnore
+    private Set<AStructure> astructuresForContactId = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
-	@JsonIgnore
-	private Set<AStructure> astructuresForContactId_1 = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByContactId")
+    @JsonIgnore
+    private Set<AStructure> astructuresForContactId_1 = new HashSet<>(0);
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
-	@JsonIgnore
-	private Set<AStructure> astructuresForResponsableId_1 = new HashSet<>(0);
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "aPersonneByResponsableId")
+    @JsonIgnore
+    private Set<AStructure> astructuresForResponsableId_1 = new HashSet<>(0);
 
-	public APersonne() {
-	}
+    public APersonne() {
+    }
 
-	public APersonne(boolean doForward) {
-		this.doForward = doForward;
-	}
+    public APersonne(boolean doForward) {
+        this.doForward = doForward;
+    }
 
-	public APersonne(AStructure astructure, Date dateAcquittement,
-			Date dateCreation, Date dateModification, Date anneeScolaire,
-			String categorie, String civilite, String cle, String source,
-			String cn, Date dateNaissance, String displayName, String email,
-			String emailPersonnel, String etat, String givenName,
-			String password, String sn, String titre, String uid,
-			Date validationCharte, boolean doForward, String sambaLmpassword,
-			String sambaNtpassword,
-			String photo,
-			Set<Login> loginsForApersonneLogin,
-			Set<Login> loginsForApersonneAlias,
-			Set<CerbereEnfant> cerbereEnfantsForIdParent,
-			Set<CerbereEnfant> cerbereEnfantsForIdEnfant,
-			Set<CerbereConfirmation> cerbereConfirmations,
-			Set<Login> loginsForApersonneOldAlias,
-			Set<AStructure> astructuresForResponsableId,
-			Set<AStructure> astructuresForContactId,
-			Set<AStructure> astructuresForContactId_1,
-			Set<AStructure> astructuresForResponsableId_1) {
-		this.aStructure = astructure;
-		this.dateAcquittement = dateAcquittement;
-		this.dateCreation = dateCreation;
-		this.dateModification = dateModification;
-		this.anneeScolaire = anneeScolaire;
-		this.categorie = categorie;
-		this.civilite = civilite;
-		this.cle = cle;
-		this.source = source;
-		this.cn = cn;
-		this.dateNaissance = dateNaissance;
-		this.displayName = displayName;
-		this.email = email;
-		this.emailPersonnel = emailPersonnel;
-		this.etat = etat;
-		this.givenName = givenName;
-		this.password = password;
-		this.sn = sn;
-		this.titre = titre;
-		this.uid = uid;
-		this.validationCharte = validationCharte;
-		this.doForward = doForward;
-		this.sambaLmpassword = sambaLmpassword;
-		this.sambaNtpassword = sambaNtpassword;
-		this.photo = photo;
-		this.loginsForApersonneLogin = loginsForApersonneLogin;
-		this.loginsForApersonneAlias = loginsForApersonneAlias;
-		this.cerbereEnfantsForIdParent = cerbereEnfantsForIdParent;
-		this.cerbereEnfantsForIdEnfant = cerbereEnfantsForIdEnfant;
-		this.cerbereConfirmations = cerbereConfirmations;
-		this.loginsForApersonneOldAlias = loginsForApersonneOldAlias;
-		this.astructuresForResponsableId = astructuresForResponsableId;
-		this.astructuresForContactId = astructuresForContactId;
-		this.astructuresForContactId_1 = astructuresForContactId_1;
-		this.astructuresForResponsableId_1 = astructuresForResponsableId_1;
-	}
+    public APersonne(AStructure astructure, Date dateAcquittement,
+            Date dateCreation, Date dateModification, Date anneeScolaire,
+            String categorie, String civilite, String cle, String source,
+            String cn, Date dateNaissance, String displayName, String email,
+            String emailPersonnel, String etat, String givenName,
+            String password, String sn, String titre, String uid,
+            Date validationCharte, boolean doForward, String sambaLmpassword,
+            String sambaNtpassword,
+            String photo,
+            Set<Login> loginsForApersonneLogin,
+            Set<Login> loginsForApersonneAlias,
+            Set<CerbereEnfant> cerbereEnfantsForIdParent,
+            Set<CerbereEnfant> cerbereEnfantsForIdEnfant,
+            Set<CerbereConfirmation> cerbereConfirmations,
+            Set<Login> loginsForApersonneOldAlias,
+            Set<AStructure> astructuresForResponsableId,
+            Set<AStructure> astructuresForContactId,
+            Set<AStructure> astructuresForContactId_1,
+            Set<AStructure> astructuresForResponsableId_1) {
+        this.aStructure = astructure;
+        this.dateAcquittement = dateAcquittement;
+        this.dateCreation = dateCreation;
+        this.dateModification = dateModification;
+        this.anneeScolaire = anneeScolaire;
+        this.categorie = categorie;
+        this.civilite = civilite;
+        this.cle = cle;
+        this.source = source;
+        this.cn = cn;
+        this.dateNaissance = dateNaissance;
+        this.displayName = displayName;
+        this.email = email;
+        this.emailPersonnel = emailPersonnel;
+        this.etat = etat;
+        this.givenName = givenName;
+        this.password = password;
+        this.sn = sn;
+        this.titre = titre;
+        this.uid = uid;
+        this.validationCharte = validationCharte;
+        this.doForward = doForward;
+        this.sambaLmpassword = sambaLmpassword;
+        this.sambaNtpassword = sambaNtpassword;
+        this.photo = photo;
+        this.loginsForApersonneLogin = loginsForApersonneLogin;
+        this.loginsForApersonneAlias = loginsForApersonneAlias;
+        this.cerbereEnfantsForIdParent = cerbereEnfantsForIdParent;
+        this.cerbereEnfantsForIdEnfant = cerbereEnfantsForIdEnfant;
+        this.cerbereConfirmations = cerbereConfirmations;
+        this.loginsForApersonneOldAlias = loginsForApersonneOldAlias;
+        this.astructuresForResponsableId = astructuresForResponsableId;
+        this.astructuresForContactId = astructuresForContactId;
+        this.astructuresForContactId_1 = astructuresForContactId_1;
+        this.astructuresForResponsableId_1 = astructuresForResponsableId_1;
+    }
 
 }

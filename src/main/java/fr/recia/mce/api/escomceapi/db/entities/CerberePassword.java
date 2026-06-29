@@ -48,7 +48,8 @@ public class CerberePassword {
     @Column(name = "fin")
     private Date fin;
 
-    public CerberePassword() {}
+    public CerberePassword() {
+    }
 
     public CerberePassword(APersonne aPersonne, String password, Date debut) {
         this.aPersonne = aPersonne;

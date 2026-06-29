@@ -119,7 +119,8 @@ public class PersonneRestController {
     /**
      * Retourne le UserDTO d'un enfant/élève par son identifiant.
      *
-     * @param id identifiant de l'enfant
+     * @param id
+     *            identifiant de l'enfant
      * @return UserDTO de l'enfant
      */
     @GetMapping("/{id}")
@@ -136,8 +137,10 @@ public class PersonneRestController {
     /**
      * Change le mot de passe de l'utilisateur connecté.
      *
-     * @param uid     UID de l'utilisateur dont on veut changer le mot de passe
-     * @param request données du changement de mot de passe
+     * @param uid
+     *            UID de l'utilisateur dont on veut changer le mot de passe
+     * @param request
+     *            données du changement de mot de passe
      */
     @PostMapping("/{uid}/change-password")
     public ResponseEntity<Void> changePass(
@@ -159,8 +162,10 @@ public class PersonneRestController {
     /**
      * Met à jour l'adresse email de l'utilisateur connecté.
      *
-     * @param uid     UID de l'utilisateur
-     * @param request objet contenant le nouvel email
+     * @param uid
+     *            UID de l'utilisateur
+     * @param request
+     *            objet contenant le nouvel email
      */
     @PutMapping("/{uid}/update-email")
     public ResponseEntity<?> updateEmail(
@@ -190,7 +195,7 @@ public class PersonneRestController {
             @RequestParam("file") MultipartFile file) throws Exception {
 
         log.debug("Réception d'une requête d'upload d'avatar pour l'UID [{}]", uid);
-        log.debug("Fichier reçu : nom={}, type={}, taille={} octets", 
+        log.debug("Fichier reçu : nom={}, type={}, taille={} octets",
                 file.getOriginalFilename(), file.getContentType(), file.getSize());
 
         String currentUid = getCurrentUid();
@@ -206,9 +211,11 @@ public class PersonneRestController {
 
     /**
      * Récupère l'image de l'avatar d'un utilisateur.
-     * 
-     * @param uid    L'UID de l'utilisateur.
-     * @param suffix Suffixe optionnel permettant d'ignorer les extensions de fichier (ex: .jpg).
+     *
+     * @param uid
+     *            L'UID de l'utilisateur.
+     * @param suffix
+     *            Suffixe optionnel permettant d'ignorer les extensions de fichier (ex: .jpg).
      * @return La réponse contenant l'image en octets.
      */
     @GetMapping("/{uid}/avatar{suffix:.*}")
@@ -221,7 +228,6 @@ public class PersonneRestController {
                 .header("Content-Type", "image/jpeg")
                 .body(image);
     }
-
 
     /**
      * Récupère l'UID de l'utilisateur depuis le SoffitHolder (rempli par SoffitInterceptor).

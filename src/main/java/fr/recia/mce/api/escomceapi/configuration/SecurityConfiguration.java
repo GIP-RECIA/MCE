@@ -61,8 +61,7 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        final AbstractPreAuthenticatedProcessingFilter filter =
-                new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
+        final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
         filter.setAuthenticationManager(authenticationManager());
 
         http.addFilter(filter);
@@ -72,8 +71,7 @@ public class SecurityConfiguration {
                 .antMatchers("/health-check").permitAll()
                 .antMatchers(TEMPORARY_PERMIT_LIST).permitAll()
                 .antMatchers("/api/**").authenticated()
-                .anyRequest().denyAll()
-        );
+                .anyRequest().denyAll());
         http.sessionManagement(session -> session.sessionFixation().newSession());
 
         return http.build();

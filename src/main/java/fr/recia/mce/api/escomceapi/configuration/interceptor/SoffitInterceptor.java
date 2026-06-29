@@ -33,13 +33,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SoffitInterceptor implements HandlerInterceptor {
 
-
     private final SoffitHolder soffitHolder;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SoffitInterceptor(SoffitHolder soffitHolder) {
         this.soffitHolder = soffitHolder;
     }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 

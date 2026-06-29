@@ -42,8 +42,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "astructure", uniqueConstraints = {
         @UniqueConstraint(columnNames = "siren"),
-        @UniqueConstraint(columnNames = { "source", "cle" }),
-        @UniqueConstraint(columnNames = "nom") })
+        @UniqueConstraint(columnNames = {"source", "cle"}),
+        @UniqueConstraint(columnNames = "nom")})
 @Getter
 @Setter
 public class AStructure implements Serializable {

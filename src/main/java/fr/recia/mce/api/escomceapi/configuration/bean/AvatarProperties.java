@@ -36,7 +36,7 @@ public class AvatarProperties {
      * URL de base utilisée pour construire les liens publics d'accès aux avatars.
      */
     private String baseUrl;
-    
+
     /**
      * Chemin physique sur le serveur où les fichiers images des avatars sont enregistrés.
      */

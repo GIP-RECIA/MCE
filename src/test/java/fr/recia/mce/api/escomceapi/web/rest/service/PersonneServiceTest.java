@@ -68,8 +68,10 @@ class PersonneServiceTest {
     void setUp() {
         lenient().when(cacheManager.getCache(anyString())).thenReturn(cache);
         lenient().when(cache.get(uid, PersonneDTO.class)).thenReturn(null);
-        lenient().when(mailProperties.getRegexValideAddr()).thenReturn("[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[A-Za-z-]{2,4})");
-        lenient().when(mailProperties.getRegexsDomainesExclus()).thenReturn("netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr");
+        lenient().when(mailProperties.getRegexValideAddr())
+                .thenReturn("[_A-Za-z0-9-]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[A-Za-z-]{2,4})");
+        lenient().when(mailProperties.getRegexsDomainesExclus())
+                .thenReturn("netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr");
     }
 
     @Nested
