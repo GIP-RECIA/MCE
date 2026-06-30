@@ -52,6 +52,7 @@ This project includes:
   Jackson-annotations under The Apache Software License, Version 2.0
   Jackson-core under The Apache Software License, Version 2.0
   jackson-databind under The Apache Software License, Version 2.0
+  Jackson-dataformat-YAML under The Apache Software License, Version 2.0
   Jackson-module-parameter-names under The Apache Software License, Version 2.0
   Jakarta Activation under EDL 1.0
   Jakarta Activation API jar under EDL 1.0
@@ -66,6 +67,7 @@ This project includes:
   javax.transaction API under EPL 2.0 or GPL2 w/ CPE
   JAXB Runtime under Eclipse Distribution License - v 1.0
   JBoss Logging 3 under Apache License, version 2.0
+  jCIFS under GNU Lesser General Public License, version 2.1
   jCIFS NG under LGPL
   JJWT :: API under Apache License, Version 2.0
   JJWT :: Extensions :: Jackson under Apache License, Version 2.0
@@ -89,6 +91,7 @@ This project includes:
   mce-project under Apache License, Version 2.0
   micrometer-core under The Apache Software License, Version 2.0
   mockito-core under The MIT License
+  mockito-inline under The MIT License
   mockito-junit-jupiter under The MIT License
   Objenesis under Apache License, Version 2.0
   org.apiguardian:apiguardian-api under The Apache License, Version 2.0
@@ -101,6 +104,7 @@ This project includes:
   Querydsl - Codegen utils under Apache License, Version 2.0
   Querydsl - Core module under Apache License, Version 2.0
   Querydsl - JPA support under Apache License, Version 2.0
+  servlet-api under Apache 2.0
   SLF4J API Module under MIT License
   SnakeYAML under Apache License, Version 2.0
   Spring AOP under Apache License, Version 2.0
@@ -144,7 +148,15 @@ This project includes:
   spring-security-config under Apache License, Version 2.0
   spring-security-core under Apache License, Version 2.0
   spring-security-crypto under Apache License, Version 2.0
+  spring-security-test under Apache License, Version 2.0
   spring-security-web under Apache License, Version 2.0
+  springdoc-openapi-common under The Apache License, Version 2.0
+  springdoc-openapi-ui under The Apache License, Version 2.0
+  springdoc-openapi-webmvc-core under The Apache License, Version 2.0
+  Swagger UI under Apache 2.0
+  swagger-annotations under Apache License 2.0
+  swagger-core under Apache License 2.0
+  swagger-models under Apache License 2.0
   tomcat-embed-core under Apache License, Version 2.0
   tomcat-embed-el under Apache License, Version 2.0
   tomcat-embed-websocket under Apache License, Version 2.0
