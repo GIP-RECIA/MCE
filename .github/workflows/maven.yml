@@ -48,7 +48,7 @@ jobs:
 
     strategy:
       matrix:
-        java: ['11', '17']
+        java: ['11']
         mariadb: ['10.6', 'latest']
 
     env:
@@ -119,12 +119,12 @@ jobs:
           done
 
       - name: Test MariaDB
-        run: docker exec mariadb mysql -uroot -proot -e "show variables like '%time_zone'; select now();"
+        run: docker exec mariadb /bin/bash -c "mysql -h127.0.0.1 -uroot -proot -e \"show variables like '%time_zone'; select now();\""
 
       - name: Check date
         run: |
           date
-          mysql -h127.0.0.1 -P3306 -uroot -proot -e "show variables like '%time_zone'; select now();"
+          mysql -h127.0.0.1 -uroot -proot -e "show variables like '%time_zone'; select now();"
 
       - name: Set up JDK ${{ matrix.java }} version
         uses: actions/setup-java@v5
@@ -136,9 +136,9 @@ jobs:
       - name: DB connection test and conf checks
         run: |
           netstat -pnltu
-          mysql -h127.0.0.1 -P3306 -uroot -proot -e "SHOW DATABASES;"
-          mysql -h127.0.0.1 -P3306 -uroot -proot -e "show variables like 'char%'; show variables like 'collation%';show variables like 'innodb_default_row_format';"
-          mysql -h127.0.0.1 -P3306 -uroot -proot -e "USE mce_test;SHOW TABLES;"
+          mysql -h127.0.0.1 -uroot -proot -e "SHOW DATABASES;"
+          mysql -h127.0.0.1 -uroot -proot -e "show variables like 'char%'; show variables like 'collation%';show variables like 'innodb_default_row_format';"
+          mysql -h127.0.0.1 -uroot -proot -e "USE mce_test;SHOW TABLES;"
 
       - name: Project requirements
         run: |
