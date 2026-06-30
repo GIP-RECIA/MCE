@@ -5,7 +5,7 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ 'main' ]
+    branches: [ 'main', 'stage_2026' ]
     paths: ['**.java', '**.js', '**.ts', '**.vue', '.github/workflows/**', 'pom.xml', 'package.json', 'package-lock.json']
   pull_request:
     branches: [ '**' ]
