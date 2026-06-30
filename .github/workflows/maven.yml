@@ -107,8 +107,16 @@ jobs:
             -e "MYSQL_QUERY_CACHE_LIMIT=10M" \
             -e "MYSQL_QUERY_CACHE_SIZE=0" \
             -e "MYSQL_QUERY_CACHE_TYPE=OFF" \
-            ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }} &
-          sleep 30
+            ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }}
+          echo "Waiting for MariaDB to be healthy..."
+          for i in $(seq 1 30); do
+            if docker exec mariadb mysqladmin ping -uroot -proot --silent 2>/dev/null; then
+              echo "MariaDB is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
 
       - name: Test MariaDB
         run: docker exec mariadb /bin/bash -c "mysql -h127.0.0.1 -uroot -proot -e \"show variables like '%time_zone'; select now();\""
@@ -117,15 +125,6 @@ jobs:
         run: |
           date
           mysql -h127.0.0.1 -uroot -proot -e "show variables like '%time_zone'; select now();"
-
-      - name: Clone Openldap container
-        uses: actions/checkout@v7
-        with:
-          repository: 'GIP-RECIA/docker-openldap-test'
-          path: '.docker-openldap-test'
-
-      - name: Start Openldap Container
-        run: docker compose -f "${{ github.workspace }}/.docker-openldap-test/docker-compose.yml" up -d --build
 
       - name: Set up JDK ${{ matrix.java }} version
         uses: actions/setup-java@v5
@@ -199,5 +198,6 @@ jobs:
       - name: Build with Maven
         run: ./mvnw clean package -Dmaven.test.skip=true -B
 
-      - name: Stop containers
-        run: docker compose -f "${{ github.workspace }}/.docker-openldap-test/docker-compose.yml" down
+      - name: Stop MariaDB container
+        if: always()
+        run: docker stop mariadb 2>/dev/null || true
