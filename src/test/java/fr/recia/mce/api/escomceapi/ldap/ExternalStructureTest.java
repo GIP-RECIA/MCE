@@ -17,7 +17,6 @@ package fr.recia.mce.api.escomceapi.ldap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +43,7 @@ class ExternalStructureTest {
     @Test
     void shouldGetAttributeByExactCase() {
         Map<String, List<String>> attrs = new HashMap<>();
-        attrs.put("supannCodeEntite", Arrays.asList("0450001A"));
+        attrs.put("supannCodeEntite", List.of("0450001A"));
         struct.setAttributes(attrs);
 
         assertThat(struct.getAttribute("supannCodeEntite")).containsExactly("0450001A");
@@ -53,7 +52,7 @@ class ExternalStructureTest {
     @Test
     void shouldGetAttributeByLowerCaseFallback() {
         Map<String, List<String>> attrs = new HashMap<>();
-        attrs.put("supanncodeentite", Arrays.asList("0450001A"));
+        attrs.put("supanncodeentite", List.of("0450001A"));
         struct.setAttributes(attrs);
 
         assertThat(struct.getAttribute("supannCodeEntite")).containsExactly("0450001A");

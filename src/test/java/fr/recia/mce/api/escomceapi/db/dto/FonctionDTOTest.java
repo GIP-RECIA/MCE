@@ -63,11 +63,13 @@ class FonctionDTOTest {
     }
 
     @Test
-    void testCompareToSameInstance() {
-        FonctionDTO dto = new FonctionDTO(null, "Prof", null, "100");
-        dto.setStructure(new fr.recia.mce.api.escomceapi.db.beans.Structure(false, null, null, null, null, null, "100", null, null, null));
+    void testCompareToSameSiren() {
+        FonctionDTO dto1 = new FonctionDTO("Maths", "Prof", null, "100");
+        dto1.setStructure(new fr.recia.mce.api.escomceapi.db.beans.Structure(false, null, null, null, null, null, "100", null, null, null));
+        FonctionDTO dto2 = new FonctionDTO("Maths", "Prof", null, "100");
+        dto2.setStructure(new fr.recia.mce.api.escomceapi.db.beans.Structure(false, null, null, null, null, null, "100", null, null, null));
 
-        assertThat(dto.compareTo(dto)).isZero();
+        assertThat(dto1.compareTo(dto2)).isZero();
     }
 
     @Test
@@ -103,12 +105,6 @@ class FonctionDTOTest {
     }
 
     @Test
-    void testEqualsSameInstance() {
-        FonctionDTO dto = new FonctionDTO("Maths", "Prof", "AC-test", "100");
-        assertThat(dto.equals(dto)).isTrue();
-    }
-
-    @Test
     void testEqualsWithNull() {
         FonctionDTO dto = new FonctionDTO("Maths", "Prof", "AC-test", "100");
         assertThat(dto).isNotEqualTo(null);
@@ -117,7 +113,7 @@ class FonctionDTOTest {
     @Test
     void testEqualsWithDifferentClass() {
         FonctionDTO dto = new FonctionDTO("Maths", "Prof", "AC-test", "100");
-        assertThat(dto.equals("string")).isFalse();
+        assertThat(dto).isNotEqualTo(new Object());
     }
 
     @Test

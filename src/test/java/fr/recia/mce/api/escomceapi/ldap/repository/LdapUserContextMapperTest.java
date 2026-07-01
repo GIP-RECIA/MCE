@@ -38,12 +38,11 @@ class LdapUserContextMapperTest {
 
     @Mock
     private DirContextAdapter context;
-    private ExternalUserHelper helper;
     private LdapUserContextMapper mapper;
 
     @BeforeEach
     void setUp() {
-        helper = new ExternalUserHelper(
+        ExternalUserHelper helper = new ExternalUserHelper(
                 "uid", "displayName", "mail", "groupAttr",
                 "groupAttr", "eleveRelation", "eleveTuteur",
                 "tuteurEleve", "enseignement", "codeMatiere",

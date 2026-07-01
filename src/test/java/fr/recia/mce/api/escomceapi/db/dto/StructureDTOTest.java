@@ -84,10 +84,7 @@ class StructureDTOTest {
     void shouldCacheSirenAfterFirstCall() {
         when(aStructure.getSiren()).thenReturn("123456789");
 
-        dto.getSiren();
-        String siren = dto.getSiren();
-
-        assertThat(siren).isEqualTo("123456789");
+        assertThat(dto.getSiren()).isEqualTo("123456789");
     }
 
     @Test
@@ -121,10 +118,7 @@ class StructureDTOTest {
     void shouldCacheDomSource() {
         when(aStructure.getSource()).thenReturn("CFA-other");
 
-        dto.getDomSource();
-        StructureDTO.DomSource ds = dto.getDomSource();
-
-        assertThat(ds).isEqualTo(StructureDTO.DomSource.CFA);
+        assertThat(dto.getDomSource()).isEqualTo(StructureDTO.DomSource.CFA);
     }
 
     @Test
@@ -138,7 +132,6 @@ class StructureDTOTest {
     void shouldCacheSource() {
         when(aStructure.getSource()).thenReturn("AC-test");
 
-        dto.getSource();
         assertThat(dto.getSource()).isEqualTo("AC-test");
     }
 

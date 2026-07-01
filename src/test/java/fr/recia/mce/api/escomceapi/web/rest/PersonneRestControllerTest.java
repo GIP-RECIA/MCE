@@ -28,10 +28,10 @@ import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
-import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
@@ -72,25 +72,29 @@ class PersonneRestControllerTest {
     private PersonneService personneService;
 
     @MockBean
-    private RelationEleveServiceImpl relationEleveServiceImpl;
-
-    @MockBean
     private IUserDTOFactory userDTOFactory;
-
-    @MockBean
-    private PasswordService passwordService;
-
-    @MockBean
-    private LdapTemplate ldapTemplate;
-
-    @MockBean
-    private FonctionService fonctionService;
 
     @MockBean
     private SoffitHolder soffitHolder;
 
     @MockBean
     private SoffitInterceptor soffitInterceptor;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private LdapTemplate ldapTemplate;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private FonctionService fonctionService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private PasswordService passwordService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private RelationEleveServiceImpl relationEleveServiceImpl;
 
     private static final String BASE_URL = "/api/personne/mce/";
     private static final String USER = "test.user";
@@ -297,11 +301,7 @@ class PersonneRestControllerTest {
                     .andExpect(content().string(USER));
         }
 
-        @Test
-        void shouldGetPersonneByUidSuccessfully() throws Exception {
-
-            when(soffitHolder.getSub()).thenReturn(USER);
-
+        private PersonneDTO buildPersonneDTO() {
             APersonne aPersonne = new APersonne();
             aPersonne.setUid(USER);
             aPersonne.setSn("Test");
@@ -316,7 +316,12 @@ class PersonneRestControllerTest {
             Login login = new Login();
             login.setNom(USER);
 
-            PersonneDTO personne = new PersonneDTO(aPersonne, aStructure, login);
+            return new PersonneDTO(aPersonne, aStructure, login);
+        }
+
+        @Test
+        void shouldGetPersonneByUidSuccessfully() throws Exception {
+            PersonneDTO personne = buildPersonneDTO();
 
             when(personneService.retrievePersonnebyUid(USER)).thenReturn(personne);
 
@@ -427,11 +432,7 @@ class PersonneRestControllerTest {
                     .andExpect(status().isNotFound());
         }
 
-        @Test
-        @DisplayName("Sérialisation UserDTO avec parentEleve contenant PersonneDTO + APersonne")
-        void shouldSerializeUserDtoWithParentEleve() throws Exception {
-            String enfantId = "F20102xc";
-
+        private RelationEleveContact buildParentRelation(String enfantId) {
             APersonne childEntity = new APersonne();
             childEntity.setId(1L);
             childEntity.setUid(enfantId);
@@ -451,6 +452,16 @@ class PersonneRestControllerTest {
             rel.setDisplayNameRelation("Pierre VAR");
             rel.setTypeRelation("Autorite_parentale");
             rel.setEleve(personneDTO);
+
+            return rel;
+        }
+
+        @Test
+        @DisplayName("Sérialisation UserDTO avec parentEleve contenant PersonneDTO + APersonne")
+        void shouldSerializeUserDtoWithParentEleve() throws Exception {
+            String enfantId = "F20102xc";
+
+            RelationEleveContact rel = buildParentRelation(enfantId);
 
             UserDTO enfant = new UserDTO();
             enfant.setUid(enfantId);

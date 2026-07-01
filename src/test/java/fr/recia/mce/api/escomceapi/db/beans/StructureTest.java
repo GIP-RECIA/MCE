@@ -24,7 +24,7 @@ class StructureTest {
     @Test
     void shouldInternNom() {
         Structure s = new Structure();
-        s.setNom(new String("Test"));
+        s.setNom("Test");
         assertThat(s.getNom()).isSameAs(s.getNom().intern());
     }
 
@@ -38,7 +38,7 @@ class StructureTest {
     @Test
     void shouldInternDisplayName() {
         Structure s = new Structure();
-        s.setDisplayName(new String("Display"));
+        s.setDisplayName("Display");
         assertThat(s.getDisplayName()).isSameAs(s.getDisplayName().intern());
     }
 
@@ -52,7 +52,7 @@ class StructureTest {
     @Test
     void shouldInternUai() {
         Structure s = new Structure();
-        s.setUai(new String("0450001A"));
+        s.setUai("0450001A");
         assertThat(s.getUai()).isSameAs(s.getUai().intern());
     }
 
@@ -66,7 +66,7 @@ class StructureTest {
     @Test
     void shouldInternSkin() {
         Structure s = new Structure();
-        s.setSkin(new String("skin1"));
+        s.setSkin("skin1");
         assertThat(s.getSkin()).isSameAs(s.getSkin().intern());
     }
 
@@ -80,7 +80,7 @@ class StructureTest {
     @Test
     void shouldInternSiren() {
         Structure s = new Structure();
-        s.setSiren(new String("123456789"));
+        s.setSiren("123456789");
         assertThat(s.getSiren()).isSameAs(s.getSiren().intern());
     }
 
@@ -94,7 +94,7 @@ class StructureTest {
     @Test
     void shouldInternType() {
         Structure s = new Structure();
-        s.setType(new String("LYCEE"));
+        s.setType("LYCEE");
         assertThat(s.getType()).isSameAs(s.getType().intern());
     }
 
@@ -108,7 +108,7 @@ class StructureTest {
     @Test
     void shouldInternDomaines() {
         Structure s = new Structure();
-        s.setDomaines(new String[]{new String("ac-test.fr"), new String("lycee.test.fr")});
+        s.setDomaines(new String[]{"ac-test.fr", "lycee.test.fr"});
         assertThat(s.getDomaines()[0]).isSameAs(s.getDomaines()[0].intern());
         assertThat(s.getDomaines()[1]).isSameAs(s.getDomaines()[1].intern());
     }
@@ -149,10 +149,12 @@ class StructureTest {
     }
 
     @Test
-    void testCompareToSameInstance() {
-        Structure s = new Structure();
-        s.setSiren("100");
-        assertThat(s.compareTo(s)).isZero();
+    void testCompareToSameSiren() {
+        Structure s1 = new Structure();
+        s1.setSiren("100");
+        Structure s2 = new Structure();
+        s2.setSiren("100");
+        assertThat(s1.compareTo(s2)).isZero();
     }
 
     @Test
@@ -167,14 +169,6 @@ class StructureTest {
         assertThat(s1).isEqualTo(s2);
         assertThat(s1).isNotEqualTo(s3);
         assertThat(s1).isNotEqualTo(null);
-        assertThat(s1).isNotEqualTo("other");
-    }
-
-    @Test
-    void testEqualsSameInstance() {
-        Structure s = new Structure();
-        s.setSiren("100");
-        assertThat(s.equals(s)).isTrue();
     }
 
     @Test

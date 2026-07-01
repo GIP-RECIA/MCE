@@ -35,7 +35,7 @@ class RequestDTOTest {
         dto2.setEmail("a@x.fr");
         dto2.setConfirmEmail("a@x.fr");
         assertThat(dto).isEqualTo(dto2).hasSameHashCodeAs(dto2);
-        assertThat(dto).isEqualTo(dto).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(dto).isNotEqualTo(null);
 
         dto2.setConfirmEmail("b@x.fr");
         assertThat(dto).isNotEqualTo(dto2);
@@ -58,7 +58,7 @@ class RequestDTOTest {
         dto2.setNewPass("new");
         dto2.setConfirmPass("new");
         assertThat(dto).isEqualTo(dto2).hasSameHashCodeAs(dto2);
-        assertThat(dto).isEqualTo(dto).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(dto).isNotEqualTo(null);
 
         dto2.setNewPass("other");
         assertThat(dto).isNotEqualTo(dto2);

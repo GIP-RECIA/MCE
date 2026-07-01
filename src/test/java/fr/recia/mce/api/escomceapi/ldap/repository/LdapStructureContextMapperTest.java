@@ -36,12 +36,11 @@ class LdapStructureContextMapperTest {
 
     @Mock
     private DirContextAdapter context;
-    private ExternalStructHelper helper;
     private LdapStructureContextMapper mapper;
 
     @BeforeEach
     void setUp() {
-        helper = new ExternalStructHelper();
+        ExternalStructHelper helper = new ExternalStructHelper();
         helper.setStructIdAttribute("id");
         helper.setStructNameAttribute("name");
         helper.setStructDisplayNameAttribute("displayName");

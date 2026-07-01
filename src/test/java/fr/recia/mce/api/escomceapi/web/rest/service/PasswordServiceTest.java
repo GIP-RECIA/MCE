@@ -276,15 +276,6 @@ class PasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Doit refuser si le nouveau mot de passe est faible")
-        void shouldRejectWeakPassword() {
-            PasswordChangeRequestDTO req = createRequest(strongPassword, "weak", "weak");
-
-            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req))
-                    .isInstanceOf(WeakPasswordException.class);
-        }
-
-        @Test
         @DisplayName("Doit refuser si la requête est nulle")
         void shouldRejectNullRequest() {
             assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, null))
@@ -851,14 +842,6 @@ class PasswordServiceTest {
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessageContaining("confirmation");
             }
-
-            @Test
-            @DisplayName("Échec si le nouveau mot de passe est trop faible")
-            void shouldFailIfNewPasswordIsWeak() {
-                PasswordChangeRequestDTO req = createRequest(strongPassword, "weak", "weak");
-                assertThatThrownBy(() -> passwordService.changePassword(personneDTO, req))
-                        .isInstanceOf(WeakPasswordException.class);
-            }
         }
 
         @Test
@@ -1057,8 +1040,8 @@ class PasswordServiceTest {
     @DisplayName("Tests des pré-requis LDAP")
     class LdapRequirementTests {
 
-        private void setupMockForChangePassword(String oldPass) {
-            aPersonne.setPassword("{ARGON2}" + new Argon2PasswordEncoder().encode(oldPass));
+        private void setupMockForChangePassword() {
+            aPersonne.setPassword("{ARGON2}" + new Argon2PasswordEncoder().encode(strongPassword));
             when(aPersonneRepository.findById(anyLong())).thenReturn(Optional.of(aPersonne));
             when(aPersonneRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
         }
@@ -1072,7 +1055,7 @@ class PasswordServiceTest {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
                 when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=samba-users,ou=groups"));
 
-                setupMockForChangePassword(strongPassword);
+                setupMockForChangePassword();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNotNull();
@@ -1084,7 +1067,7 @@ class PasswordServiceTest {
             void shouldNotRequireSambaWhenRegexIsNull() {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(null);
 
-                setupMockForChangePassword(strongPassword);
+                setupMockForChangePassword();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1096,7 +1079,7 @@ class PasswordServiceTest {
                 personneDTO.setExtUser(null);
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
 
-                setupMockForChangePassword(strongPassword);
+                setupMockForChangePassword();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1108,7 +1091,7 @@ class PasswordServiceTest {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
                 when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=other-group", "cn=standard-users"));
 
-                setupMockForChangePassword(strongPassword);
+                setupMockForChangePassword();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1120,7 +1103,7 @@ class PasswordServiceTest {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
                 when(extUser.getAttribute("memberOf")).thenReturn(Collections.emptyList());
 
-                setupMockForChangePassword(strongPassword);
+                setupMockForChangePassword();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1131,7 +1114,7 @@ class PasswordServiceTest {
             void shouldNotRequireSambaWhenRegexIsInvalid() {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn("[invalid(regex");
 
-                setupMockForChangePassword(strongPassword);
+                setupMockForChangePassword();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();

@@ -17,7 +17,6 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -38,12 +37,12 @@ class UserDTOFullConstructorTest {
 
     @Test
     void fullConstructorWithPopulatedRelationLists() {
-        List<String> userPublic = Arrays.asList("PUBLIC");
-        List<String> listMenu = Arrays.asList("MENU1", "MENU2");
+        List<String> userPublic = List.of("PUBLIC");
+        List<String> listMenu = List.of("MENU1", "MENU2");
         InfoGeneralDTO info = new InfoGeneralDTO();
-        List<RelationEleveContact> parentEleve = Arrays.asList(relation("p1", "Parent One", "PERE"));
-        List<RelationEleveContact> relationEleve = Arrays.asList(relation("e1", "Eleve One", "ENFANT"));
-        List<RelationEleveContact> apprentis = Arrays.asList(relation("a1", "Apprenti One", "APPRENTI"));
+        List<RelationEleveContact> parentEleve = List.of(relation("p1", "Parent One", "PERE"));
+        List<RelationEleveContact> relationEleve = List.of(relation("e1", "Eleve One", "ENFANT"));
+        List<RelationEleveContact> apprentis = List.of(relation("a1", "Apprenti One", "APPRENTI"));
         Date bod = new Date();
 
         UserDTO dto = new UserDTO(1L, "uid", "userName", "given", "sn", "M.", "ELEVE", true,

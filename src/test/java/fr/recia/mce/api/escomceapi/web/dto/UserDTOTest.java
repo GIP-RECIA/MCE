@@ -17,8 +17,8 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +38,7 @@ class UserDTOTest {
         UserDTO dto = new UserDTO(1L, "testuser", "Test User", "John", "Doe", "M.", "ENS",
                 true, "jdoe", "0450001A", "john@test.com", "john.perso@test.com", bod,
                 "avatar123", "ACTIF", true,
-                Arrays.asList("public1"), Arrays.asList("menu1"),
+                List.of("public1"), List.of("menu1"),
                 null, null, null, null);
 
         assertThat(dto.getId()).isEqualTo(1L);
@@ -66,7 +66,7 @@ class UserDTOTest {
         Date bod = new Date();
         UserDTO dto = new UserDTO(1L, "testuser", "Test User", "jdoe", "0450001A",
                 "john@test.com", "john.perso@test.com", bod,
-                "avatar123", "ACTIF", Arrays.asList("menu1"));
+                "avatar123", "ACTIF", List.of("menu1"));
 
         assertThat(dto.getId()).isEqualTo(1L);
         assertThat(dto.getUid()).isEqualTo("testuser");
@@ -98,10 +98,10 @@ class UserDTOTest {
     void testSettersAndGetters() {
         UserDTO dto = new UserDTO();
         dto.setUid("newuser");
-        dto.setAvatarUrl("http://example.com/avatar.jpg");
+        dto.setAvatarUrl("https://example.com/avatar.jpg");
 
         assertThat(dto.getUid()).isEqualTo("newuser");
-        assertThat(dto.getAvatarUrl()).isEqualTo("http://example.com/avatar.jpg");
+        assertThat(dto.getAvatarUrl()).isEqualTo("https://example.com/avatar.jpg");
     }
 
 }

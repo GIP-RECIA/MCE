@@ -18,8 +18,8 @@ package fr.recia.mce.api.escomceapi.web.rest.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Date;
 import java.util.Optional;
 
@@ -59,7 +59,7 @@ class FonctionServiceTest {
         FonctionDTO f2 = new FonctionDTO("physics", "teacher", "source", "456");
         f2.setStruct(mock(fr.recia.mce.api.escomceapi.ldap.IExternalStructure.class));
 
-        when(fonctionRepository.findAllFonction(1L)).thenReturn(Arrays.asList(f1, f2));
+        when(fonctionRepository.findAllFonction(1L)).thenReturn(List.of(f1, f2));
         when(structureService.findStructureBySiren("123")).thenReturn(mock(fr.recia.mce.api.escomceapi.ldap.IExternalStructure.class));
 
         Collection<FonctionDTO> result = fonctionService.getAllFonctionOfPersonne(1L);

@@ -38,7 +38,6 @@ import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
-import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +59,6 @@ import static fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -106,7 +104,6 @@ class UserDTOFactoryImplTest {
     private PersonneDTO model;
     private final String mailFixeValue = "user@ac-orleans-tours.fr";
     private final String mailFixeDomainNotTrusted = "user@other-domain.fr";
-    private final String confirmedMailValue = "confirmed@email.fr";
 
     @BeforeEach
     void setUp() {
@@ -186,13 +183,13 @@ class UserDTOFactoryImplTest {
             when(aPersonneBase.getEmail()).thenReturn(mailFixeDomainNotTrusted);
 
             CerbereConfirmation confirmation = new CerbereConfirmation();
-            confirmation.setMail(confirmedMailValue);
+            confirmation.setMail("confirmed@email.fr");
             when(cerbereConfirmationRepository.findConfirmedByPersonId(1L))
                     .thenReturn(List.of(confirmation));
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getEmail()).isEqualTo(confirmedMailValue);
+            assertThat(result.getEmail()).isEqualTo("confirmed@email.fr");
         }
 
         @Test
@@ -230,7 +227,7 @@ class UserDTOFactoryImplTest {
         @Test
         @DisplayName("model null → null")
         void nullModel() {
-            UserDTO result = factory.from((PersonneDTO) null, extModel);
+            UserDTO result = factory.from(null, extModel);
             assertThat(result).isNull();
         }
 
@@ -335,7 +332,7 @@ class UserDTOFactoryImplTest {
         @Test
         @DisplayName("extModel null → null")
         void nullExtModel() {
-            UserDTO result = factory.from((IExternalUser) null, true);
+            UserDTO result = factory.from(null, true);
             assertThat(result).isNull();
         }
 
@@ -461,8 +458,7 @@ class UserDTOFactoryImplTest {
             APersonne ap = mock(APersonne.class);
             when(ap.getCategorie()).thenReturn(categorie);
             when(ap.getSource()).thenReturn(source);
-            PersonneDTO p = new PersonneDTO(ap, mock(AStructure.class));
-            return p;
+            return new PersonneDTO(ap, mock(AStructure.class));
         }
 
         private PersonneDTO modelWithDomSource(String categorie, String source, DomSource ds) {

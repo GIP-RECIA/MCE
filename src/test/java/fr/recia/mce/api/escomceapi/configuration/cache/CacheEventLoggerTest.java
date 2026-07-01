@@ -16,22 +16,29 @@
 package fr.recia.mce.api.escomceapi.configuration.cache;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 
 import org.ehcache.event.CacheEvent;
 import org.ehcache.event.EventType;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class CacheEventLoggerTest {
+
+    @Mock
+    private CacheEvent<String, String> event;
 
     @Test
     void shouldLogEventWithoutError() {
         CacheEventLogger logger = new CacheEventLogger();
-        CacheEvent<?, ?> event = Mockito.mock(CacheEvent.class);
-        Mockito.when(event.getType()).thenReturn(EventType.CREATED);
-        Mockito.when(event.getKey()).thenReturn("key1");
-        Mockito.when(event.getOldValue()).thenReturn(null);
-        Mockito.when(event.getNewValue()).thenReturn("value1");
+        when(event.getType()).thenReturn(EventType.CREATED);
+        doReturn("key1").when(event).getKey();
+        doReturn(null).when(event).getOldValue();
+        doReturn("value1").when(event).getNewValue();
 
         assertThatCode(() -> logger.onEvent(event)).doesNotThrowAnyException();
     }

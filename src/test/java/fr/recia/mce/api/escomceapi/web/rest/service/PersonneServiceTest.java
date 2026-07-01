@@ -422,8 +422,7 @@ class PersonneServiceTest {
                 verify(extDao).updateAvatarLDAP(uid, entity.getPhoto());
                 verify(cache, times(2)).evict(uid);
             } finally {
-                // Cleanup
-                try { Files.walk(tempDir).sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} }); } catch (Exception ignored) {}
+                cleanupTempDir(tempDir);
             }
         }
 
@@ -455,7 +454,7 @@ class PersonneServiceTest {
                 assertThat(Files.readAllBytes(p0)).isEqualTo(imageBytes);
                 assertThat(Files.readAllBytes(p1)).isEqualTo("old0".getBytes());
             } finally {
-                try { Files.walk(tempDir).sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} }); } catch (Exception ignored) {}
+                cleanupTempDir(tempDir);
             }
         }
 
@@ -476,7 +475,7 @@ class PersonneServiceTest {
                 assertThat(entity.getPhoto()).isEqualTo("/api/personne/mce/2646/avatar0.jpg?v=1");
                 verify(aPersonneRepository).saveAndFlush(entity);
             } finally {
-                try { Files.walk(tempDir).sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} }); } catch (Exception ignored) {}
+                cleanupTempDir(tempDir);
             }
         }
 
@@ -510,7 +509,7 @@ class PersonneServiceTest {
                 assertThatThrownBy(() -> personneService.updateAvatar(uid, imageBytes))
                         .isInstanceOf(PersonneNotFoundException.class);
             } finally {
-                try { Files.walk(tempDir).sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} }); } catch (Exception ignored) {}
+                cleanupTempDir(tempDir);
             }
         }
 
@@ -532,8 +531,17 @@ class PersonneServiceTest {
                 verify(aPersonneRepository).saveAndFlush(entity);
                 verify(extDao).updateAvatarLDAP(uid, entity.getPhoto());
             } finally {
-                try { Files.walk(tempDir).sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} }); } catch (Exception ignored) {}
+                cleanupTempDir(tempDir);
             }
+        }
+    }
+
+    private static void cleanupTempDir(Path tempDir) {
+        if (tempDir != null) {
+            try (var stream = Files.walk(tempDir)) {
+                stream.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} });
+            } catch (Exception ignored) {}
         }
     }
 }

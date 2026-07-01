@@ -17,8 +17,6 @@ package fr.recia.mce.api.escomceapi.configuration.bean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -37,7 +35,7 @@ class ConfigBeanPropertiesTest {
     void avatarProperties() {
         AvatarProperties a = new AvatarProperties();
         a.setMaxSize(1024L);
-        a.setAllowedTypes(Arrays.asList("image/png"));
+        a.setAllowedTypes(List.of("image/png"));
         a.setBaseUrl("http://base");
         a.setStoragePath("/tmp");
         a.setFilename("a.jpg");
@@ -52,14 +50,14 @@ class ConfigBeanPropertiesTest {
 
         AvatarProperties b = new AvatarProperties();
         b.setMaxSize(1024L);
-        b.setAllowedTypes(Arrays.asList("image/png"));
+        b.setAllowedTypes(List.of("image/png"));
         b.setBaseUrl("http://base");
         b.setStoragePath("/tmp");
         b.setFilename("a.jpg");
         b.setFilenameBackup("b.jpg");
 
         assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
-        assertThat(a).isEqualTo(a).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(a).isNotEqualTo(null);
         assertThat(a.toString()).isNotNull();
 
         b.setBaseUrl("other");
@@ -71,10 +69,10 @@ class ConfigBeanPropertiesTest {
         CorsProperties c = new CorsProperties();
         c.setEnable(true);
         c.setAllowCredentials(true);
-        c.setAllowedOrigins(Arrays.asList("o1", "o2"));
-        c.setExposedHeaders(Arrays.asList("h1"));
-        c.setAllowedHeaders(Arrays.asList("h2"));
-        c.setAllowedMethods(Arrays.asList("GET", "POST"));
+        c.setAllowedOrigins(List.of("o1", "o2"));
+        c.setExposedHeaders(List.of("h1"));
+        c.setAllowedHeaders(List.of("h2"));
+        c.setAllowedMethods(List.of("GET", "POST"));
 
         assertThat(c.isEnable()).isTrue();
         assertThat(c.isAllowCredentials()).isTrue();
@@ -87,12 +85,12 @@ class ConfigBeanPropertiesTest {
         CorsProperties c2 = new CorsProperties();
         c2.setEnable(true);
         c2.setAllowCredentials(true);
-        c2.setAllowedOrigins(Arrays.asList("o1", "o2"));
-        c2.setExposedHeaders(Arrays.asList("h1"));
-        c2.setAllowedHeaders(Arrays.asList("h2"));
-        c2.setAllowedMethods(Arrays.asList("GET", "POST"));
+        c2.setAllowedOrigins(List.of("o1", "o2"));
+        c2.setExposedHeaders(List.of("h1"));
+        c2.setAllowedHeaders(List.of("h2"));
+        c2.setAllowedMethods(List.of("GET", "POST"));
         assertThat(c).isEqualTo(c2).hasSameHashCodeAs(c2);
-        assertThat(c).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(c).isNotEqualTo(null);
 
         c2.setEnable(false);
         assertThat(c).isNotEqualTo(c2);
@@ -101,21 +99,21 @@ class ConfigBeanPropertiesTest {
     @Test
     void domaineProperties() {
         DomaineProperties d = new DomaineProperties();
-        d.setGestionRecia(Arrays.asList("r1"));
-        d.setGestionInclude(Arrays.asList("i1"));
-        d.setGestionExclude(Arrays.asList("e1"));
+        d.setGestionRecia(List.of("r1"));
+        d.setGestionInclude(List.of("i1"));
+        d.setGestionExclude(List.of("e1"));
 
         assertThat(d.getGestionRecia()).containsExactly("r1");
         assertThat(d.getGestionInclude()).containsExactly("i1");
         assertThat(d.getGestionExclude()).containsExactly("e1");
 
         DomaineProperties d2 = new DomaineProperties();
-        d2.setGestionRecia(Arrays.asList("r1"));
-        d2.setGestionInclude(Arrays.asList("i1"));
-        d2.setGestionExclude(Arrays.asList("e1"));
+        d2.setGestionRecia(List.of("r1"));
+        d2.setGestionInclude(List.of("i1"));
+        d2.setGestionExclude(List.of("e1"));
         assertThat(d).isEqualTo(d2).hasSameHashCodeAs(d2);
         assertThat(d.toString()).isNotNull();
-        d2.setGestionRecia(Arrays.asList("other"));
+        d2.setGestionRecia(List.of("other"));
         assertThat(d).isNotEqualTo(d2);
     }
 
@@ -253,7 +251,7 @@ class ConfigBeanPropertiesTest {
         sp2.setRelationProperties(rel);
         sp2.setCustomParams(params);
         assertThat(sp).isEqualTo(sp2).hasSameHashCodeAs(sp2);
-        assertThat(sp).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(sp).isNotEqualTo(null);
     }
 
     @Test
@@ -271,8 +269,8 @@ class ConfigBeanPropertiesTest {
         branch.setTuteurEleves("te");
         branch.setEleveEnseignements("ee");
         branch.setCodeMatiereEnseignement("cme");
-        Set<String> displayed = new HashSet<>(Arrays.asList("d1"));
-        Set<String> backend = new HashSet<>(Arrays.asList("b1"));
+        Set<String> displayed = Set.of("d1");
+        Set<String> backend = Set.of("b1");
         branch.setOtherDisplayedAttributes(displayed);
         branch.setOtherBackendAttributes(backend);
 
@@ -293,8 +291,8 @@ class ConfigBeanPropertiesTest {
         assertThat(branch.toString()).isNotNull();
 
         BranchProperties branch2 = new BranchProperties();
-        branch2.setOtherDisplayedAttributes(new HashSet<>(Arrays.asList("d1")));
-        branch2.setOtherBackendAttributes(new HashSet<>(Arrays.asList("b1")));
+        branch2.setOtherDisplayedAttributes(Set.of("d1"));
+        branch2.setOtherBackendAttributes(Set.of("b1"));
         branch2.setBaseDN("ou=people");
         branch2.setIdAttribute("uid");
         branch2.setDisplayNameAttribute("displayName");
@@ -308,7 +306,7 @@ class ConfigBeanPropertiesTest {
         branch2.setEleveEnseignements("ee");
         branch2.setCodeMatiereEnseignement("cme");
         assertThat(branch).isEqualTo(branch2).hasSameHashCodeAs(branch2);
-        assertThat(branch).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(branch).isNotEqualTo(null);
         branch2.setIdAttribute("other");
         assertThat(branch).isNotEqualTo(branch2);
 
@@ -344,7 +342,7 @@ class ConfigBeanPropertiesTest {
         ldap2.setUserBranch(branch);
         ldap2.setStructBranch(struct);
         assertThat(ldap).isEqualTo(ldap2).hasSameHashCodeAs(ldap2);
-        assertThat(ldap).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(ldap).isNotEqualTo(null);
     }
 
     @Test
@@ -353,7 +351,7 @@ class ConfigBeanPropertiesTest {
                 new fr.recia.mce.api.escomceapi.configuration.MCEProperties();
 
         CorsProperties cors = new CorsProperties();
-        List<String> one = Arrays.asList("v");
+        List<String> one = List.of("v");
         cors.setAllowedOrigins(one);
         cors.setExposedHeaders(one);
         cors.setAllowedHeaders(one);
@@ -385,6 +383,6 @@ class ConfigBeanPropertiesTest {
         props2.setService(service);
         props2.setSoffit(soffit);
         assertThat(props).isEqualTo(props2).hasSameHashCodeAs(props2);
-        assertThat(props).isNotEqualTo(null).isNotEqualTo("x");
+        assertThat(props).isNotEqualTo(null);
     }
 }

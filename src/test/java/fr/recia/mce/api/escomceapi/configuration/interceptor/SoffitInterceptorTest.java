@@ -36,6 +36,7 @@ class SoffitInterceptorTest {
     private SoffitInterceptor interceptor;
     private HttpServletRequest request;
     private HttpServletResponse response;
+    private Object handler;
 
     @BeforeEach
     void setUp() {
@@ -43,6 +44,7 @@ class SoffitInterceptorTest {
         interceptor = new SoffitInterceptor(soffitHolder);
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
+        handler = mock(Object.class);
     }
 
     @Test
@@ -50,7 +52,7 @@ class SoffitInterceptorTest {
         when(request.getHeader("Authorization")).thenReturn(null);
         when(request.getRequestURI()).thenReturn("/api/test");
 
-        boolean result = interceptor.preHandle(request, response, null);
+        boolean result = interceptor.preHandle(request, response, handler);
 
         assertThat(result).isTrue();
         assertThat(soffitHolder.getSub()).isNull();
@@ -61,7 +63,7 @@ class SoffitInterceptorTest {
         when(request.getHeader("Authorization")).thenReturn("Basic xxx");
         when(request.getRequestURI()).thenReturn("/api/test");
 
-        boolean result = interceptor.preHandle(request, response, null);
+        boolean result = interceptor.preHandle(request, response, handler);
 
         assertThat(result).isTrue();
         assertThat(soffitHolder.getSub()).isNull();
@@ -71,7 +73,7 @@ class SoffitInterceptorTest {
     void shouldReturnTrueWhenMalformedJwt() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer invalid-jwt");
 
-        boolean result = interceptor.preHandle(request, response, null);
+        boolean result = interceptor.preHandle(request, response, handler);
 
         assertThat(result).isTrue();
         assertThat(soffitHolder.getSub()).isNull();
@@ -82,7 +84,7 @@ class SoffitInterceptorTest {
         String payload = Base64.getUrlEncoder().encodeToString("{\"exp\":9999999999}".getBytes());
         when(request.getHeader("Authorization")).thenReturn("Bearer header." + payload + ".signature");
 
-        boolean result = interceptor.preHandle(request, response, null);
+        boolean result = interceptor.preHandle(request, response, handler);
 
         assertThat(result).isTrue();
         assertThat(soffitHolder.getSub()).isNull();
@@ -93,7 +95,7 @@ class SoffitInterceptorTest {
         String payload = Base64.getUrlEncoder().encodeToString("{\"sub\":\"testuser\",\"exp\":9999999999}".getBytes());
         when(request.getHeader("Authorization")).thenReturn("Bearer header." + payload + ".signature");
 
-        boolean result = interceptor.preHandle(request, response, null);
+        boolean result = interceptor.preHandle(request, response, handler);
 
         assertThat(result).isTrue();
         assertThat(soffitHolder.getSub()).isEqualTo("testuser");
@@ -104,7 +106,7 @@ class SoffitInterceptorTest {
         String payload = Base64.getUrlEncoder().encodeToString("{\"sub\":\"testuser\",\"exp\":1}".getBytes());
         when(request.getHeader("Authorization")).thenReturn("Bearer header." + payload + ".signature");
 
-        boolean result = interceptor.preHandle(request, response, null);
+        boolean result = interceptor.preHandle(request, response, handler);
 
         assertThat(result).isFalse();
         verify(response).setStatus(401);

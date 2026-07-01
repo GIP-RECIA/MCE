@@ -85,6 +85,30 @@ class RelationEleveServiceImplTest {
     private static final String STUDENT_UID = "F20102xc";
     private static final String PARENT_UID = "pierrevar";
 
+    private static RelationEleveContact createDbRelation() {
+        AStructure structure = new AStructure();
+        structure.setNom("College");
+
+        APersonne parent = new APersonne();
+        parent.setId(42L);
+        parent.setUid(PARENT_UID);
+        parent.setDisplayName("Pierre VAR");
+        parent.setSn("VAR");
+        parent.setGivenName("Pierre");
+        parent.setAStructure(structure);
+
+        APersonne enfant = new APersonne();
+        enfant.setId(1L);
+        enfant.setUid(STUDENT_UID);
+        enfant.setDisplayName("Sara VAR");
+        enfant.setSn("VAR");
+        enfant.setGivenName("Sara");
+        enfant.setAStructure(structure);
+
+        return new RelationEleveContact(
+                "CONTACT2ELEVE", parent, enfant, "Autorite_parentale", "Père", true);
+    }
+
     @Test
     @DisplayName("allRelationEleves(IExternalUser) : aucun attribut LDAP → retourne vide (early exit)")
     void shouldReturnEmptyWhenNoLdapAttributes() {
@@ -111,27 +135,7 @@ class RelationEleveServiceImplTest {
         when(personne.getAttribute("ENTElevePersRelEleve")).thenReturn(Collections.emptyList());
         when(personne.getAttribute("ENTEleveEntrTutStage")).thenReturn(null);
 
-        AStructure structure = new AStructure();
-        structure.setNom("College");
-
-        APersonne parent = new APersonne();
-        parent.setId(42L);
-        parent.setUid(PARENT_UID);
-        parent.setDisplayName("Pierre VAR");
-        parent.setSn("VAR");
-        parent.setGivenName("Pierre");
-        parent.setAStructure(structure);
-
-        APersonne enfant = new APersonne();
-        enfant.setId(1L);
-        enfant.setUid(STUDENT_UID);
-        enfant.setDisplayName("Sara VAR");
-        enfant.setSn("VAR");
-        enfant.setGivenName("Sara");
-        enfant.setAStructure(structure);
-
-        RelationEleveContact dbRelation = new RelationEleveContact(
-                "CONTACT2ELEVE", parent, enfant, "Autorite_parentale", "Père", true);
+        RelationEleveContact dbRelation = createDbRelation();
 
         when(aPersonneRepository.findAllParentOfEleve(STUDENT_UID))
                 .thenReturn(List.of(dbRelation));

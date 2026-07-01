@@ -17,7 +17,6 @@ package fr.recia.mce.api.escomceapi.ldap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -41,8 +40,8 @@ class ExternalUserTest {
     @Test
     void shouldGetAttributeByExactCase() {
         Map<String, List<String>> attrs = new HashMap<>();
-        attrs.put("mail", Arrays.asList("john@test.com"));
-        attrs.put("uid", Arrays.asList("uid123"));
+        attrs.put("mail", List.of("john@test.com"));
+        attrs.put("uid", List.of("uid123"));
         user.setAttributes(attrs);
 
         assertThat(user.getAttribute("mail")).containsExactly("john@test.com");
@@ -52,7 +51,7 @@ class ExternalUserTest {
     @Test
     void shouldGetAttributeByLowerCaseFallback() {
         Map<String, List<String>> attrs = new HashMap<>();
-        attrs.put("mail", Arrays.asList("john@test.com"));
+        attrs.put("mail", List.of("john@test.com"));
         user.setAttributes(attrs);
 
         assertThat(user.getAttribute("MAIL")).containsExactly("john@test.com");
