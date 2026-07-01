@@ -347,8 +347,7 @@ class ConfigBeanPropertiesTest {
 
     @Test
     void mceProperties() {
-        fr.recia.mce.api.escomceapi.configuration.MCEProperties props =
-                new fr.recia.mce.api.escomceapi.configuration.MCEProperties();
+        fr.recia.mce.api.escomceapi.configuration.MCEProperties props = new fr.recia.mce.api.escomceapi.configuration.MCEProperties();
 
         CorsProperties cors = new CorsProperties();
         List<String> one = List.of("v");
@@ -375,8 +374,7 @@ class ConfigBeanPropertiesTest {
         assertThat(props.getSoffit()).isSameAs(soffit);
         assertThat(props.toString()).contains("MCEProperties");
 
-        fr.recia.mce.api.escomceapi.configuration.MCEProperties props2 =
-                new fr.recia.mce.api.escomceapi.configuration.MCEProperties();
+        fr.recia.mce.api.escomceapi.configuration.MCEProperties props2 = new fr.recia.mce.api.escomceapi.configuration.MCEProperties();
         props2.setCors(cors);
         props2.setAvatar(avatar);
         props2.setLdap(ldap);

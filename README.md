@@ -40,17 +40,17 @@ L'API est accessible sur `http://localhost:8090` (port configurable dans `applic
 
 ```bash
 # Lancer tous les tests
-mvn test
+./mvnw test
 
-# Rapport de couverture JaCoCo
-mvn jacoco:report
+# Rapport de couverture JaCoCo (après les tests)
+./mvnw jacoco:report
 # → ouvrir target/site/jacoco/index.html
 
 # Vérification du formatage
-mvn spotless:check
+./mvnw spotless:check
 
 # Appliquer le formatage automatiquement
-mvn spotless:apply
+./mvnw spotless:apply
 ```
 
 ## Structure du projet

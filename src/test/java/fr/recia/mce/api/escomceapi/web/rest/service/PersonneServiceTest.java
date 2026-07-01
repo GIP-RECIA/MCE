@@ -540,8 +540,14 @@ class PersonneServiceTest {
         if (tempDir != null) {
             try (var stream = Files.walk(tempDir)) {
                 stream.sorted(java.util.Comparator.reverseOrder())
-                        .forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} });
-            } catch (Exception ignored) {}
+                        .forEach(p -> {
+                            try {
+                                Files.deleteIfExists(p);
+                            } catch (Exception ignored) {
+                            }
+                        });
+            } catch (Exception ignored) {
+            }
         }
     }
 }

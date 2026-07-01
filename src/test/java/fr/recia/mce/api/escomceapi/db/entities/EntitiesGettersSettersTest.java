@@ -216,7 +216,7 @@ class EntitiesGettersSettersTest {
     @Test
     void cerbereEnfant() {
         CerbereEnfant c = new CerbereEnfant();
-        byte[] id = new byte[] {1, 2, 3};
+        byte[] id = new byte[]{1, 2, 3};
         APersonne parent = new APersonne();
         APersonne enfant = new APersonne();
         c.setId(id);
