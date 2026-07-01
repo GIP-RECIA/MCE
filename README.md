@@ -34,7 +34,7 @@ cp src/main/resources/application.example.yml src/main/resources/application.yml
 ./mvnw clean spring-boot:run
 ```
 
-L'API est accessible sur `http://localhost:8090` (port configurable dans `application.yml`). Documentation Swagger sur `/swagger-ui.html`.
+L'API est accessible sur `https://lycees.test.recia.dev/xxxxxx/ui` (port et context-path configurables dans `application.yml`). Documentation Swagger sur `/ismail/swagger-ui.html`.
 
 ## Tests
 
