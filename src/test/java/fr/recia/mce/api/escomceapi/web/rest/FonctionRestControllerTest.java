@@ -15,62 +15,43 @@
  */
 package fr.recia.mce.api.escomceapi.web.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.recia.mce.api.escomceapi.services.FonctionService;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import org.springframework.ldap.core.LdapTemplate;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.SoffitInterceptor;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-@WebMvcTest(FonctionRestController.class)
-@AutoConfigureMockMvc(addFilters = false)
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import fr.recia.mce.api.escomceapi.services.FonctionService;
+
+@ExtendWith(MockitoExtension.class)
 class FonctionRestControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private FonctionService fonctionService;
 
-    @MockBean
-    private LdapTemplate ldapTemplate;
+    @InjectMocks
+    private FonctionRestController controller;
 
-    @MockBean
-    private SoffitHolder soffitHolder;
+    private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
 
-    @MockBean
-    private SoffitInterceptor soffitInterceptor;
-
-    @MockBean
-    private fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository aPersonneRepository;
-
-    @MockBean
-    private fr.recia.mce.api.escomceapi.db.repositories.CerberePasswordRepository cerberePasswordRepository;
-
-    @MockBean
-    private fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository fonctionRepository;
-
-    @MockBean
-    private fr.recia.mce.api.escomceapi.configuration.bean.MailProperties mailProperties;
-
-    @MockBean
-    private fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository cerbereConfirmationRepository;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        objectMapper = new ObjectMapper();
+    }
 
     @Test
     @DisplayName("Mise à jour de dateFin réussie")
@@ -85,4 +66,5 @@ class FonctionRestControllerTest {
                 .content(objectMapper.writeValueAsString(active)))
                 .andExpect(status().isOk());
     }
+
 }

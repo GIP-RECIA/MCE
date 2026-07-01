@@ -461,7 +461,6 @@ class UserDTOFactoryImplTest {
             APersonne ap = mock(APersonne.class);
             when(ap.getCategorie()).thenReturn(categorie);
             when(ap.getSource()).thenReturn(source);
-            when(ap.getUid()).thenReturn("eval-uid");
             PersonneDTO p = new PersonneDTO(ap, mock(AStructure.class));
             return p;
         }
