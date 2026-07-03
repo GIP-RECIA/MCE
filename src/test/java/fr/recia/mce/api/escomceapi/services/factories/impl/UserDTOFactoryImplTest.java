@@ -17,7 +17,6 @@ package fr.recia.mce.api.escomceapi.services.factories.impl;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
-import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -88,8 +87,6 @@ class UserDTOFactoryImplTest {
     @Mock
     private MCEProperties mceProperties;
     @Mock
-    private MailProperties mailProperties;
-    @Mock
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     @Mock
@@ -130,10 +127,10 @@ class UserDTOFactoryImplTest {
 
         lenient().when(structureService.isReseauRecia(any(PersonneDTO.class))).thenReturn(false);
 
-        lenient().when(mailProperties.getDomainesConfiance()).thenReturn("ac-orleans-tours.fr educagri.fr recia.fr");
+        lenient().when(cerbereConfirmationRepository.findConfirmedByPersonId(anyLong()))
+                .thenReturn(Collections.emptyList());
 
         factory = new UserDTOFactoryImpl(mceProperties);
-        ReflectionTestUtils.setField(factory, "mailProperties", mailProperties);
         ReflectionTestUtils.setField(factory, "cerbereConfirmationRepository", cerbereConfirmationRepository);
         ReflectionTestUtils.setField(factory, "iRelationEleveService", iRelationEleveService);
         ReflectionTestUtils.setField(factory, "structureService", structureService);
@@ -176,11 +173,11 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("Domaine non fiable + mail confirmé en DB → email confirmé affiché")
+        @DisplayName("Cerbere confirmé n'affecte pas le mail fixe, seulement emailPersonnel")
         void notTrustedWithConfirmedEmail() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
             when(model.getMailFixe()).thenReturn(mailFixeDomainNotTrusted);
-            when(aPersonneBase.getEmail()).thenReturn(mailFixeDomainNotTrusted);
+            when(model.getMailFromLdap()).thenReturn("ldap@email.fr");
 
             CerbereConfirmation confirmation = new CerbereConfirmation();
             confirmation.setMail("confirmed@email.fr");
@@ -189,7 +186,42 @@ class UserDTOFactoryImplTest {
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getEmail()).isEqualTo("confirmed@email.fr");
+            assertThat(result.getEmail()).isEqualTo("ldap@email.fr");
+            assertThat(result.getEmailPersonnel()).isEqualTo("confirmed@email.fr");
+        }
+
+        @Test
+        @DisplayName("Mail fixe : LDAP > apersonne.email, cerbere confirmé pour emailPersonnel uniquement")
+        void cerbereConfirmedForPersonalEmailOnly() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(mailFixeDomainNotTrusted);
+            when(model.getMailFromLdap()).thenReturn("ldap@email.fr");
+
+            CerbereConfirmation confirmation = new CerbereConfirmation();
+            confirmation.setMail("confirmed@email.fr");
+            when(cerbereConfirmationRepository.findConfirmedByPersonId(1L))
+                    .thenReturn(List.of(confirmation));
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getEmail()).isEqualTo("ldap@email.fr");
+            assertThat(result.getEmailPersonnel()).isEqualTo("confirmed@email.fr");
+        }
+
+        @Test
+        @DisplayName("LDAP fallback quand pas de cerbere confirmed et email DB null")
+        void ldapFallbackWhenDbNull() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(model.getMailFromLdap()).thenReturn("ldap@email.fr");
+            when(cerbereConfirmationRepository.findConfirmedByPersonId(1L))
+                    .thenReturn(Collections.emptyList());
+            when(aPersonneBase.getEmailPersonnel()).thenReturn("perso@email.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getEmail()).isEqualTo("ldap@email.fr");
+            assertThat(result.getEmailPersonnel()).isEqualTo("perso@email.fr");
         }
 
         @Test
@@ -250,12 +282,192 @@ class UserDTOFactoryImplTest {
         @DisplayName("enumPublic null → canEditEmail calcule depuis EnumCategorie")
         void nullEnumPublic() {
             when(model.getEnumPublic()).thenReturn(null);
-            when(model.getMailFixe()).thenReturn(mailFixeValue);
             when(aPersonneBase.getEmail()).thenReturn(mailFixeValue);
 
             UserDTO result = factory.from(model, extModel);
             assertThat(result).isNotNull();
             assertThat(result.getEmail()).isEqualTo(mailFixeValue);
+        }
+    }
+
+    @Nested
+    @DisplayName("from(PersonneDTO, IExternalUser) - canEditEmail / passEditable / liens")
+    class FromPersonneDtoPermissionsTests {
+
+        private ServiceProperties sp;
+
+        @BeforeEach
+        void permissionsSetUp() {
+            sp = factory.getServiceProperties();
+            sp.getCustomParams().setLienEdu("https://educonnect");
+            sp.getCustomParams().setLienPassEtab("https://passetab");
+        }
+
+        @Test
+        @DisplayName("EDUCATION + domaine ac-orleans-tours.fr → passEditable=false")
+        void educationTrustedDomainNotEditable() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("user@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@ac-orleans-tours.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isFalse();
+        }
+
+        @Test
+        @DisplayName("EDUCATION + domaine non fiable → passEditable=true")
+        void educationUntrustedDomainEditable() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("user@other.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@other.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("ELEVE + sans emailFixe → canEditEmail=true, passEditable=true")
+        void eleveNoMailFixe() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("default@test.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getCanEditEmail()).isTrue();
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("EDUCATION + emailPerso existant → canEditEmail=true")
+        void educationWithPersonalEmail() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("pro@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("pro@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmailPersonnel()).thenReturn("perso@gmail.com");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getCanEditEmail()).isTrue();
+        }
+
+        @Test
+        @DisplayName("EDUCATION + sans emailPerso + avec mailFixe → canEditEmail=false")
+        void educationNoPersonalEmailWithMailFixe() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("pro@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("pro@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmailPersonnel()).thenReturn(null);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getCanEditEmail()).isFalse();
+        }
+
+        @Test
+        @DisplayName("buildUserPublicLinks: eduConnect + passEtab")
+        void eduConnectAndPassEtab() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(structureService.isReseauRecia(model)).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getUserPublic()).containsExactly("https://educonnect", "https://passetab");
+        }
+
+        @Test
+        @DisplayName("buildUserPublicLinks: eduConnect seul")
+        void eduConnectOnly() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(structureService.isReseauRecia(model)).thenReturn(false);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getUserPublic()).containsExactly("https://educonnect");
+        }
+
+        @Test
+        @DisplayName("buildUserPublicLinks: passEtab seul")
+        void passEtabOnly() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(structureService.isReseauRecia(model)).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getUserPublic()).containsExactly("https://passetab");
+        }
+
+        @Test
+        @DisplayName("buildUserPublicLinks: aucun lien")
+        void noLinks() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(structureService.isReseauRecia(model)).thenReturn(false);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getUserPublic()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("resolveEmail: LDAP blank → fallback extModel.getEmail()")
+        void emailFallbackExtModel() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(model.getMailFromLdap()).thenReturn("");
+            when(extModel.getEmail()).thenReturn("ext@test.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getEmail()).isEqualTo("ext@test.fr");
+        }
+
+        @Test
+        @DisplayName("resolveEtablissementName: exception → null")
+        void etablissementException() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(structureDto.getDisplayName()).thenThrow(new RuntimeException("DB error"));
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getEtab()).isNull();
+        }
+
+        @Test
+        @DisplayName("resolveAvatarUrl: avec photo")
+        void avatarWithPhoto() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(aPersonneBase.getPhoto()).thenReturn("http://photo.url");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getAvatarUrl()).isEqualTo("http://photo.url");
+        }
+
+        @Test
+        @DisplayName("resolveAvatarUrl: sans photo → null")
+        void avatarWithoutPhoto() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+            when(aPersonneBase.getPhoto()).thenReturn(null);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getAvatarUrl()).isNull();
         }
     }
 
@@ -351,7 +563,6 @@ class UserDTOFactoryImplTest {
             when(extModel.getEmail()).thenReturn("ldap@email.fr");
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
             when(model.getMailFixe()).thenReturn(null);
-            when(aPersonneBase.getEmail()).thenReturn("user@test.fr");
 
             UserDTO result = factory.from(extModel, true);
             assertThat(result).isNotNull();

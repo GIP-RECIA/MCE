@@ -53,7 +53,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Tests Exhaustifs - PersonneService")
-class PersonneServiceTest {
+public class PersonneServiceTest {
 
     @Mock
     private APersonneRepository aPersonneRepository;
@@ -213,7 +213,7 @@ class PersonneServiceTest {
     class UpdateEmailTests {
 
         @Test
-        @DisplayName("Succès : Mise à jour DB + LDAP + Cache Eviction")
+        @DisplayName("Succès : Validation OK + Cache Eviction (pas de persistance DB/LDAP)")
         void updateEmail_Success() {
             // Arrange
             APersonne aPersonne = new APersonne();
@@ -227,13 +227,9 @@ class PersonneServiceTest {
             // Act
             personneService.updateEmail(uid, newEmail);
 
-            // Assert
-            assertThat(aPersonne.getEmail()).isNull();
-            assertThat(aPersonne.getEmailPersonnel()).isEqualTo(newEmail);
-            assertThat(aPersonne.getDateModification()).isNotNull();
-
-            verify(aPersonneRepository).saveAndFlush(aPersonne);
-            verify(extDao).updateEmail(uid, newEmail);
+            // Assert - pas de mise à jour DB ou LDAP, seulement cache eviction
+            verify(aPersonneRepository, never()).saveAndFlush(any());
+            verifyNoInteractions(extDao);
 
             // Vérification de l'éviction des caches
             verify(cacheManager).getCache("personneDBCache");
@@ -251,25 +247,6 @@ class PersonneServiceTest {
                     .hasMessageContaining(uid);
 
             verifyNoInteractions(extDao);
-        }
-
-        @Test
-        @DisplayName("Échec : Erreur LDAP (RuntimeException)")
-        void updateEmail_LdapError() {
-            // Arrange
-            APersonne aPersonne = new APersonne();
-            PersonneDTO personneDTO = new PersonneDTO(aPersonne);
-            personneDTO.setEnumPublic(EnumPublic.ELEVE);
-            when(aPersonneRepository.getPersonneByUid(uid)).thenReturn(personneDTO);
-            doThrow(new RuntimeException("LDAP Read-only")).when(extDao).updateEmail(anyString(), anyString());
-
-            // Act & Assert
-            assertThatThrownBy(() -> personneService.updateEmail(uid, "new@test.fr"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Erreur lors de la mise à jour de l'email");
-
-            // La DB est mise à jour avant (transactional)
-            verify(aPersonneRepository).saveAndFlush(aPersonne);
         }
 
         @Test
@@ -315,21 +292,6 @@ class PersonneServiceTest {
 
             assertThatThrownBy(() -> personneService.updateEmail(uid, "user@netocentre.fr"))
                     .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @Test
-        @DisplayName("Succès : enumPublic null → fallback EnumCategorie (Élève)")
-        void updateEmail_EnumPublicNullFallbackToEleve() {
-            APersonne aPersonne = new APersonne();
-            aPersonne.setUid(uid);
-            PersonneDTO personneDTO = new PersonneDTO(aPersonne);
-            when(aPersonneRepository.getPersonneByUid(uid)).thenReturn(personneDTO);
-
-            personneService.updateEmail(uid, "new@recia.fr");
-
-            assertThat(aPersonne.getEmailPersonnel()).isEqualTo("new@recia.fr");
-            verify(aPersonneRepository).saveAndFlush(aPersonne);
-            verify(extDao).updateEmail(uid, "new@recia.fr");
         }
     }
 

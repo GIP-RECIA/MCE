@@ -28,4 +28,15 @@ public class MailProperties {
     private String regexsDomainesExclus;
     private String domainesConfiance;
 
+    private String fromEmail;
+    private String fromName;
+
+    private Verification verification = new Verification();
+
+    @Data
+    public static class Verification {
+        private String baseUrl;
+        private long expiryHours = 24;
+    }
+
 }

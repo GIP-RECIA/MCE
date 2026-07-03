@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.web.rest;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -30,6 +31,7 @@ import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
@@ -46,13 +48,16 @@ public class PersonneRestController {
     private final PersonneService personneService;
     private final IUserDTOFactory userDTOFactory;
     private final SoffitHolder soffitHolder;
+    private final EmailVerificationService emailVerificationService;
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
-    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory, SoffitHolder soffitHolder) {
+    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory,
+                                  SoffitHolder soffitHolder, EmailVerificationService emailVerificationService) {
         this.personneService = personneService;
         this.userDTOFactory = userDTOFactory;
         this.soffitHolder = soffitHolder;
+        this.emailVerificationService = emailVerificationService;
     }
 
     /**
@@ -144,9 +149,9 @@ public class PersonneRestController {
      */
     @PostMapping("/{uid}/change-password")
     public ResponseEntity<Void> changePass(
-            @PathVariable String uid,
-            @Valid @RequestBody PasswordChangeRequestDTO request,
-            HttpServletRequest httpRequest) {
+        @PathVariable String uid,
+        @Valid @RequestBody PasswordChangeRequestDTO request,
+        HttpServletRequest httpRequest) {
 
         String currentUid = getCurrentUid();
 
@@ -160,7 +165,8 @@ public class PersonneRestController {
     }
 
     /**
-     * Met à jour l'adresse email de l'utilisateur connecté.
+     * Demande la vérification d'une adresse email.
+     * Un email de confirmation est envoyé à la nouvelle adresse.
      *
      * @param uid
      *            UID de l'utilisateur
@@ -169,8 +175,8 @@ public class PersonneRestController {
      */
     @PutMapping("/{uid}/update-email")
     public ResponseEntity<?> updateEmail(
-            @PathVariable String uid,
-            @Valid @RequestBody EmailUpdateRequestDTO request) {
+        @PathVariable String uid,
+        @Valid @RequestBody EmailUpdateRequestDTO request) {
 
         String currentUid = getCurrentUid();
 
@@ -182,21 +188,45 @@ public class PersonneRestController {
         if (!request.getEmail().equals(request.getConfirmEmail())) {
             log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
             return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
+                .body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
         }
 
-        personneService.updateEmail(uid, request.getEmail());
-        return ResponseEntity.noContent().build();
+        personneService.validateEmailForUpdate(uid, request.getEmail());
+
+        emailVerificationService.sendVerificationEmail(uid, request.getEmail());
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+            .body(new ErrorResponse("VERIFICATION_SENT",
+                "Un email de vérification a été envoyé à " + request.getEmail()));
+    }
+
+    /**
+     * Vérifie une adresse email avec le code reçu par email.
+     *
+     * @param uid
+     *            UID de l'utilisateur
+     * @param code
+     *            code de vérification
+     */
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(
+        @RequestParam String uid,
+        @RequestParam String code) {
+
+        emailVerificationService.verifyEmail(uid, code);
+
+        return ResponseEntity.ok(new ErrorResponse("EMAIL_VERIFIED",
+            "Votre adresse email a été vérifiée avec succès"));
     }
 
     @PostMapping("/{uid}/avatar")
     public ResponseEntity<Void> updateAvatar(
-            @PathVariable String uid,
-            @RequestParam("file") MultipartFile file) throws Exception {
+        @PathVariable String uid,
+        @RequestParam("file") MultipartFile file) throws Exception {
 
         log.debug("Réception d'une requête d'upload d'avatar pour l'UID [{}]", uid);
         log.debug("Fichier reçu : nom={}, type={}, taille={} octets",
-                file.getOriginalFilename(), file.getContentType(), file.getSize());
+            file.getOriginalFilename(), file.getContentType(), file.getSize());
 
         String currentUid = getCurrentUid();
         if (!currentUid.equals(uid)) {
@@ -225,8 +255,8 @@ public class PersonneRestController {
             throw new PersonneNotFoundException("Avatar non trouvé pour l'uid : " + uid);
         }
         return ResponseEntity.ok()
-                .header("Content-Type", "image/jpeg")
-                .body(image);
+            .header("Content-Type", "image/jpeg")
+            .body(image);
     }
 
     /**

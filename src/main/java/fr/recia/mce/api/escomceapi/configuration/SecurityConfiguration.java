@@ -45,18 +45,22 @@ public class SecurityConfiguration {
     }
 
     private static final String[] SWAGGER_WHITELIST = {
-            "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/v3/api-docs/**",
-            "/webjars/**"
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs/**",
+        "/webjars/**"
     };
 
     private static final String[] TEMPORARY_PERMIT_LIST = {
-            "/api/personne/mce/getuser",
-            "/api/password/**",
-            "/api/personne/mce/id",
-            "/api/personne/mce/**",
-            "/api/personne/fonction/**"
+        "/api/personne/mce/getuser",
+        "/api/password/**",
+        "/api/personne/mce/id",
+        "/api/personne/mce/**",
+        "/api/personne/fonction/**"
+    };
+
+    private static final String[] PUBLIC_ENDPOINTS = {
+        "/api/personne/mce/verify-email"
     };
 
     @Bean
@@ -67,11 +71,12 @@ public class SecurityConfiguration {
         http.addFilter(filter);
         http.csrf(AbstractHttpConfigurer::disable);
         http.authorizeHttpRequests(authz -> authz
-                .antMatchers(SWAGGER_WHITELIST).permitAll()
-                .antMatchers("/health-check").permitAll()
-                .antMatchers(TEMPORARY_PERMIT_LIST).permitAll()
-                .antMatchers("/api/**").authenticated()
-                .anyRequest().denyAll());
+            .antMatchers(SWAGGER_WHITELIST).permitAll()
+            .antMatchers("/health-check").permitAll()
+            .antMatchers(PUBLIC_ENDPOINTS).permitAll()
+            .antMatchers(TEMPORARY_PERMIT_LIST).permitAll()
+            .antMatchers("/api/**").authenticated()
+            .anyRequest().denyAll());
         http.sessionManagement(session -> session.sessionFixation().newSession());
 
         return http.build();

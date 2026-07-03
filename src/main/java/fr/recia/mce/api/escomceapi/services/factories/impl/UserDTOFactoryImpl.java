@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 
 import javax.validation.constraints.NotNull;
 
+import org.apache.commons.lang3.StringUtils;
+
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +32,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
-import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -104,9 +105,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private MCEProperties mceProperties;
-
-    @Autowired
-    private MailProperties mailProperties;
 
     @Autowired
     private CerbereConfirmationRepository cerbereConfirmationRepository;
@@ -306,124 +304,132 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Override
     public UserDTO from(PersonneDTO model, IExternalUser extModel) {
+        structureService.getAllStructures();
 
-        List<RelationEleveContact> respEleves;
-        List<RelationEleveContact> eleves;
+        if (model == null || extModel == null) return null;
+
+        APersonne base = model.getAPersonneBase();
+        if (base == null) {
+            log.error("Données de base absentes pour l'utilisateur [uid={}]", model.getUid());
+            return null;
+        }
+
+        List<RelationEleveContact> respEleves = resolveRespEleves(extModel);
+        List<RelationEleveContact> eleves = resolveEleves(base);
+
+        EnumPublic pub = model.getEnumPublic();
         boolean passEditable = false;
         boolean canEditEmail = false;
         boolean eduConnect = false;
         boolean passEtab = false;
 
-        structureService.getAllStructures();
-
-        if (model != null && extModel != null) {
-            APersonne base = model.getAPersonneBase();
-            if (base == null) {
-                log.error("Données de base absentes pour l'utilisateur [uid={}]", model.getUid());
-                return null;
-            }
-
-            Collection<RelationEleveContact> respCol = iRelationEleveService.allRelationEleves(extModel);
-            if (respCol != null) {
-                respEleves = new ArrayList<>(respCol);
-            } else {
-                respEleves = null;
-            }
-
-            Collection<RelationEleveContact> elevesCol = iRelationEleveService
-                    .allEleveEnRelation(base.getId());
-
-            eleves = new ArrayList<>(elevesCol);
-
-            EnumPublic pub = model.getEnumPublic();
-            if (pub != null) {
-                // Logique pour le mot de passe
-                if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
-                        || !model.getMailFixe().matches("[^@]+@ac-orleans-tours.fr")) {
-
-                    passEditable = pub.isConnectOk();
-                    eduConnect = pub.isEduconnect();
-                }
-
-                // Logique pour l'email (Tableau de règles)
-                if (pub.isEleve()) {
-                    canEditEmail = true; // Élèves : toujours autorisé
-                } else if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()) {
-                    canEditEmail = true; // Utilisateurs ayant déjà saisi un email perso
-                } else if (model.getMailFixe() == null || model.getMailFixe().isEmpty()) {
-                    canEditEmail = true; // Utilisateurs sans email fixe
-                }
-
-                if (pub.isPassEtab()) {
-                    passEtab = structureService.isReseauRecia(model);
-
-                }
-
-            }
-
-            // Détermination du mail à afficher (mailFixe ou confirmé)
-            String resolvedEmail = base.getEmail();
-            String mailFixe = model.getMailFixe();
-            boolean mailFixeConfiance = false;
-
-            if (mailFixe != null && !mailFixe.isEmpty()) {
-                String domain = mailFixe.substring(mailFixe.lastIndexOf('@') + 1);
-                String[] trustedDomains = mailProperties.getDomainesConfiance().split("\\s+");
-                for (String trusted : trustedDomains) {
-                    if (domain.equalsIgnoreCase(trusted.trim())) {
-                        mailFixeConfiance = true;
-                        break;
-                    }
-                }
-                if (pub == EnumPublic.PERSONNEL) {
-                    mailFixeConfiance = true;
-                }
-                if (!mailFixeConfiance) {
-                    List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(base.getId());
-                    if (!confirmed.isEmpty()) {
-                        resolvedEmail = confirmed.get(0).getMail();
-                    }
-                }
-            }
-
-            String userIdentifiant = passEditable ? model.getIdentifiant() : null;
-            List<String> userPublic = new ArrayList<>();
-
-            if (eduConnect) {
-                userPublic.add(this.serviceProperties.getCustomParams().getLienEdu());
-                if (passEtab) {
-                    userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
-                }
-            } else if (passEtab) {
-                userPublic.add(this.serviceProperties.getCustomParams().getLienPassEtab());
-            }
-
-            String avatarUrl = null;
-            if (base.getPhoto() != null) {
-                avatarUrl = base.getPhoto();
-                log.debug("URL de l'avatar pour l'UID [{}]: {}", model.getUid(), avatarUrl);
-            }
-
-            UserDTO user = new UserDTO(base.getId(), model.getUid(), model.getDisplayName(),
-                    base.getGivenName(),
-                    base.getSn(),
-                    base.getCivilite(),
-                    base.getCategorie(),
-                    canEditEmail,
-                    userIdentifiant,
-                    model.getStructureDto().getDisplayName(),
-                    resolvedEmail,
-                    base.getEmailPersonnel(),
-                    model.getNaissance(), model.getAvatarUrl(), base.getEtat(),
-                    passEditable, userPublic,
-                    listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
-
-            user.setAvatarUrl(avatarUrl);
-            return user;
-
+        if (pub != null) {
+            passEditable = computePassEditable(model, pub);
+            eduConnect = pub.isEduconnect();
+            canEditEmail = computeCanEditEmail(pub, base, model);
+            passEtab = computePassEtab(pub, model);
         }
 
-        return null;
+        String resolvedEmail = resolveEmail(model, extModel, base);
+        String resolvedEmailPersonnel = resolveEmailPersonnel(base);
+        String etab = resolveEtablissementName(model);
+        String userIdentifiant = passEditable ? model.getIdentifiant() : null;
+        List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
+        String avatarUrl = resolveAvatarUrl(base);
+
+        UserDTO user = new UserDTO(
+            base.getId(),
+            model.getUid(),
+            model.getDisplayName(),
+            base.getGivenName(),
+            base.getSn(),
+            base.getCivilite(),
+            base.getCategorie(),
+            canEditEmail,
+            userIdentifiant,
+            etab,
+            resolvedEmail,
+            resolvedEmailPersonnel,
+            model.getNaissance(),
+            model.getAvatarUrl(),
+            base.getEtat(),
+            passEditable,
+            userPublic,
+            listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
+
+        user.setAvatarUrl(avatarUrl);
+        return user;
+    }
+
+    private List<RelationEleveContact> resolveRespEleves(IExternalUser extModel) {
+        Collection<RelationEleveContact> col = iRelationEleveService.allRelationEleves(extModel);
+        return col != null ? new ArrayList<>(col) : null;
+    }
+
+    private List<RelationEleveContact> resolveEleves(APersonne base) {
+        return new ArrayList<>(iRelationEleveService.allEleveEnRelation(base.getId()));
+    }
+
+    private boolean computePassEditable(PersonneDTO model, EnumPublic pub) {
+        return model.getMailFixe() == null || pub != EnumPublic.EDUCATION
+                || !model.getMailFixe().matches("[^@]+@ac-orleans-tours.fr");
+    }
+
+    private boolean computeCanEditEmail(EnumPublic pub, APersonne base, PersonneDTO model) {
+        if (pub.isEleve()) return true;
+        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()) return true;
+        return model.getMailFixe() == null || model.getMailFixe().isEmpty();
+    }
+
+    private boolean computePassEtab(EnumPublic pub, PersonneDTO model) {
+        return pub.isPassEtab() && structureService.isReseauRecia(model);
+    }
+
+    private String resolveEmail(PersonneDTO model, IExternalUser extModel, APersonne base) {
+        String mailFromLdap = model.getMailFromLdap();
+        if (StringUtils.isBlank(mailFromLdap) && extModel != null) {
+            mailFromLdap = extModel.getEmail();
+        }
+        return StringUtils.isNotBlank(mailFromLdap) ? mailFromLdap : base.getEmail();
+    }
+
+    private String resolveEmailPersonnel(APersonne base) {
+        List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(base.getId());
+        if (!confirmed.isEmpty()) {
+            return confirmed.get(0).getMail();
+        }
+        return base.getEmailPersonnel();
+    }
+
+    private String resolveEtablissementName(PersonneDTO model) {
+        if (model.getStructureDto() == null) return null;
+        try {
+            return model.getStructureDto().getDisplayName();
+        } catch (Exception e) {
+            log.warn("Impossible de récupérer le nom de l'établissement pour l'utilisateur [uid={}] - Détail : {}",
+                    model.getUid(), e.getMessage());
+            return null;
+        }
+    }
+
+    private List<String> buildUserPublicLinks(boolean eduConnect, boolean passEtab) {
+        List<String> links = new ArrayList<>();
+        if (eduConnect) {
+            links.add(this.serviceProperties.getCustomParams().getLienEdu());
+            if (passEtab) {
+                links.add(this.serviceProperties.getCustomParams().getLienPassEtab());
+            }
+        } else if (passEtab) {
+            links.add(this.serviceProperties.getCustomParams().getLienPassEtab());
+        }
+        return links;
+    }
+
+    private String resolveAvatarUrl(APersonne base) {
+        if (base.getPhoto() != null) {
+            log.debug("URL de l'avatar pour l'UID [{}]: {}", base.getUid(), base.getPhoto());
+        }
+        return base.getPhoto();
     }
 
     @Override

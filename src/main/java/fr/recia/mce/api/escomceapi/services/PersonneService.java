@@ -33,7 +33,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,7 +98,6 @@ public class PersonneService {
         return personne;
     }
 
-    @Cacheable(cacheNames = "personneLDAPCache", key = "#uid")
     private IExternalUser getUserLdap(String uid) {
         IExternalUser userLdap = null;
 
@@ -295,11 +293,7 @@ public class PersonneService {
         clearUserCaches(uid);
     }
 
-    @Transactional
-    public void updateEmail(String uid, String newEmail) {
-        log.info("Mise à jour de l'email pour l'utilisateur [uid={}] vers : {}", uid, newEmail);
-
-        // 1. Update in Database
+    public void validateEmailForUpdate(String uid, String newEmail) {
         PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
         if (personneDTO == null) {
             log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
@@ -311,12 +305,10 @@ public class PersonneService {
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
         }
 
-        // Validation du format email
         if (!newEmail.matches(mailProperties.getRegexValideAddr())) {
             throw new IllegalArgumentException("Le format de l'adresse email n'est pas valide");
         }
 
-        // Vérification des domaines exclus
         String domain = newEmail.substring(newEmail.lastIndexOf('@') + 1);
         String[] excludedDomains = mailProperties.getRegexsDomainesExclus().split("\\s+");
         for (String excluded : excludedDomains) {
@@ -324,51 +316,44 @@ public class PersonneService {
                 throw new IllegalArgumentException("Le domaine de l'adresse email est exclu");
             }
         }
+    }
 
-        APersonne entity = personneDTO.getApersonne();
+    @Transactional
+    public void updateEmail(String uid, String newEmail) {
+        log.info("Mise à jour de l'email pour l'utilisateur [uid={}] vers : {}", uid, newEmail);
 
-        // adresse email interne a l ent
-        // entity.setEmail(newEmail);
+        validateEmailForUpdate(uid, newEmail);
 
-        // addresse email externe a l ent
-        entity.setEmailPersonnel(newEmail);
-        entity.setDateModification(new Date());
-
-        aPersonneRepository.saveAndFlush(entity);
-        log.debug("Email mis à jour en base de données pour l'uid : {}", uid);
-
-        // 2. Update in LDAP
-        try {
-            getExtDao().updateEmail(uid, newEmail);
-            log.debug("Email mis à jour dans l'annuaire LDAP pour l'uid : {}", uid);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Échec de la mise à jour LDAP | Détail : {}", uid, e.getMessage());
-            throw new RuntimeException("Erreur lors de la mise à jour de l'email dans l'annuaire", e);
-        }
-
-        // 3. Clear Caches
+        // L'email est déjà enregistré dans cerbere_confirmation (via sendVerificationEmail)
+        // Pas de mise à jour dans apersonne ni LDAP - lecture dynamique depuis cerbere_confirmation
         clearUserCaches(uid);
 
         log.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
     }
 
     private boolean canEditPersonalEmail(PersonneDTO personne) {
-        EnumPublic publicProfile = personne.getEnumPublic();
         APersonne base = personne.getAPersonneBase();
-
-        if (base == null)
+        if (base == null) {
             return false;
+        }
+
+        EnumPublic publicProfile = personne.getEnumPublic();
+        if (publicProfile != null && publicProfile.isEleve()) {
+            return true;
+        }
 
         if (publicProfile == null) {
             EnumCategorie cat = EnumCategorie.fromString(base.getCategorie());
-            return cat == EnumCategorie.ELEVE
-                    || StringUtils.isNotBlank(base.getEmailPersonnel())
-                    || StringUtils.isBlank(base.getEmail());
+            if (cat == EnumCategorie.ELEVE) {
+                return true;
+            }
         }
 
-        return publicProfile.isEleve()
-                || StringUtils.isNotBlank(base.getEmailPersonnel())
-                || StringUtils.isBlank(base.getEmail());
+        if (StringUtils.isNotBlank(base.getEmailPersonnel())) {
+            return true;
+        }
+
+        return StringUtils.isBlank(personne.getMailFixe());
     }
 
     public void clearUserCaches(String uid) {

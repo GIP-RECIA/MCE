@@ -16,9 +16,13 @@
 package fr.recia.mce.api.escomceapi.db.repositories;
 
 import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 
 @Repository
@@ -26,5 +30,19 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
 
     @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.confirmation IS NOT NULL ORDER BY cc.confirmation DESC")
     List<CerbereConfirmation> findConfirmedByPersonId(@Param("personId") Long personId);
+
+    @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.code = :code AND cc.confirmation IS NULL")
+    Optional<CerbereConfirmation> findPendingByPersonIdAndCode(@Param("personId") Long personId, @Param("code") String code);
+
+    @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.confirmation IS NULL")
+    List<CerbereConfirmation> findPendingByPersonId(@Param("personId") Long personId);
+
+    @Modifying
+    @Query("UPDATE CerbereConfirmation cc SET cc.confirmation = CURRENT_TIMESTAMP WHERE cc.id = :id")
+    void markConfirmed(@Param("id") Long id);
+
+    @Modifying
+    @Query("DELETE FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.confirmation IS NULL")
+    void deletePendingByPersonId(@Param("personId") Long personId);
 
 }

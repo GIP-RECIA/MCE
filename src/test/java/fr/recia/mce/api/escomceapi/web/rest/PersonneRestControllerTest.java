@@ -27,6 +27,7 @@ import fr.recia.mce.api.escomceapi.db.entities.Login;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
+import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
@@ -95,6 +96,10 @@ class PersonneRestControllerTest {
     @MockBean
     @SuppressWarnings("unused")
     private RelationEleveServiceImpl relationEleveServiceImpl;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private EmailVerificationService emailVerificationService;
 
     private static final String BASE_URL = "/api/personne/mce/";
     private static final String USER = "test.user";
@@ -491,9 +496,10 @@ class PersonneRestControllerTest {
             mockMvc.perform(put(BASE_URL + USER + "/update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isNoContent());
+                    .andExpect(status().isAccepted());
 
-            verify(personneService).updateEmail(USER, "test@example.com");
+            verify(personneService).validateEmailForUpdate(USER, "test@example.com");
+            verify(emailVerificationService).sendVerificationEmail(USER, "test@example.com");
         }
 
         @Test
@@ -523,6 +529,35 @@ class PersonneRestControllerTest {
     }
 
     @Nested
+    @DisplayName("Tests du point d'accès /verify-email")
+    class VerifyEmailTests {
+
+        @Test
+        @DisplayName("Vérification d'email réussie")
+        void shouldVerifyEmailSuccessfully() throws Exception {
+            mockMvc.perform(get(BASE_URL + "verify-email")
+                    .param("uid", USER)
+                    .param("code", "validCode123"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("EMAIL_VERIFIED"));
+
+            verify(emailVerificationService).verifyEmail(USER, "validCode123");
+        }
+
+        @Test
+        @DisplayName("Échec : code invalide")
+        void shouldFailWhenCodeInvalid() throws Exception {
+            doThrow(new IllegalArgumentException("Code invalide"))
+                    .when(emailVerificationService).verifyEmail(USER, "badCode");
+
+            mockMvc.perform(get(BASE_URL + "verify-email")
+                    .param("uid", USER)
+                    .param("code", "badCode"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
     @DisplayName("Tests du point d'accès avatar")
     class AvatarTests {
 
@@ -533,6 +568,36 @@ class PersonneRestControllerTest {
 
             mockMvc.perform(get(BASE_URL + USER + "/avatar.jpg"))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("Récupération d'avatar réussie")
+        void shouldGetAvatarSuccessfully() throws Exception {
+            byte[] imageBytes = new byte[]{1, 2, 3};
+            when(personneService.getAvatar(USER)).thenReturn(imageBytes);
+
+            mockMvc.perform(get(BASE_URL + USER + "/avatar.jpg"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Content-Type", "image/jpeg"))
+                    .andExpect(content().bytes(imageBytes));
+        }
+
+        @Test
+        @DisplayName("Upload d'avatar réussi")
+        void shouldUpdateAvatarSuccessfully() throws Exception {
+            mockMvc.perform(multipart(BASE_URL + USER + "/avatar")
+                    .file("file", "fake-image-content".getBytes()))
+                    .andExpect(status().isNoContent());
+
+            verify(personneService).updateAvatar(eq(USER), any(byte[].class));
+        }
+
+        @Test
+        @DisplayName("Upload d'avatar refusé pour un autre utilisateur")
+        void shouldReturnForbiddenWhenUpdatingAnotherUserAvatar() throws Exception {
+            mockMvc.perform(multipart(BASE_URL + "other/avatar")
+                    .file("file", "content".getBytes()))
+                    .andExpect(status().isForbidden());
         }
     }
 
