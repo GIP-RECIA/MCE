@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -325,7 +326,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         if (pub != null) {
             passEditable = computePassEditable(model, pub);
-            eduConnect = pub.isEduconnect();
+            eduConnect = computeEduConnect(model, pub);
             canEditEmail = computeCanEditEmail(pub, base, model);
             passEtab = computePassEtab(pub, model);
         }
@@ -370,9 +371,32 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return new ArrayList<>(iRelationEleveService.allEleveEnRelation(base.getId()));
     }
 
+    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN = "[^@]+@ac-orleans-tours.fr";
+
     private boolean computePassEditable(PersonneDTO model, EnumPublic pub) {
-        return model.getMailFixe() == null || pub != EnumPublic.EDUCATION
-                || !model.getMailFixe().matches("[^@]+@ac-orleans-tours.fr");
+        if (pub == null) {
+            return false;
+        }
+        if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null
+                && model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
+            return false;
+        }
+        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
+                || !model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
+            return pub.isConnectOk();
+        }
+        return false;
+    }
+
+    private boolean computeEduConnect(PersonneDTO model, EnumPublic pub) {
+        if (pub == null) {
+            return false;
+        }
+        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
+                || !model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
+            return pub.isEduconnect();
+        }
+        return false;
     }
 
     private boolean computeCanEditEmail(EnumPublic pub, APersonne base, PersonneDTO model) {
@@ -548,6 +572,19 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         PersonneDTO user = personneService.retrievePersonnebyUid(uid);
         if (user == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
+        }
+
+        if (user.getEnumPublic() == null) {
+            try {
+                evalPublic(user);
+            } catch (Exception e) {
+                log.error("Échec de l'évaluation du profil public pour le changement de mot de passe [uid={}] - Détail : {}",
+                        uid, e.getMessage());
+            }
+        }
+
+        if (!computePassEditable(user, user.getEnumPublic())) {
+            throw new AccessDeniedException("Vous ne pouvez pas modifier votre mot de passe");
         }
 
         passwordService.changePassword(user, req);

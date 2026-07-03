@@ -46,12 +46,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
 
@@ -142,6 +148,138 @@ class UserDTOFactoryImplTest {
         ReflectionTestUtils.setField(factory, "extDao", extDao);
         ReflectionTestUtils.setField(factory, "classeGroupeService", classeGroupeService);
         ReflectionTestUtils.setField(factory, "soffitHolder", soffitHolder);
+    }
+
+    private UserDTO buildUserDto(EnumPublic pub, String mailFixe) {
+        when(model.getEnumPublic()).thenReturn(pub);
+        when(model.getMailFixe()).thenReturn(mailFixe);
+        when(aPersonneBase.getEmail()).thenReturn(mailFixe);
+        return factory.from(model, extModel);
+    }
+
+    static Stream<Arguments> mdpMatrixWithMailFixe() {
+        return Stream.of(
+                Arguments.of(EnumPublic.EDUCATION, "user@ac-orleans-tours.fr", false),
+                Arguments.of(EnumPublic.EDUCATION, "user@other.fr", false),
+                Arguments.of(EnumPublic.AGRI, "user@educagri.fr", false),
+                Arguments.of(EnumPublic.CVDL, "user@region.fr", false),
+                Arguments.of(EnumPublic.ELEVE_EDUC, "eleve@ac-orleans-tours.fr", false),
+                Arguments.of(EnumPublic.PARENT_EDUC, "parent@ac-orleans-tours.fr", false),
+                Arguments.of(EnumPublic.PERSONNEL, "user@ac-orleans-tours.fr", true),
+                Arguments.of(EnumPublic.PARENT, "parent@test.fr", true),
+                Arguments.of(EnumPublic.ELEVE, "eleve@test.fr", true),
+                Arguments.of(EnumPublic.APPRENANT, "apprenant@cfa.fr", true),
+                Arguments.of(EnumPublic.EXTERIEUR, "externe@test.fr", true),
+                Arguments.of(EnumPublic.AUTRE, "autre@test.fr", true)
+        );
+    }
+
+    static Stream<Arguments> mdpMatrixWithoutMailFixe() {
+        return Stream.of(
+                Arguments.of(EnumPublic.EDUCATION, false),
+                Arguments.of(EnumPublic.AGRI, false),
+                Arguments.of(EnumPublic.PERSONNEL, true),
+                Arguments.of(EnumPublic.ELEVE, true)
+        );
+    }
+
+    static Stream<Arguments> blockedProfilesForPasswordChange() {
+        return Stream.of(
+                Arguments.of(EnumPublic.EDUCATION, "user@ac-orleans-tours.fr"),
+                Arguments.of(EnumPublic.EDUCATION, "user@other.fr"),
+                Arguments.of(EnumPublic.AGRI, "user@educagri.fr"),
+                Arguments.of(EnumPublic.CVDL, "user@region.fr"),
+                Arguments.of(EnumPublic.ELEVE_EDUC, "eleve@test.fr"),
+                Arguments.of(EnumPublic.PARENT_EDUC, "parent@test.fr")
+        );
+    }
+
+    static Stream<Arguments> allowedProfilesForPasswordChange() {
+        return Stream.of(
+                Arguments.of(EnumPublic.PERSONNEL, "user@ac-orleans-tours.fr"),
+                Arguments.of(EnumPublic.PARENT, "parent@test.fr"),
+                Arguments.of(EnumPublic.ELEVE, null),
+                Arguments.of(EnumPublic.APPRENANT, "apprenant@cfa.fr"),
+                Arguments.of(EnumPublic.EXTERIEUR, "externe@test.fr"),
+                Arguments.of(EnumPublic.AUTRE, "autre@test.fr")
+        );
+    }
+
+    @Nested
+    @DisplayName("Gestion mot de passe (mdp) - matrice EnumPublic")
+    class PasswordMdpMatrixTests {
+
+        @ParameterizedTest(name = "{0} + mailFixe={1} → mdp={2}")
+        @MethodSource("fr.recia.mce.api.escomceapi.services.factories.impl.UserDTOFactoryImplTest#mdpMatrixWithMailFixe")
+        @DisplayName("mdp suit la spec (isConnectOk + exception EDUCATION ac-orleans-tours.fr)")
+        void mdpFollowsSpec(EnumPublic pub, String mailFixe, boolean expectedMdp) {
+            UserDTO result = buildUserDto(pub, mailFixe);
+
+            assertThat(result.getMdp())
+                    .as("EnumPublic.%s avec mailFixe=%s", pub, mailFixe)
+                    .isEqualTo(expectedMdp);
+        }
+
+        @ParameterizedTest(name = "{0} sans mailFixe → mdp={1}")
+        @MethodSource("fr.recia.mce.api.escomceapi.services.factories.impl.UserDTOFactoryImplTest#mdpMatrixWithoutMailFixe")
+        @DisplayName("mdp sans mailFixe")
+        void mdpWithoutMailFixe(EnumPublic pub, boolean expectedMdp) {
+            UserDTO result = buildUserDto(pub, null);
+
+            assertThat(result.getMdp())
+                    .as("EnumPublic.%s sans mailFixe", pub)
+                    .isEqualTo(expectedMdp);
+        }
+
+        @Test
+        @DisplayName("Régression: AGRI avec domaine non ac-orleans-tours.fr reste bloqué")
+        void regressionAgriMustStayBlockedRegardlessOfMailDomain() {
+            UserDTO result = buildUserDto(EnumPublic.AGRI, "user@other-domain.fr");
+
+            assertThat(result.getMdp()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Régression: mdp ne doit pas ignorer isConnectOk()")
+        void regressionMdpMustUseIsConnectOkNotMailDomainOnly() {
+            assertThat(buildUserDto(EnumPublic.CVDL, "user@other.fr").getMdp()).isFalse();
+            assertThat(buildUserDto(EnumPublic.PARENT_EDUC, "parent@other.fr").getMdp()).isFalse();
+            assertThat(buildUserDto(EnumPublic.PERSONNEL, "user@other.fr").getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("computePassEditable(null) → false")
+        void computePassEditableNullProfile() {
+            Boolean result = ReflectionTestUtils.invokeMethod(factory, "computePassEditable", model, null);
+
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        @DisplayName("EDUCATION + ac-orleans-tours.fr bloque aussi les liens EduConnect")
+        void educationAcMailBlocksEduConnectLinks() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("user@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@ac-orleans-tours.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getUserPublic()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("ELEVE_EDUC sans mailFixe → liens EduConnect actifs")
+        void eleveEducHasEduConnectLinks() {
+            ServiceProperties sp = factory.getServiceProperties();
+            sp.getCustomParams().setLienEdu("https://educonnect");
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
+            when(model.getMailFixe()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getUserPublic()).contains("https://educonnect");
+        }
     }
 
     @Nested
@@ -316,15 +454,50 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("EDUCATION + domaine non fiable → passEditable=true")
-        void educationUntrustedDomainEditable() {
+        @DisplayName("EDUCATION + domaine non fiable → passEditable=false (isConnectOk)")
+        void educationUntrustedDomainNotEditable() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
             when(model.getMailFixe()).thenReturn("user@other.fr");
             when(aPersonneBase.getEmail()).thenReturn("user@other.fr");
 
             UserDTO result = factory.from(model, extModel);
 
+            assertThat(result.getMdp()).isFalse();
+        }
+
+        @Test
+        @DisplayName("AGRI → passEditable=false")
+        void agriNotEditable() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.AGRI);
+            when(model.getMailFixe()).thenReturn("user@educagri.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@educagri.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isFalse();
+        }
+
+        @Test
+        @DisplayName("PERSONNEL → passEditable=true")
+        void personnelEditable() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.PERSONNEL);
+            when(model.getMailFixe()).thenReturn("user@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@ac-orleans-tours.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
             assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("enumPublic null → passEditable=false")
+        void nullEnumPublicNotEditable() {
+            when(model.getEnumPublic()).thenReturn(null);
+            when(aPersonneBase.getEmail()).thenReturn("test@test.fr");
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isFalse();
         }
 
         @Test
@@ -475,10 +648,28 @@ class UserDTOFactoryImplTest {
     @DisplayName("changePassword")
     class ChangePasswordTests {
 
-        @Test
-        @DisplayName("Succès : appel à passwordService.changePassword + clearUserCaches")
-        void success() {
+        @ParameterizedTest(name = "{0} refusé")
+        @MethodSource("fr.recia.mce.api.escomceapi.services.factories.impl.UserDTOFactoryImplTest#blockedProfilesForPasswordChange")
+        @DisplayName("Profils bloqués → AccessDeniedException")
+        void passwordChangeBlockedForProfile(EnumPublic pub, String mailFixe) {
             when(soffitHolder.getSub()).thenReturn("testSub");
+            when(model.getEnumPublic()).thenReturn(pub);
+            when(model.getMailFixe()).thenReturn(mailFixe);
+            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
+
+            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(passwordService, never()).changePassword(any(), any());
+        }
+
+        @ParameterizedTest(name = "{0} autorisé")
+        @MethodSource("fr.recia.mce.api.escomceapi.services.factories.impl.UserDTOFactoryImplTest#allowedProfilesForPasswordChange")
+        @DisplayName("Profils autorisés → appel PasswordService")
+        void passwordChangeAllowedForProfile(EnumPublic pub, String mailFixe) {
+            when(soffitHolder.getSub()).thenReturn("testSub");
+            when(model.getEnumPublic()).thenReturn(pub);
+            when(model.getMailFixe()).thenReturn(mailFixe);
             when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
 
             PasswordChangeRequestDTO req = new PasswordChangeRequestDTO();
@@ -486,6 +677,39 @@ class UserDTOFactoryImplTest {
 
             verify(passwordService).changePassword(model, req);
             verify(personneService).clearUserCaches("testUid");
+        }
+
+        @Test
+        @DisplayName("EnumPublic null → AccessDeniedException")
+        void passwordChangeDeniedWhenEnumPublicNull() {
+            when(soffitHolder.getSub()).thenReturn("testSub");
+            when(model.getEnumPublic()).thenReturn(null);
+            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
+
+            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(passwordService, never()).changePassword(any(), any());
+        }
+
+        @Test
+        @DisplayName("EnumPublic null mais evalPublic calcule un profil autorisé → succès")
+        void passwordChangeEvalPublicFallback() {
+            APersonne ap = new APersonne();
+            ap.setUid("testUid");
+            ap.setId(1L);
+            ap.setCategorie("Eleve");
+            PersonneDTO realModel = new PersonneDTO(ap, (AStructure) null);
+
+            when(soffitHolder.getSub()).thenReturn("testSub");
+            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(realModel);
+
+            PasswordChangeRequestDTO req = new PasswordChangeRequestDTO();
+            factory.changePassword("testUid", req);
+
+            verify(passwordService).changePassword(realModel, req);
+            verify(personneService).clearUserCaches("testUid");
+            assertThat(realModel.getEnumPublic()).isEqualTo(EnumPublic.ELEVE);
         }
 
         @Test
