@@ -213,10 +213,23 @@ public class PersonneRestController {
         @RequestParam String uid,
         @RequestParam String code) {
 
-        emailVerificationService.verifyEmail(uid, code);
+        log.debug("[VERIFY_EMAIL] Réception requête pour uid={} avec code={}", uid, code);
 
-        return ResponseEntity.ok(new ErrorResponse("EMAIL_VERIFIED",
-            "Votre adresse email a été vérifiée avec succès"));
+        String frontendUrl = emailVerificationService.getVerificationFrontendUrl();
+
+        try {
+            emailVerificationService.verifyEmail(uid, code);
+            log.info("[VERIFY_EMAIL] SUCCÈS uid={}", uid);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(java.net.URI.create(frontendUrl + "?status=success"))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : {}", uid, e.getMessage());
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(java.net.URI.create(frontendUrl + "?status=error&message="
+                            + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8)))
+                    .build();
+        }
     }
 
     @PostMapping("/{uid}/avatar")

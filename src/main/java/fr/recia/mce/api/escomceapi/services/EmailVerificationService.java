@@ -57,6 +57,10 @@ public class EmailVerificationService {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
+    public String getVerificationFrontendUrl() {
+        return mailProperties.getVerification().getFrontendUrl();
+    }
+
     public String generateVerificationCode() {
         byte[] bytes = new byte[CODE_BYTES];
         secureRandom.nextBytes(bytes);
@@ -122,6 +126,7 @@ public class EmailVerificationService {
     public void verifyEmail(String uid, String code) {
         APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
+            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : utilisateur introuvable", uid);
             throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
         }
 
@@ -129,12 +134,14 @@ public class EmailVerificationService {
                 cerbereConfirmationRepository.findPendingByPersonIdAndCode(person.getId(), code);
 
         if (optConfirmation.isEmpty()) {
+            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code invalide ou déjà utilisé (code={})", uid, code);
             throw new IllegalArgumentException("Code de verification invalide ou deja utilise");
         }
 
         CerbereConfirmation confirmation = optConfirmation.get();
 
         if (confirmation.getLimite().before(new Date())) {
+            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code expiré (limite={})", uid, confirmation.getLimite());
             cerbereConfirmationRepository.delete(confirmation);
             throw new IllegalArgumentException("Le code de verification a expire");
         }

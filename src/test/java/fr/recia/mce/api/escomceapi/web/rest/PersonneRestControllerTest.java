@@ -533,27 +533,34 @@ class PersonneRestControllerTest {
     class VerifyEmailTests {
 
         @Test
-        @DisplayName("Vérification d'email réussie")
+        @DisplayName("Vérification d'email réussie → redirection frontend")
         void shouldVerifyEmailSuccessfully() throws Exception {
+            when(emailVerificationService.getVerificationFrontendUrl())
+                    .thenReturn("https://portail/verification-email");
+
             mockMvc.perform(get(BASE_URL + "verify-email")
                     .param("uid", USER)
                     .param("code", "validCode123"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value("EMAIL_VERIFIED"));
+                    .andExpect(status().isFound())
+                    .andExpect(header().string("Location", "https://portail/verification-email?status=success"));
 
             verify(emailVerificationService).verifyEmail(USER, "validCode123");
         }
 
         @Test
-        @DisplayName("Échec : code invalide")
+        @DisplayName("Échec : code invalide → redirection frontend avec erreur")
         void shouldFailWhenCodeInvalid() throws Exception {
+            when(emailVerificationService.getVerificationFrontendUrl())
+                    .thenReturn("https://portail/verification-email");
             doThrow(new IllegalArgumentException("Code invalide"))
                     .when(emailVerificationService).verifyEmail(USER, "badCode");
 
             mockMvc.perform(get(BASE_URL + "verify-email")
                     .param("uid", USER)
                     .param("code", "badCode"))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isFound())
+                    .andExpect(header().string("Location",
+                            "https://portail/verification-email?status=error&message=Code+invalide"));
         }
     }
 

@@ -84,7 +84,7 @@ class EmailVerificationServiceTest {
         person.setUid(uid);
 
         MailProperties.Verification verification = new MailProperties.Verification();
-        verification.setBaseUrl("https://mce/verify-email");
+        verification.setBaseUrl("https://portail/verification-email");
         verification.setExpiryHours(24);
         lenient().when(mailProperties.getVerification()).thenReturn(verification);
         lenient().when(mailProperties.getFromEmail()).thenReturn("noreply@mce.fr");
@@ -129,7 +129,7 @@ class EmailVerificationServiceTest {
             assertThat(msg.getTo()).containsExactly(email);
             assertThat(msg.getFrom()).isEqualTo("noreply@mce.fr");
             assertThat(msg.getSubject()).contains("Verification");
-            assertThat(msg.getText()).contains("https://mce/verify-email?uid=" + uid);
+            assertThat(msg.getText()).contains("https://portail/verification-email?uid=" + uid);
         }
 
         @Test
