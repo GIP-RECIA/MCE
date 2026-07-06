@@ -111,6 +111,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     private Pattern groupsWithSSHAPassword;
+    private Pattern groupsWithNtPassword;
 
     public UserDTOFactoryImpl(MCEProperties mceProperties) {
         this.serviceProperties = mceProperties.getService();
@@ -118,6 +119,10 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         String regex = this.serviceProperties.getCustomParams().getRegexGroupsWithSshaPass();
         if (regex != null) {
             this.groupsWithSSHAPassword = Pattern.compile(regex);
+        }
+        String ntRegex = this.serviceProperties.getCustomParams().getRegexGroupsWithSambaNt();
+        if (ntRegex != null) {
+            this.groupsWithNtPassword = Pattern.compile(ntRegex);
         }
     }
 
@@ -300,6 +305,16 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             }
         }
 
+        if (groupsWithNtPassword != null && (res == EnumPublic.CVDL || DomSource.GIP.equals(ds))) {
+            IExternalUser extUser = personne.getExtUser();
+            if (extUser != null) {
+                List<String> attrs = extUser.getAttribute("isMemberOf");
+                if (attrs != null) {
+                    personne.setNtPass(attrs.stream().anyMatch(s -> groupsWithNtPassword.matcher(s).matches()));
+                }
+            }
+        }
+
         return res;
     }
 
@@ -355,6 +370,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             model.getAvatarUrl(),
             base.getEtat(),
             passEditable,
+            model.isNtPass(),
             userPublic,
             listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
 
@@ -379,13 +395,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         }
         if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null
                 && model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
-            return false;
+            return model.isNtPass();
         }
-        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
-                || !model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
-            return pub.isConnectOk();
-        }
-        return false;
+        return pub.isConnectOk() || model.isNtPass();
     }
 
     private boolean computeEduConnect(PersonneDTO model, EnumPublic pub) {

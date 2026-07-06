@@ -47,7 +47,7 @@ class UserDTOFullConstructorTest {
 
         UserDTO dto = new UserDTO(1L, "uid", "userName", "given", "sn", "M.", "ELEVE", true,
                 "ident", "0450001A", "mail@x.fr", "perso@x.fr", bod,
-                "avatar", "etat", false, userPublic, listMenu, info,
+                "avatar", "etat", false, null, userPublic, listMenu, info,
                 parentEleve, relationEleve, apprentis);
 
         assertThat(dto.getId()).isEqualTo(1L);
@@ -79,7 +79,7 @@ class UserDTOFullConstructorTest {
     void fullConstructorWithNullRelationLists() {
         UserDTO dto = new UserDTO(2L, "uid2", "user2", "given2", "sn2", "Mme", "ENS", false,
                 "ident2", "etab2", "mail2@x.fr", "perso2@x.fr", new Date(),
-                "avatar2", "etat2", true, null, null, null,
+                "avatar2", "etat2", true, null, null, null, null,
                 null, null, null);
 
         assertThat(dto.getId()).isEqualTo(2L);

@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.web.rest.service;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
@@ -283,6 +284,24 @@ class PasswordServiceTest {
         void shouldRejectNullRequest() {
             assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, null))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("noOldPass=true ⇒ oldPass null accepté")
+        void shouldAcceptNullOldPassWhenNoOldPass() {
+            PasswordChangeRequestDTO req = createRequest(null, strongPassword, strongPassword);
+
+            assertThatNoException().isThrownBy(() -> passwordService.validateRequest(personneDTO, req, true));
+        }
+
+        @Test
+        @DisplayName("noOldPass=false ⇒ oldPass null refusé")
+        void shouldRejectNullOldPassWhenNoOldPassFalse() {
+            PasswordChangeRequestDTO req = createRequest(null, strongPassword, strongPassword);
+
+            assertThatThrownBy(() -> passwordService.validateRequest(personneDTO, req, false))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Ancien mot de passe requis");
         }
     }
 
@@ -939,6 +958,53 @@ class PasswordServiceTest {
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("Erreur technique");
         }
+
+        @Test
+        @DisplayName("noOldPass : CVDL + ntPass + sans mdp stocké → succès sans oldPass")
+        void changePassword_NoOldPass_Success() {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(true);
+            aPersonne.setPassword(null);
+
+            PasswordChangeRequestDTO req = createRequest(null, "NewPass123456!", "NewPass123456!");
+
+            when(cerberePasswordRepository.findByAPersonne(any())).thenReturn(new ArrayList<>());
+            when(aPersonneRepository.findById(100L)).thenReturn(Optional.of(aPersonne));
+            when(aPersonneRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+
+            passwordService.changePassword(personneDTO, req);
+
+            verify(aPersonneRepository).saveAndFlush(aPersonne);
+            verify(externalUserDao).updatePassword(eq(uid), startsWith("{ARGON2}"));
+            verify(cerberePasswordRepository).saveAndFlush(any(CerberePassword.class));
+        }
+
+        @Test
+        @DisplayName("noOldPass=false : CVDL + ntPass=false + oldPass null → échec")
+        void changePassword_NoOldPass_RequiresOldPass() {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(false);
+
+            PasswordChangeRequestDTO req = createRequest(null, "NewPass123456!", "NewPass123456!");
+
+            assertThatThrownBy(() -> passwordService.changePassword(personneDTO, req))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Ancien mot de passe requis");
+        }
+
+        @Test
+        @DisplayName("noOldPass=false : CVDL + ntPass=true + mdp stocké → oldPass requis")
+        void changePassword_NoOldPass_DeniedWhenPasswordStored() {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(true);
+            aPersonne.setPassword("{ARGON2}" + new Argon2PasswordEncoder().encode(strongPassword));
+
+            PasswordChangeRequestDTO req = createRequest(null, "NewPass123456!", "NewPass123456!");
+
+            assertThatThrownBy(() -> passwordService.changePassword(personneDTO, req))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Ancien mot de passe requis");
+        }
     }
 
     @Nested
@@ -1071,6 +1137,74 @@ class PasswordServiceTest {
             m.setAccessible(true);
             boolean result = (boolean) m.invoke(passwordService, personneDTO);
             assertThat(result).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests isNoOldPass")
+    class NoOldPassTests {
+
+        private boolean isNoOldPass() throws Exception {
+            java.lang.reflect.Method m = PasswordService.class.getDeclaredMethod("isNoOldPass", PersonneDTO.class);
+            m.setAccessible(true);
+            return (boolean) m.invoke(passwordService, personneDTO);
+        }
+
+        @Test
+        @DisplayName("CVDL + ntPass + null stored → true")
+        void cvdlNtPassNullStored() throws Exception {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(true);
+            aPersonne.setPassword(null);
+
+            assertThat(isNoOldPass()).isTrue();
+        }
+
+        @Test
+        @DisplayName("CVDL + ntPass + ACTIVE_PASSWORD → true")
+        void cvdlNtPassActivePassword() throws Exception {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(true);
+            aPersonne.setPassword("{SSHA}Active==================================================");
+
+            assertThat(isNoOldPass()).isTrue();
+        }
+
+        @Test
+        @DisplayName("CVDL + ntPass + mdp stocké → false")
+        void cvdlNtPassWithStoredPassword() throws Exception {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(true);
+            aPersonne.setPassword("{ARGON2}" + new Argon2PasswordEncoder().encode(strongPassword));
+
+            assertThat(isNoOldPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Non-CVDL + ntPass → false")
+        void nonCvdlWithNtPass() throws Exception {
+            personneDTO.setEnumPublic(EnumPublic.PERSONNEL);
+            personneDTO.setNtPass(true);
+
+            assertThat(isNoOldPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("CVDL + ntPass=false → false")
+        void cvdlWithoutNtPass() throws Exception {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+            personneDTO.setNtPass(false);
+
+            assertThat(isNoOldPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("enumPublic null → false")
+        void nullEnumPublic() throws Exception {
+            personneDTO.setEnumPublic(null);
+            personneDTO.setNtPass(true);
+
+            assertThat(isNoOldPass()).isFalse();
         }
     }
 

@@ -43,6 +43,7 @@ public class Personne {
 
     private boolean isCfa;
     private boolean isSSHAPass;
+    private boolean isNtPass;
 
     private boolean mailFixeConfirm;
     private boolean mailPersoConfirm;

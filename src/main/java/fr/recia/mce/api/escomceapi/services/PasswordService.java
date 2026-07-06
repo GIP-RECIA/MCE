@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
@@ -134,8 +135,10 @@ public class PasswordService {
 
         String uid = person.getUid() != null ? person.getUid() : "unknown";
 
+        boolean noOldPass = isNoOldPass(person);
+
         try {
-            validateRequest(person, request);
+            validateRequest(person, request, noOldPass);
 
         } catch (WeakPasswordException e) {
             specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
@@ -147,20 +150,24 @@ public class PasswordService {
             throw e;
         }
 
-        try {
-            boolean ok = verifyPassword(person, request.getOldPass(), false);
+        if (!noOldPass) {
+            try {
+                boolean ok = verifyPassword(person, request.getOldPass(), false);
 
-            if (!ok) {
-                throw new IllegalArgumentException("Ancien mot de passe incorrect");
+                if (!ok) {
+                    throw new IllegalArgumentException("Ancien mot de passe incorrect");
+                }
+
+            } catch (IllegalArgumentException e) {
+                throw e;
+
+            } catch (Exception e) {
+                specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe | Détail : {}",
+                        uid, e.getMessage());
+                throw new RuntimeException("Erreur technique lors de la vérification : " + e.getMessage());
             }
-
-        } catch (IllegalArgumentException e) {
-            throw e;
-
-        } catch (Exception e) {
-            specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe | Détail : {}",
-                    uid, e.getMessage());
-            throw new RuntimeException("Erreur technique lors de la vérification : " + e.getMessage());
+        } else {
+            specialLog.info("Audit [CHANGE_PASSWORD] : Contournement de la vérification de l'ancien mot de passe pour l'utilisateur [{}] - Raison : CVDL avec ntPass sans mot de passe stocké", uid);
         }
 
         try {
@@ -655,12 +662,16 @@ public class PasswordService {
     // ---------------------------------------------------------------
 
     public void validateRequest(PersonneDTO person, PasswordChangeRequestDTO request) {
+        validateRequest(person, request, false);
+    }
+
+    public void validateRequest(PersonneDTO person, PasswordChangeRequestDTO request, boolean noOldPass) {
 
         if (request == null) {
             throw new IllegalArgumentException("Requête invalide");
         }
 
-        if (request.getOldPass() == null || request.getOldPass().isBlank()) {
+        if (!noOldPass && (request.getOldPass() == null || request.getOldPass().isBlank())) {
             throw new IllegalArgumentException("Ancien mot de passe requis");
         }
 
@@ -668,7 +679,7 @@ public class PasswordService {
             throw new IllegalArgumentException("Nouveau mot de passe requis");
         }
 
-        if (request.getOldPass().equals(request.getNewPass())) {
+        if (request.getOldPass() != null && request.getOldPass().equals(request.getNewPass())) {
             throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'ancien");
         }
 
@@ -677,6 +688,27 @@ public class PasswordService {
         }
 
         isPasswordStrongEnough(request.getNewPass());
+    }
+
+    /**
+     * @return {@code true} si l'utilisateur peut changer son mdp sans fournir l'ancien.
+     * Conditions : CVDL + ntPass + aucun vrai mdp stocké (null, blank ou marqueur ACTIVE).
+     */
+    private boolean isNoOldPass(PersonneDTO person) {
+        if (person == null || person.getEnumPublic() == null) {
+            return false;
+        }
+        if (!person.isNtPass()) {
+            return false;
+        }
+        if (person.getEnumPublic() != EnumPublic.CVDL) {
+            return false;
+        }
+        if (person.getEnumPublic().isConnectOk()) {
+            return false;
+        }
+        String stored = person.getAPersonneBase().getPassword();
+        return stored == null || stored.isBlank() || stored.startsWith(ACTIVE_PASSWORD);
     }
 
     /**

@@ -280,6 +280,110 @@ class UserDTOFactoryImplTest {
 
             assertThat(result.getUserPublic()).contains("https://educonnect");
         }
+
+        @Test
+        @DisplayName("EDUCATION + ac-orleans-tours.fr + ntPass=true → mdp=true (ntPass débloque)")
+        void educationAcMailWithNtPassIsMdpTrue() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("user@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@ac-orleans-tours.fr");
+            when(model.isNtPass()).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("EDUCATION + ac-orleans-tours.fr + ntPass=false → mdp=false")
+        void educationAcMailWithoutNtPassIsMdpFalse() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("user@ac-orleans-tours.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@ac-orleans-tours.fr");
+            when(model.isNtPass()).thenReturn(false);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isFalse();
+        }
+
+        @Test
+        @DisplayName("CVDL + ntPass=true → mdp=true (ntPass débloque profil bloqué)")
+        void cvdlWithNtPassIsMdpTrue() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.CVDL);
+            when(model.getMailFixe()).thenReturn("user@region.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@region.fr");
+            when(model.isNtPass()).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("CVDL + ntPass=false → mdp=false")
+        void cvdlWithoutNtPassIsMdpFalse() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.CVDL);
+            when(model.getMailFixe()).thenReturn("user@region.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@region.fr");
+            when(model.isNtPass()).thenReturn(false);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isFalse();
+        }
+
+        @Test
+        @DisplayName("EDUCATION + autre domaine + ntPass=true → mdp=true")
+        void educationOtherDomainWithNtPass() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
+            when(model.getMailFixe()).thenReturn("user@other-domain.fr");
+            when(aPersonneBase.getEmail()).thenReturn("user@other-domain.fr");
+            when(model.isNtPass()).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("AGRI + ntPass=true → mdp=true (ntPass débloque)")
+        void agriWithNtPass() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.AGRI);
+            lenient().when(model.getMailFixe()).thenReturn("user@educagri.fr");
+            lenient().when(aPersonneBase.getEmail()).thenReturn("user@educagri.fr");
+            when(model.isNtPass()).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("ELEVE_EDUC + ntPass=true → mdp=true (ntPass débloque)")
+        void eleveEducWithNtPass() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
+            lenient().when(model.getMailFixe()).thenReturn("eleve@ac-orleans-tours.fr");
+            lenient().when(aPersonneBase.getEmail()).thenReturn("eleve@ac-orleans-tours.fr");
+            when(model.isNtPass()).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
+
+        @Test
+        @DisplayName("PARENT_EDUC + ntPass=true → mdp=true (ntPass débloque)")
+        void parentEducWithNtPass() {
+            when(model.getEnumPublic()).thenReturn(EnumPublic.PARENT_EDUC);
+            lenient().when(model.getMailFixe()).thenReturn("parent@ac-orleans-tours.fr");
+            lenient().when(aPersonneBase.getEmail()).thenReturn("parent@ac-orleans-tours.fr");
+            when(model.isNtPass()).thenReturn(true);
+
+            UserDTO result = factory.from(model, extModel);
+
+            assertThat(result.getMdp()).isTrue();
+        }
     }
 
     @Nested
@@ -654,7 +758,7 @@ class UserDTOFactoryImplTest {
         void passwordChangeBlockedForProfile(EnumPublic pub, String mailFixe) {
             when(soffitHolder.getSub()).thenReturn("testSub");
             when(model.getEnumPublic()).thenReturn(pub);
-            when(model.getMailFixe()).thenReturn(mailFixe);
+            lenient().when(model.getMailFixe()).thenReturn(mailFixe);
             when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
 
             assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
@@ -669,7 +773,7 @@ class UserDTOFactoryImplTest {
         void passwordChangeAllowedForProfile(EnumPublic pub, String mailFixe) {
             when(soffitHolder.getSub()).thenReturn("testSub");
             when(model.getEnumPublic()).thenReturn(pub);
-            when(model.getMailFixe()).thenReturn(mailFixe);
+            lenient().when(model.getMailFixe()).thenReturn(mailFixe);
             when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
 
             PasswordChangeRequestDTO req = new PasswordChangeRequestDTO();
@@ -1129,6 +1233,82 @@ class UserDTOFactoryImplTest {
 
             eval(p);
             assertThat(p.isSSHAPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("ntPass : CVDL + regex + isMemberOf match → ntPass=true")
+        void ntPassCvdlMatch() {
+            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null);
+            IExternalUser ext = mock(IExternalUser.class);
+            when(ext.getAttribute("isMemberOf")).thenReturn(List.of("nt-users"));
+            p.setExtUser(ext);
+            ReflectionTestUtils.setField(factory, "groupsWithNtPassword", Pattern.compile("nt-users"));
+
+            eval(p);
+            assertThat(p.isNtPass()).isTrue();
+        }
+
+        @Test
+        @DisplayName("ntPass : CVDL + regex + no match → ntPass=false")
+        void ntPassCvdlNoMatch() {
+            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null);
+            IExternalUser ext = mock(IExternalUser.class);
+            when(ext.getAttribute("isMemberOf")).thenReturn(List.of("other-group"));
+            p.setExtUser(ext);
+            ReflectionTestUtils.setField(factory, "groupsWithNtPassword", Pattern.compile("nt-users"));
+
+            eval(p);
+            assertThat(p.isNtPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("ntPass : GIP + regex + isMemberOf match → ntPass=true")
+        void ntPassGipMatch() {
+            PersonneDTO p = modelWithDomSource("Enseignant", null, DomSource.GIP);
+            IExternalUser ext = mock(IExternalUser.class);
+            when(ext.getAttribute("isMemberOf")).thenReturn(List.of("gip-nt"));
+            p.setExtUser(ext);
+            ReflectionTestUtils.setField(factory, "groupsWithNtPassword", Pattern.compile("gip-nt"));
+
+            eval(p);
+            assertThat(p.isNtPass()).isTrue();
+        }
+
+        @Test
+        @DisplayName("ntPass : non-CVDL non-GIP → ntPass=false")
+        void ntPassNotCvdlNorGip() {
+            PersonneDTO p = modelWithDomSource("Enseignant", null, DomSource.AC);
+            IExternalUser ext = mock(IExternalUser.class);
+            lenient().when(ext.getAttribute("isMemberOf")).thenReturn(List.of("nt-users"));
+            p.setExtUser(ext);
+            ReflectionTestUtils.setField(factory, "groupsWithNtPassword", Pattern.compile("nt-users"));
+
+            eval(p);
+            assertThat(p.isNtPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("ntPass : regex null → ntPass=false")
+        void ntPassRegexNull() {
+            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null);
+            IExternalUser ext = mock(IExternalUser.class);
+            lenient().when(ext.getAttribute("isMemberOf")).thenReturn(List.of("nt-users"));
+            p.setExtUser(ext);
+            ReflectionTestUtils.setField(factory, "groupsWithNtPassword", null);
+
+            eval(p);
+            assertThat(p.isNtPass()).isFalse();
+        }
+
+        @Test
+        @DisplayName("ntPass : extUser null → ntPass=false")
+        void ntPassNoExtUser() {
+            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null);
+            p.setExtUser(null);
+            ReflectionTestUtils.setField(factory, "groupsWithNtPassword", Pattern.compile("nt-users"));
+
+            eval(p);
+            assertThat(p.isNtPass()).isFalse();
         }
     }
 }
