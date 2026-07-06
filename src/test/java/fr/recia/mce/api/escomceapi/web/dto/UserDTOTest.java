@@ -37,7 +37,7 @@ class UserDTOTest {
         Date bod = new Date();
         UserDTO dto = new UserDTO(1L, "testuser", "Test User", "John", "Doe", "M.", "ENS",
                 true, "jdoe", "0450001A", "john@test.com", "john.perso@test.com", bod,
-                "avatar123", "ACTIF", true, null,
+                "avatar123", "ACTIF", true,
                 List.of("public1"), List.of("menu1"),
                 null, null, null, null);
 

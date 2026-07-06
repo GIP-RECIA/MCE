@@ -370,7 +370,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             model.getAvatarUrl(),
             base.getEtat(),
             passEditable,
-            model.isNtPass(),
             userPublic,
             listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
 

@@ -47,7 +47,6 @@ public class UserDTO {
     private String avatarUrl;
     private String etat;
     private Boolean mdp;
-    private Boolean ntPass;
     private List<String> userPublic;
     private List<String> listMenu;
     private InfoGeneralDTO fonctionClassesGroupe;
@@ -57,7 +56,7 @@ public class UserDTO {
 
     public UserDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, Boolean canEditEmail,
             String identifiant, String etab, String email, String emailPersonnel, Date bod,
-            String avatar, String etat, Boolean mdp, Boolean ntPass, List<String> userPublic, List<String> listMenu,
+            String avatar, String etat, Boolean mdp, List<String> userPublic, List<String> listMenu,
             InfoGeneralDTO fonctionClassesGroupe,
             List<RelationEleveContact> parentEleve,
             List<RelationEleveContact> relationEleve,
@@ -79,7 +78,6 @@ public class UserDTO {
         this.avatar = avatar;
         this.etat = etat;
         this.mdp = mdp;
-        this.ntPass = ntPass;
         this.userPublic = userPublic;
         this.listMenu = listMenu;
         this.fonctionClassesGroupe = fonctionClassesGroupe;
@@ -126,7 +124,7 @@ public class UserDTO {
     public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String email, String emailPersonnel, Date bod,
             String avatar, String etat, List<String> listMenu) {
         this(id, uid, userName, null, null, null, null, null, identifiant, etab, email, emailPersonnel, bod, avatar, etat,
-                null, null, null, listMenu, null, null, null, null);
+                null, null, listMenu, null, null, null, null);
     }
 
     @Override
