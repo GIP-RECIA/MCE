@@ -158,9 +158,9 @@ public class PasswordService {
             throw e;
 
         } catch (Exception e) {
-            specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe",
-                    uid);
-            throw new RuntimeException("Erreur technique lors de la vérification", e);
+            specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe | Détail : {}",
+                    uid, e.getMessage());
+            throw new RuntimeException("Erreur technique lors de la vérification : " + e.getMessage());
         }
 
         try {
@@ -194,9 +194,9 @@ public class PasswordService {
             throw e;
 
         } catch (Exception e) {
-            specialLog.error("Audit [CHANGE_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la mise à jour du mot de passe",
-                    uid);
-            throw new RuntimeException("Erreur technique", e);
+            specialLog.error("Audit [CHANGE_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la mise à jour du mot de passe | Détail : {}",
+                    uid, e.getMessage());
+            throw new RuntimeException("Erreur technique : " + e.getMessage());
         }
     }
     // ---------------------------------------------------------------
@@ -252,9 +252,9 @@ public class PasswordService {
             return PREFIXCODE + new String(Base64.encodeBase64(combined, false), StandardCharsets.UTF_8);
 
         } catch (NoSuchAlgorithmException e) {
-            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé | Détail : algorithme requis pour SSHA cause = {}",
+            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : Algorithme SHA-1 non trouvé | Détail : {}",
                     e.getMessage());
-            throw new RuntimeException("Erreur SSHA", e);
+            throw new RuntimeException("Erreur SSHA : " + e.getMessage());
         }
     }
 
@@ -278,7 +278,14 @@ public class PasswordService {
             return false;
         }
 
-        Pattern pattern = Pattern.compile(regex);
+        Pattern pattern;
+        try {
+            pattern = Pattern.compile(regex);
+        } catch (PatternSyntaxException e) {
+            specialLog.error("Audit [REQUIRES_SSHA] : ÉCHEC pour l'utilisateur [{}] - Raison : Motif regex invalide | Détail : {}", uid, e.getMessage());
+            return false;
+        }
+
         List<String> groups = person.getExtUser()
                 .getAttribute(externalUserHelper.getUserGroupAttribute());
 
@@ -313,18 +320,13 @@ public class PasswordService {
             return Hexdump.toHexString(lm, 0, lm.length * 2).toLowerCase();
         } catch (Exception e) {
             specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : La génération du hash LM a échoué | Détail : {}", e.getMessage());
-            throw new IllegalStateException("Impossible de générer le LM hash", e);
+            throw new RuntimeException("Erreur technique : " + e.getMessage());
         }
     }
 
     private String makeNtHash(String password) {
-        try {
-            byte[] nt = getNTLMResponse(password);
-            return Hexdump.toHexString(nt, 0, nt.length * 2).toLowerCase();
-        } catch (Exception e) {
-            specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : La génération du hash NT a échoué | Détail : {}", e.getMessage());
-            return null;
-        }
+        byte[] nt = getNTLMResponse(password);
+        return Hexdump.toHexString(nt, 0, nt.length * 2).toLowerCase();
     }
 
     /** Clé constante DES de l'algorithme NTLM **/
@@ -367,6 +369,7 @@ public class PasswordService {
             md4.digest(p16, 0, 16);
         } catch (Exception e) {
             specialLog.error("Audit [GENERATE_PASSWORD] : ABANDONNÉ - Raison : L'empreinte MD4 a échoué pour NTLM | Détail : {}", e.getMessage());
+            throw new RuntimeException("Erreur technique : " + e.getMessage());
         }
         return p16;
     }

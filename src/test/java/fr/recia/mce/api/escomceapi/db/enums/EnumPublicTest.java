@@ -58,4 +58,22 @@ class EnumPublicTest {
         assertThat(profile.isEduconnect()).isFalse();
     }
 
+    @ParameterizedTest(name = "{0} → isPassEtab=true")
+    @EnumSource(value = EnumPublic.class, names = {
+            "EDUCATION", "AGRI", "CVDL", "PERSONNEL", "ELEVE_EDUC", "APPRENANT", "ELEVE"
+    })
+    @DisplayName("Profils avec changement de mot de passe établissement")
+    void profilesWithPassEtab(EnumPublic profile) {
+        assertThat(profile.isPassEtab()).isTrue();
+    }
+
+    @ParameterizedTest(name = "{0} → isPassEtab=false")
+    @EnumSource(value = EnumPublic.class, names = {
+            "PARENT", "PARENT_EDUC", "EXTERIEUR", "AUTRE"
+    })
+    @DisplayName("Profils sans changement de mot de passe établissement")
+    void profilesWithoutPassEtab(EnumPublic profile) {
+        assertThat(profile.isPassEtab()).isFalse();
+    }
+
 }

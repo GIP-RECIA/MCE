@@ -46,8 +46,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+import org.mockito.ArgumentCaptor;
+
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -616,6 +619,42 @@ class PasswordServiceTest {
                 verify(cerberePasswordRepository, never()).saveAndFlush(any(CerberePassword.class));
                 verify(cerberePasswordRepository).updatePasswordForToday(eq(aPersonne.getId()), eq("{ARGON2}newHash"));
             }
+
+            @Test
+            @DisplayName("Doit créer une nouvelle entrée si l'historique est vide")
+            void shouldCreateNewEntryIfEmpty() {
+                when(cerberePasswordRepository.findByAPersonne(aPersonne)).thenReturn(List.of());
+
+                passwordService.savePasswordToHistory(personneDTO, "{ARGON2}newHash");
+
+                ArgumentCaptor<CerberePassword> captor = ArgumentCaptor.forClass(CerberePassword.class);
+                verify(cerberePasswordRepository).saveAndFlush(captor.capture());
+                CerberePassword saved = captor.getValue();
+                assertThat(saved.getAPersonne()).isEqualTo(aPersonne);
+                assertThat(saved.getPassword()).isEqualTo("{ARGON2}newHash");
+                assertThat(saved.getDebut()).isNotNull();
+                assertThat(saved.getFin()).isNull();
+            }
+
+            @Test
+            @DisplayName("Doit créer une nouvelle entrée si aucune entrée n'est datée d'aujourd'hui")
+            void shouldCreateNewEntryIfNoEntryForToday() {
+                CerberePassword entryYesterday = new CerberePassword();
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.DAY_OF_YEAR, -1);
+                entryYesterday.setDebut(cal.getTime());
+
+                when(cerberePasswordRepository.findByAPersonne(aPersonne)).thenReturn(List.of(entryYesterday));
+
+                passwordService.savePasswordToHistory(personneDTO, "{ARGON2}newHash");
+
+                ArgumentCaptor<CerberePassword> captor = ArgumentCaptor.forClass(CerberePassword.class);
+                verify(cerberePasswordRepository).saveAndFlush(captor.capture());
+                CerberePassword saved = captor.getValue();
+                assertThat(saved.getAPersonne()).isEqualTo(aPersonne);
+                assertThat(saved.getPassword()).isEqualTo("{ARGON2}newHash");
+                assertThat(saved.getDebut()).isNotNull();
+            }
         }
 
         @Nested
@@ -884,7 +923,7 @@ class PasswordServiceTest {
 
             assertThatThrownBy(() -> passwordService.changePassword(personneDTO, req))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Erreur technique");
+                    .hasMessageContaining("Erreur technique");
         }
 
         @Test
@@ -898,7 +937,7 @@ class PasswordServiceTest {
 
             assertThatThrownBy(() -> passwordService.changePassword(personneDTO, req))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Erreur technique");
+                    .hasMessageContaining("Erreur technique");
         }
     }
 
@@ -950,8 +989,7 @@ class PasswordServiceTest {
                     }
                 })
                         .isInstanceOf(RuntimeException.class)
-                        .hasMessageContaining("Erreur SSHA")
-                        .hasCauseInstanceOf(NoSuchAlgorithmException.class);
+                        .hasMessageContaining("Erreur SSHA");
             }
         }
     }
