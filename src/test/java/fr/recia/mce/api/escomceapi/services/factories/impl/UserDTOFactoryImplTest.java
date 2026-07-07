@@ -1310,5 +1310,89 @@ class UserDTOFactoryImplTest {
             eval(p);
             assertThat(p.isNtPass()).isFalse();
         }
+
+        @Test
+        @DisplayName("PARENT + null ds → PARENT")
+        void parentNullDs() {
+            assertThat(eval(modelWithDomSource("Personne_relation_eleve", null, null))).isEqualTo(EnumPublic.PARENT);
+        }
+
+        @Test
+        @DisplayName("PROF + null ds → PERSONNEL")
+        void profNullDs() {
+            PersonneDTO p = createModel("Enseignant", null);
+            p.setStructureDto(null);
+            assertThat(eval(p)).isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_ETAB + AC + !isLocalUser → EDUCATION")
+        void nonProfEtabAcNonLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_etablissement", "ENT-Externe", DomSource.AC)))
+                    .isEqualTo(EnumPublic.EDUCATION);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_ETAB + LA + isLocalUser → PERSONNEL")
+        void nonProfEtabLaLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_etablissement", "SarapisUi-Orleans", DomSource.LA)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_ETAB + default ds → PERSONNEL")
+        void nonProfEtabDefaultDs() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_etablissement", null, DomSource.CFA)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_ETAB + null ds → PERSONNEL")
+        void nonProfEtabNullDs() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_etablissement", null, null)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_ACAD + AC + !isLocalUser → EDUCATION")
+        void nonProfAcadAcNonLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_service_academique", "ENT-Externe", DomSource.AC)))
+                    .isEqualTo(EnumPublic.EDUCATION);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_ACAD + LA + isLocalUser → PERSONNEL")
+        void nonProfAcadLaLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_service_academique", "SarapisUi-Orleans", DomSource.LA)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + !isRegion + AC + isLocalUser → PERSONNEL (fallthrough NON_PROF_ETAB)")
+        void nonProfColLocalNonRegionAcLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-Paris", DomSource.AC)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + !isRegion + AC + !isLocalUser → EDUCATION (fallthrough NON_PROF_ETAB)")
+        void nonProfColLocalNonRegionAcNonLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-Externe", DomSource.AC)))
+                    .isEqualTo(EnumPublic.EDUCATION);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + !isRegion + LA + isLocalUser → PERSONNEL (fallthrough NON_PROF_ETAB)")
+        void nonProfColLocalNonRegionLaLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-Orleans", DomSource.LA)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + !isRegion + LA + !isLocalUser → AGRI (fallthrough NON_PROF_ETAB)")
+        void nonProfColLocalNonRegionLaNonLocal() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-Agri", DomSource.LA)))
+                    .isEqualTo(EnumPublic.AGRI);
+        }
     }
 }

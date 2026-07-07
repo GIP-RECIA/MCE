@@ -28,8 +28,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Optional;
@@ -37,8 +39,6 @@ import java.util.Optional;
 @Service
 @Slf4j
 public class EmailVerificationService {
-
-    private static final int CODE_BYTES = 32;
 
     @Autowired
     private JavaMailSender mailSender;
@@ -57,14 +57,27 @@ public class EmailVerificationService {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
+    private String hashCode(String code) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                hexString.append(String.format("%02x", b));
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 non disponible", e);
+        }
+    }
+
     public String getVerificationFrontendUrl() {
         return mailProperties.getVerification().getFrontendUrl();
     }
 
     public String generateVerificationCode() {
-        byte[] bytes = new byte[CODE_BYTES];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        int code = secureRandom.nextInt(1_000_000);
+        return String.format("%06d", code);
     }
 
     @Transactional
@@ -75,6 +88,7 @@ public class EmailVerificationService {
         }
 
         String code = generateVerificationCode();
+        String hashedCode = hashCode(code);
 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.HOUR_OF_DAY, (int) mailProperties.getVerification().getExpiryHours());
@@ -84,22 +98,19 @@ public class EmailVerificationService {
 
         CerbereConfirmation confirmation = new CerbereConfirmation();
         confirmation.setAPersonne(person);
-        confirmation.setCode(code);
+        confirmation.setCode(hashedCode);
         confirmation.setMail(email);
         confirmation.setLimite(limite);
         confirmation.setConfirmation(null);
         confirmation.setEditor(person);
         cerbereConfirmationRepository.save(confirmation);
 
-        sendEmail(email, code, uid);
+        sendEmail(email, code);
 
         log.info("Email de verification envoye a {} pour l'utilisateur [uid={}]", email, uid);
     }
 
-    private void sendEmail(String to, String code, String uid) {
-        String verificationUrl = mailProperties.getVerification().getBaseUrl()
-                + "?uid=" + uid + "&code=" + code;
-
+    private void sendEmail(String to, String code) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailProperties.getFromEmail());
         message.setTo(to);
@@ -107,9 +118,9 @@ public class EmailVerificationService {
         message.setText(
                 "Bonjour,\n\n"
                         + "Vous avez demande la verification de votre adresse email.\n\n"
-                        + "Veuillez cliquer sur le lien suivant pour confirmer votre adresse :\n"
-                        + verificationUrl + "\n\n"
-                        + "Ce lien est valable " + mailProperties.getVerification().getExpiryHours() + " heures.\n\n"
+                        + "Votre code de verification est : " + code + "\n\n"
+                        + "Veuillez saisir ce code sur la page de verification pour confirmer votre adresse.\n\n"
+                        + "Ce code est valable " + mailProperties.getVerification().getExpiryHours() + " heures.\n\n"
                         + "Si vous n'etes pas a l'origine de cette demande, ignorez cet email.\n\n"
                         + "Cordialement,\n"
                         + "Votre equipe support");
@@ -130,8 +141,9 @@ public class EmailVerificationService {
             throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
         }
 
+        String hashedCode = hashCode(code);
         Optional<CerbereConfirmation> optConfirmation =
-                cerbereConfirmationRepository.findPendingByPersonIdAndCode(person.getId(), code);
+                cerbereConfirmationRepository.findPendingByPersonIdAndCode(person.getId(), hashedCode);
 
         if (optConfirmation.isEmpty()) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code invalide ou déjà utilisé (code={})", uid, code);

@@ -52,6 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -533,34 +534,51 @@ class PersonneRestControllerTest {
     class VerifyEmailTests {
 
         @Test
-        @DisplayName("Vérification d'email réussie → redirection frontend")
+        @DisplayName("Vérification d'email réussie → retourne SUCCESS")
         void shouldVerifyEmailSuccessfully() throws Exception {
-            when(emailVerificationService.getVerificationFrontendUrl())
-                    .thenReturn("https://portail/verification-email");
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setUid(USER);
+            request.setCode("123456");
 
-            mockMvc.perform(get(BASE_URL + "verify-email")
-                    .param("uid", USER)
-                    .param("code", "validCode123"))
-                    .andExpect(status().isFound())
-                    .andExpect(header().string("Location", "https://portail/verification-email?status=success"));
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("SUCCESS"))
+                    .andExpect(jsonPath("$.message").value("Email verifie avec succes"));
 
-            verify(emailVerificationService).verifyEmail(USER, "validCode123");
+            verify(emailVerificationService).verifyEmail(USER, "123456");
         }
 
         @Test
-        @DisplayName("Échec : code invalide → redirection frontend avec erreur")
+        @DisplayName("Échec : code invalide → retourne 400")
         void shouldFailWhenCodeInvalid() throws Exception {
-            when(emailVerificationService.getVerificationFrontendUrl())
-                    .thenReturn("https://portail/verification-email");
-            doThrow(new IllegalArgumentException("Code invalide"))
-                    .when(emailVerificationService).verifyEmail(USER, "badCode");
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setUid(USER);
+            request.setCode("000000");
 
-            mockMvc.perform(get(BASE_URL + "verify-email")
-                    .param("uid", USER)
-                    .param("code", "badCode"))
-                    .andExpect(status().isFound())
-                    .andExpect(header().string("Location",
-                            "https://portail/verification-email?status=error&message=Code+invalide"));
+            doThrow(new IllegalArgumentException("Code de verification invalide ou deja utilise"))
+                    .when(emailVerificationService).verifyEmail(USER, "000000");
+
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VERIFICATION_FAILED"))
+                    .andExpect(jsonPath("$.message").value("Code de verification invalide ou deja utilise"));
+        }
+
+        @Test
+        @DisplayName("Échec : code non conforme (pas 6 chiffres) → 400")
+        void shouldFailWhenCodeNot6Digits() throws Exception {
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setUid(USER);
+            request.setCode("abc");
+
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
         }
     }
 

@@ -35,7 +35,6 @@ public class MailProperties {
 
     @Data
     public static class Verification {
-        private String baseUrl;
         private String frontendUrl;
         private long expiryHours = 24;
     }

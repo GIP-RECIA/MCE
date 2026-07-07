@@ -34,6 +34,9 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -84,10 +87,23 @@ class EmailVerificationServiceTest {
         person.setUid(uid);
 
         MailProperties.Verification verification = new MailProperties.Verification();
-        verification.setBaseUrl("https://portail/verification-email");
         verification.setExpiryHours(24);
         lenient().when(mailProperties.getVerification()).thenReturn(verification);
         lenient().when(mailProperties.getFromEmail()).thenReturn("noreply@mce.fr");
+    }
+
+    private String sha256(String code) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                hexString.append(String.format("%02x", b));
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Nested
@@ -95,10 +111,11 @@ class EmailVerificationServiceTest {
     class GenerateVerificationCodeTests {
 
         @Test
-        @DisplayName("Génère un code non null, non vide, URL-safe")
-        void generatesValidCode() {
+        @DisplayName("Génère un code à 6 chiffres")
+        void generates6DigitCode() {
             String code = service.generateVerificationCode();
-            assertThat(code).isNotNull().isNotEmpty();
+            assertThat(code).isNotNull().hasSize(6);
+            assertThat(code).matches("\\d{6}");
         }
     }
 
@@ -121,7 +138,8 @@ class EmailVerificationServiceTest {
             CerbereConfirmation saved = confirmationCaptor.getValue();
             assertThat(saved.getAPersonne()).isEqualTo(person);
             assertThat(saved.getMail()).isEqualTo(email);
-            assertThat(saved.getCode()).isNotNull();
+            assertThat(saved.getCode()).isNotNull().hasSize(64);
+            assertThat(saved.getCode()).matches("[0-9a-f]{64}");
             assertThat(saved.getConfirmation()).isNull();
             assertThat(saved.getLimite()).isAfter(new Date());
 
@@ -129,7 +147,8 @@ class EmailVerificationServiceTest {
             assertThat(msg.getTo()).containsExactly(email);
             assertThat(msg.getFrom()).isEqualTo("noreply@mce.fr");
             assertThat(msg.getSubject()).contains("Verification");
-            assertThat(msg.getText()).contains("https://portail/verification-email?uid=" + uid);
+            assertThat(msg.getText()).contains("Votre code de verification est :");
+            assertThat(msg.getText()).doesNotContain("http");
         }
 
         @Test
@@ -165,14 +184,15 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Succès : confirme l'email et appelle updateEmail")
         void success() {
-            String code = "validCode";
+            String code = "123456";
+            String hashedCode = sha256(code);
             CerbereConfirmation confirmation = new CerbereConfirmation();
-            confirmation.setCode(code);
+            confirmation.setCode(hashedCode);
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
 
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
-            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, code))
+            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, hashedCode))
                     .thenReturn(Optional.of(confirmation));
 
             service.verifyEmail(uid, code);
@@ -197,11 +217,14 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Échec : code invalide")
         void invalidCode() {
+            String badCode = "999999";
+            String hashedBadCode = sha256(badCode);
+
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
-            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, "badCode"))
+            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, hashedBadCode))
                     .thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> service.verifyEmail(uid, "badCode"))
+            assertThatThrownBy(() -> service.verifyEmail(uid, badCode))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Code de verification invalide");
 
@@ -211,14 +234,15 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Échec : code expiré")
         void expiredCode() {
-            String code = "expiredCode";
+            String code = "654321";
+            String hashedCode = sha256(code);
             CerbereConfirmation confirmation = new CerbereConfirmation();
-            confirmation.setCode(code);
+            confirmation.setCode(hashedCode);
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().minus(1, ChronoUnit.HOURS)));
 
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
-            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, code))
+            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, hashedCode))
                     .thenReturn(Optional.of(confirmation));
 
             assertThatThrownBy(() -> service.verifyEmail(uid, code))

@@ -27,6 +27,7 @@ import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -201,34 +202,28 @@ public class PersonneRestController {
     }
 
     /**
-     * Vérifie une adresse email avec le code reçu par email.
+     * Vérifie une adresse email avec le code à 6 chiffres reçu par email.
      *
-     * @param uid
-     *            UID de l'utilisateur
-     * @param code
-     *            code de vérification
+     * @param request
+     *            objet contenant l'UID et le code de vérification
      */
-    @GetMapping("/verify-email")
+    @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(
-        @RequestParam String uid,
-        @RequestParam String code) {
+        @Valid @RequestBody VerifyEmailRequestDTO request) {
+
+        String uid = request.getUid();
+        String code = request.getCode();
 
         log.debug("[VERIFY_EMAIL] Réception requête pour uid={} avec code={}", uid, code);
-
-        String frontendUrl = emailVerificationService.getVerificationFrontendUrl();
 
         try {
             emailVerificationService.verifyEmail(uid, code);
             log.info("[VERIFY_EMAIL] SUCCÈS uid={}", uid);
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(java.net.URI.create(frontendUrl + "?status=success"))
-                    .build();
+            return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifie avec succes"));
         } catch (IllegalArgumentException e) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : {}", uid, e.getMessage());
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(java.net.URI.create(frontendUrl + "?status=error&message="
-                            + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8)))
-                    .build();
+            return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VERIFICATION_FAILED", e.getMessage()));
         }
     }
 
