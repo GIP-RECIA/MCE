@@ -38,7 +38,6 @@ class UserDTOFullConstructorTest {
     @Test
     void fullConstructorWithPopulatedRelationLists() {
         List<String> userPublic = List.of("PUBLIC");
-        List<String> listMenu = List.of("MENU1", "MENU2");
         InfoGeneralDTO info = new InfoGeneralDTO();
         List<RelationEleveContact> parentEleve = List.of(relation("p1", "Parent One", "PERE"));
         List<RelationEleveContact> relationEleve = List.of(relation("e1", "Eleve One", "ENFANT"));
@@ -47,7 +46,7 @@ class UserDTOFullConstructorTest {
 
         UserDTO dto = new UserDTO(1L, "uid", "userName", "given", "sn", "M.", "ELEVE", true,
                 "ident", "0450001A", "mail@x.fr", "perso@x.fr", bod,
-                "avatar", "etat", false, userPublic, listMenu, info,
+                "avatar", "etat", false, userPublic, info,
                 parentEleve, relationEleve, apprentis);
 
         assertThat(dto.getId()).isEqualTo(1L);
@@ -67,7 +66,6 @@ class UserDTOFullConstructorTest {
         assertThat(dto.getEtat()).isEqualTo("etat");
         assertThat(dto.getMdp()).isFalse();
         assertThat(dto.getUserPublic()).containsExactly("PUBLIC");
-        assertThat(dto.getListMenu()).containsExactly("MENU1", "MENU2");
         assertThat(dto.getFonctionClassesGroupe()).isSameAs(info);
         assertThat(dto.getParentEleve()).hasSize(1);
         assertThat(dto.getRelationEleve()).hasSize(1);
@@ -79,7 +77,7 @@ class UserDTOFullConstructorTest {
     void fullConstructorWithNullRelationLists() {
         UserDTO dto = new UserDTO(2L, "uid2", "user2", "given2", "sn2", "Mme", "ENS", false,
                 "ident2", "etab2", "mail2@x.fr", "perso2@x.fr", new Date(),
-                "avatar2", "etat2", true, null, null, null,
+                "avatar2", "etat2", true, null, null,
                 null, null, null);
 
         assertThat(dto.getId()).isEqualTo(2L);

@@ -38,7 +38,7 @@ class UserDTOTest {
         UserDTO dto = new UserDTO(1L, "testuser", "Test User", "John", "Doe", "M.", "ENS",
                 true, "jdoe", "0450001A", "john@test.com", "john.perso@test.com", bod,
                 "avatar123", "ACTIF", true,
-                List.of("public1"), List.of("menu1"),
+                List.of("public1"),
                 null, null, null, null);
 
         assertThat(dto.getId()).isEqualTo(1L);
@@ -58,7 +58,6 @@ class UserDTOTest {
         assertThat(dto.getEtat()).isEqualTo("ACTIF");
         assertThat(dto.getMdp()).isTrue();
         assertThat(dto.getUserPublic()).containsExactly("public1");
-        assertThat(dto.getListMenu()).containsExactly("menu1");
     }
 
     @Test
@@ -66,7 +65,7 @@ class UserDTOTest {
         Date bod = new Date();
         UserDTO dto = new UserDTO(1L, "testuser", "Test User", "jdoe", "0450001A",
                 "john@test.com", "john.perso@test.com", bod,
-                "avatar123", "ACTIF", List.of("menu1"));
+                "avatar123", "ACTIF");
 
         assertThat(dto.getId()).isEqualTo(1L);
         assertThat(dto.getUid()).isEqualTo("testuser");
@@ -78,7 +77,6 @@ class UserDTOTest {
         assertThat(dto.getBod()).isEqualTo(bod);
         assertThat(dto.getAvatar()).isEqualTo("avatar123");
         assertThat(dto.getEtat()).isEqualTo("ACTIF");
-        assertThat(dto.getListMenu()).containsExactly("menu1");
         assertThat(dto.getGivenName()).isNull();
         assertThat(dto.getSn()).isNull();
         assertThat(dto.getMdp()).isNull();
@@ -87,7 +85,7 @@ class UserDTOTest {
     @Test
     void testToString() {
         UserDTO dto = new UserDTO(1L, "testuser", "Test User", "jdoe", "0450001A",
-                "john@test.com", null, null, null, "ACTIF", null);
+                "john@test.com", null, null, null, "ACTIF");
 
         String str = dto.toString();
 
@@ -98,10 +96,10 @@ class UserDTOTest {
     void testSettersAndGetters() {
         UserDTO dto = new UserDTO();
         dto.setUid("newuser");
-        dto.setAvatarUrl("https://example.com/avatar.jpg");
+        dto.setAvatar("https://example.com/avatar.jpg");
 
         assertThat(dto.getUid()).isEqualTo("newuser");
-        assertThat(dto.getAvatarUrl()).isEqualTo("https://example.com/avatar.jpg");
+        assertThat(dto.getAvatar()).isEqualTo("https://example.com/avatar.jpg");
     }
 
 }

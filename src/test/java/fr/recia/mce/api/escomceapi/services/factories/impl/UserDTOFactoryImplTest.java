@@ -731,7 +731,7 @@ class UserDTOFactoryImplTest {
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getAvatarUrl()).isEqualTo("http://photo.url");
+            assertThat(result.getAvatar()).isEqualTo("http://photo.url");
         }
 
         @Test
@@ -744,7 +744,7 @@ class UserDTOFactoryImplTest {
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getAvatarUrl()).isNull();
+            assertThat(result.getAvatar()).isNull();
         }
     }
 
@@ -946,22 +946,6 @@ class UserDTOFactoryImplTest {
         @DisplayName("personneDTO null → null")
         void nullPersonneDTO() {
             assertThat(factory.showGeneralInfo()).isNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("listMenuTab")
-    class ListMenuTabTests {
-
-        @Test
-        @DisplayName("Catégorie ELEVE → menu non null dans le UserDTO")
-        void eleveMenu() {
-            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
-            when(model.getMailFixe()).thenReturn(null);
-            when(aPersonneBase.getEmail()).thenReturn("user@test.fr");
-
-            UserDTO result = factory.from(model, extModel);
-            assertThat(result).isNotNull();
         }
     }
 

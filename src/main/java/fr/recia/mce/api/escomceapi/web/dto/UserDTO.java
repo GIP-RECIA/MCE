@@ -44,11 +44,9 @@ public class UserDTO {
     private String etab;
     private Date bod;
     private String avatar;
-    private String avatarUrl;
     private String etat;
     private Boolean mdp;
     private List<String> userPublic;
-    private List<String> listMenu;
     private InfoGeneralDTO fonctionClassesGroupe;
     private List<RelationEleveContact> parentEleve;
     private List<RelationEleveContact> relationEleve;
@@ -56,7 +54,7 @@ public class UserDTO {
 
     public UserDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, Boolean canEditEmail,
             String identifiant, String etab, String email, String emailPersonnel, Date bod,
-            String avatar, String etat, Boolean mdp, List<String> userPublic, List<String> listMenu,
+            String avatar, String etat, Boolean mdp, List<String> userPublic,
             InfoGeneralDTO fonctionClassesGroupe,
             List<RelationEleveContact> parentEleve,
             List<RelationEleveContact> relationEleve,
@@ -79,13 +77,12 @@ public class UserDTO {
         this.etat = etat;
         this.mdp = mdp;
         this.userPublic = userPublic;
-        this.listMenu = listMenu;
         this.fonctionClassesGroupe = fonctionClassesGroupe;
         this.parentEleve = parentEleve;
         this.relationEleve = relationEleve;
         this.apprentis = apprentis;
 
-        log.debug("UserDTO construit - uid={} | etab={} | menu={}", uid, etab, listMenu);
+        log.debug("UserDTO construit - uid={} | etab={}", uid, etab);
 
         log.debug("parentEleve (ELEVE → CONTACT) : {} élément(s)",
                 parentEleve != null ? parentEleve.size() : 0);
@@ -122,9 +119,9 @@ public class UserDTO {
     }
 
     public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String email, String emailPersonnel, Date bod,
-            String avatar, String etat, List<String> listMenu) {
+            String avatar, String etat) {
         this(id, uid, userName, null, null, null, null, null, identifiant, etab, email, emailPersonnel, bod, avatar, etat,
-                null, null, listMenu, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     @Override

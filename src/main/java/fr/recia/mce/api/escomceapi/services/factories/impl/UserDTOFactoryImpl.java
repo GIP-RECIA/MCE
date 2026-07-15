@@ -53,7 +53,6 @@ import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
-import fr.recia.mce.api.escomceapi.services.factories.EnumOnglet;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
@@ -351,8 +350,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         String etab = resolveEtablissementName(model);
         String userIdentifiant = passEditable ? model.getIdentifiant() : null;
         List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
-        String avatarUrl = resolveAvatarUrl(base);
-
         UserDTO user = new UserDTO(
             base.getId(),
             model.getUid(),
@@ -367,13 +364,11 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             resolvedEmail,
             resolvedEmailPersonnel,
             model.getNaissance(),
-            model.getAvatarUrl(),
+            resolveAvatarUrl(base),
             base.getEtat(),
             passEditable,
-            userPublic,
-            listMenuTab(base.getCategorie()), showGeneralInfo(), respEleves, eleves, null);
+            userPublic, showGeneralInfo(), respEleves, eleves, null);
 
-        user.setAvatarUrl(avatarUrl);
         return user;
     }
 
@@ -482,39 +477,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         externalUser = personneService.retrievePersonLdap(uid);
 
         return from(externalUser, true);
-    }
-
-    private List<String> listMenuTab(String code) {
-        List<String> menu = new ArrayList<>();
-
-        EnumCategorie enumCat = EnumCategorie.fromString(code);
-
-        switch (enumCat) {
-            case PROF :
-            case NON_PROF_ACAD :
-            case NON_PROF_ETAB :
-                menu.add(EnumOnglet.GENERALE.name());
-                menu.add(EnumOnglet.SERVICE.name());
-                break;
-            case ELEVE :
-                menu.add(EnumOnglet.GENERALE.name());
-                menu.add(EnumOnglet.SERVICE.name());
-                menu.add(EnumOnglet.PARENT_ELEVE.name());
-                break;
-            case PARENT :
-                menu.add(EnumOnglet.SERVICE.name());
-                menu.add(EnumOnglet.RELATION_ELEVE.name());
-                break;
-            case TUTEUR :
-                menu.add(EnumOnglet.SERVICE.name());
-                menu.add(EnumOnglet.APPRENTIS.name());
-                break;
-            default :
-                menu.add(EnumOnglet.SERVICE.name());
-                break;
-        }
-
-        return menu;
     }
 
     @Override
