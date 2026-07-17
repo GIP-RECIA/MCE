@@ -28,6 +28,7 @@ import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
+import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
@@ -80,6 +81,8 @@ class UserDTOFactoryImplTest {
     private IClasseGroupeService classeGroupeService;
     @Mock
     private IRelationEleveService iRelationEleveService;
+    @Mock
+    private ExternalUserHelper extUserHelper;
     @Mock
     private SoffitHolder soffitHolder;
     @Mock
@@ -148,6 +151,7 @@ class UserDTOFactoryImplTest {
         ReflectionTestUtils.setField(factory, "extDao", extDao);
         ReflectionTestUtils.setField(factory, "classeGroupeService", classeGroupeService);
         ReflectionTestUtils.setField(factory, "soffitHolder", soffitHolder);
+        ReflectionTestUtils.setField(factory, "extUserHelper", extUserHelper);
     }
 
     private UserDTO buildUserDto(EnumPublic pub, String mailFixe) {
@@ -1108,9 +1112,16 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("NON_PROF_COL_LOCAL + isRegion → CVDL")
-        void nonProfColLocalRegion() {
+        @DisplayName("NON_PROF_COL_LOCAL + isRegion + isLocalUser → PERSONNEL")
+        void nonProfColLocalRegionLocalUser() {
             assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + isRegion + !isLocalUser → CVDL")
+        void nonProfColLocalRegionNonLocalUser() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CVDL", null)))
                     .isEqualTo(EnumPublic.CVDL);
         }
 
@@ -1222,7 +1233,7 @@ class UserDTOFactoryImplTest {
         @Test
         @DisplayName("ntPass : CVDL + regex + isMemberOf match → ntPass=true")
         void ntPassCvdlMatch() {
-            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null);
+            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CVDL", null);
             IExternalUser ext = mock(IExternalUser.class);
             when(ext.getAttribute("isMemberOf")).thenReturn(List.of("nt-users"));
             p.setExtUser(ext);
@@ -1235,7 +1246,7 @@ class UserDTOFactoryImplTest {
         @Test
         @DisplayName("ntPass : CVDL + regex + no match → ntPass=false")
         void ntPassCvdlNoMatch() {
-            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CVDL", null);
+            PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CVDL", null);
             IExternalUser ext = mock(IExternalUser.class);
             when(ext.getAttribute("isMemberOf")).thenReturn(List.of("other-group"));
             p.setExtUser(ext);

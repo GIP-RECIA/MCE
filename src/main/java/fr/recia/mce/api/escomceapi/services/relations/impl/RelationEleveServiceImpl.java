@@ -330,6 +330,16 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         List<RelationEleveContact> allApprenti = null;
         IExternalUser personne = personneService.retrievePersonLdap(maitre);
 
+        Long maitreId = null;
+        try {
+            PersonneDTO maitreDto = personneService.retrievePersonnebyUid(maitre);
+            if (maitreDto != null && maitreDto.getAPersonneBase() != null) {
+                maitreId = maitreDto.getAPersonneBase().getId();
+            }
+        } catch (Exception e) {
+            log.warn("Échec du chargement des détails du maître pour l'UID [{}] : Détail : {}", maitre, e.getMessage());
+        }
+
         List<String> dnApprentis = personne.getAttribute(extUserHelper.getUserTuteurEleveAttribute());
 
         if (dnApprentis != null) {
@@ -343,7 +353,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                         try {
                             PersonneDTO eleve = personneService.retrievePersonnebyUid(uid);
                             RelationEleveContact re = new RelationEleveContact(SensRel.CONTACT2ELEVE);
-                            // re.setContact(maitre);
+                            re.setContact(maitreId);
                             re.setEleve(eleve);
                             re.setTypeRelation("Apprenti");
                             re.setDisplayNameRelation(eleve.getDisplayName());

@@ -41,10 +41,12 @@ import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
+import fr.recia.mce.api.escomceapi.db.enums.EnumObjectClass;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
+import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
@@ -82,6 +84,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private IRelationEleveService iRelationEleveService;
+
+    @Autowired
+    private ExternalUserHelper extUserHelper;
 
     private IExternalUser externalUser;
     private PersonneDTO personneDTO;
@@ -247,7 +252,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
             case NON_PROF_COL_LOCAL :
                 if (isRegion) {
-                    res = EnumPublic.CVDL;
+                    res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.CVDL;
                     break;
                 }
             case NON_PROF_ETAB :
@@ -329,8 +334,24 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             return null;
         }
 
-        List<RelationEleveContact> respEleves = resolveRespEleves(extModel);
-        List<RelationEleveContact> eleves = resolveEleves(base);
+        // Détection objectClass AVANT résolution des relations
+        boolean isMaitre = false;
+        List<RelationEleveContact> apprentisList = null;
+        if (extModel != null) {
+            List<String> objectClasses = extModel.getAttribute("objectClass");
+            isMaitre = EnumObjectClass.containsMaitre(objectClasses);
+            if (isMaitre) {
+                apprentisList = iRelationEleveService.allApprentiEnRelation(model.getUid());
+                log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)",
+                        model.getUid(), apprentisList != null ? apprentisList.size() : 0);
+            }
+            log.debug("objectClass [uid={}]: isMaitre={}",
+                    model.getUid(), isMaitre);
+        }
+
+        // isMaitre REMPLACE le profil : pas de parentEleve ni relationEleve
+        List<RelationEleveContact> respEleves = isMaitre ? null : resolveRespEleves(extModel);
+        List<RelationEleveContact> eleves = isMaitre ? null : resolveEleves(base);
 
         EnumPublic pub = model.getEnumPublic();
         boolean passEditable = false;
@@ -348,7 +369,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         String resolvedEmail = resolveEmail(model, extModel, base);
         String resolvedEmailPersonnel = resolveEmailPersonnel(base);
         String etab = resolveEtablissementName(model);
-        String userIdentifiant = passEditable ? model.getIdentifiant() : null;
+        String userIdentifiant = model.getIdentifiant();
         List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
         UserDTO user = new UserDTO(
             base.getId(),
@@ -367,7 +388,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             resolveAvatarUrl(base),
             base.getEtat(),
             passEditable,
-            userPublic, showGeneralInfo(), respEleves, eleves, null);
+            userPublic, showGeneralInfo(), respEleves, eleves, apprentisList);
 
         return user;
     }
