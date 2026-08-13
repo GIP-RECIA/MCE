@@ -45,10 +45,10 @@ public class SoffitInterceptor implements HandlerInterceptor {
 
         String authHeader = request.getHeader("Authorization");
 
-        log.debug("Authorization header received: {}", authHeader);
+        log.debug("En-tête Authorization reçu : présent={}", authHeader != null);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("No valid Bearer token found for path: {}", request.getRequestURI());
+            log.warn("Aucun jeton Bearer valide trouvé pour le chemin : {}", request.getRequestURI());
             return true;
         }
 
@@ -62,7 +62,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
             }
 
             String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
-            log.debug("JWT Payload: {}", payload);
+            log.debug("Payload JWT décodé ({} caractères)", payload.length());
 
             Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
 
@@ -70,22 +70,22 @@ public class SoffitInterceptor implements HandlerInterceptor {
             Long exp = claims.get("exp") != null ? Long.valueOf(claims.get("exp").toString()) : null;
 
             if (sub == null || sub.isBlank()) {
-                log.warn("No 'sub' claim found in token");
+                log.warn("Aucune revendication 'sub' trouvée dans le jeton pour le chemin : {}", request.getRequestURI());
                 soffitHolder.setSub(null);
             } else {
                 soffitHolder.setSub(sub);
-                log.debug("User authenticated via Soffit - sub: {}", sub);
+                log.debug("Utilisateur authentifié via Soffit - sub : {}", sub);
             }
 
             // Vérification expiration (optionnelle, le filtre le fait déjà)
             if (exp != null && exp < Instant.now().getEpochSecond()) {
-                log.warn("Token has expired");
+                log.warn("Jeton expiré pour le chemin : {}", request.getRequestURI());
                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
                 return false;
             }
 
         } catch (Exception e) {
-            log.error("Failed to parse Soffit JWT", e);
+            log.error("Échec du décodage du jeton Soffit pour le chemin : {} - Détail : {}", request.getRequestURI(), e.getMessage());
         }
 
         return true;

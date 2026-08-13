@@ -132,7 +132,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Override
     public APersonne from(@NotNull UserDTO dtObject) {
-        log.debug("Conversion DTO vers modèle pour {}", dtObject);
+        log.debug("Conversion DTO vers modèle pour id={}", dtObject != null ? dtObject.getId() : null);
         if (dtObject != null) {
             Optional<APersonne> optionalAPersonne = daoPersonne.findById(dtObject.getId());
             return optionalAPersonne.orElse(null);
@@ -142,7 +142,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Override
     public UserDTO from(IExternalUser extModel, boolean withInternal) {
-        log.debug("Conversion modèle externe vers DTO pour {}", extModel);
+        log.debug("Conversion modèle externe vers DTO pour uid={}", extModel != null ? extModel.getId() : null);
 
         PersonneDTO model = null;
         if (extModel != null && withInternal) {
@@ -486,7 +486,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Override
     public UserDTO from(@NotNull PersonneDTO model) {
 
-        log.debug("Conversion modèle vers DTO pour {}", model);
+        log.debug("Conversion modèle vers DTO pour uid={}", model.getUid());
         externalUser = personneService.retrievePersonLdap(model.getUid());
         return from(model, externalUser);
     }
@@ -504,13 +504,13 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public InfoGeneralDTO showGeneralInfo() {
 
         if (personneDTO == null) {
-            log.warn("Tentative d'affichage des informations générales mais le contexte PersonneDTO global est nul.");
+            log.warn("Tentative d'affichage des informations générales mais le contexte PersonneDTO global est nul (sub : {}).", soffitHolder.getSub());
             return null;
         }
 
         APersonne base = personneDTO.getAPersonneBase();
         if (base == null) {
-            log.warn("Données de base absentes pour les informations générales.");
+            log.warn("Données de base absentes pour les informations générales (sub : {}).", soffitHolder.getSub());
             return null;
         }
 

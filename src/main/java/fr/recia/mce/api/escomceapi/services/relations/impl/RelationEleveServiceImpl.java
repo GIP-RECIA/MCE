@@ -157,25 +157,16 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                     } else {
                         String uid = m.group(grpUid);
                         RelationEleveContact re = uid2relation.get(uid);
-                        if (log.isDebugEnabled()) {
-                            log.debug("re : {}", re);
-                        }
 
                         if (re == null) {
                             re = new RelationEleveContact(SensRel.ELEVE2CONTACT);
                             // re.setEleve(eleve);
                             re.setUidRelation(uid);
                             uid2relation.put(uid, re);
-                            if (log.isDebugEnabled()) {
-                                log.debug("compteur");
-                            }
                         }
                         re.setAutoriteParental(true);
                         String code = m.group(grpTypRel);
                         re.setTypeRelation(code);
-                        if (log.isDebugEnabled()) {
-                            log.debug("code lien famille = " + code + " " + val);
-                        }
 
                     }
                 }

@@ -32,7 +32,7 @@ public class HealthCheckController {
     @GetMapping(value = "/health-check")
     @ResponseStatus(HttpStatus.OK)
     public void healthCheck(HttpServletRequest request, HttpServletResponse response) {
-        log.debug("Health check. HTTP 200: OK.");
+        log.debug("Vérification de santé : HTTP 200 OK.");
     }
 
 }

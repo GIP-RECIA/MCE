@@ -214,7 +214,7 @@ public class PersonneRestController {
         String uid = request.getUid();
         String code = request.getCode();
 
-        log.debug("[VERIFY_EMAIL] Réception requête pour uid={} avec code={}", uid, code);
+        log.debug("[VERIFY_EMAIL] Réception requête pour uid={}", uid);
 
         try {
             emailVerificationService.verifyEmail(uid, code);
@@ -233,8 +233,8 @@ public class PersonneRestController {
         @RequestParam("file") MultipartFile file) throws Exception {
 
         log.debug("Réception d'une requête d'upload d'avatar pour l'UID [{}]", uid);
-        log.debug("Fichier reçu : nom={}, type={}, taille={} octets",
-            file.getOriginalFilename(), file.getContentType(), file.getSize());
+        log.debug("Fichier reçu pour l'UID [{}] : nom={}, type={}, taille={} octets",
+            uid, file.getOriginalFilename(), file.getContentType(), file.getSize());
 
         String currentUid = getCurrentUid();
         if (!currentUid.equals(uid)) {

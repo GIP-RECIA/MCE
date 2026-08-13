@@ -84,8 +84,8 @@ public class UserDTO {
 
         log.debug("UserDTO construit - uid={} | etab={}", uid, etab);
 
-        log.debug("parentEleve (ELEVE → CONTACT) : {} élément(s)",
-                parentEleve != null ? parentEleve.size() : 0);
+        log.debug("parentEleve (ELEVE → CONTACT) pour uid={} : {} élément(s)",
+                uid, parentEleve != null ? parentEleve.size() : 0);
         if (parentEleve != null) {
             for (RelationEleveContact r : parentEleve) {
                 log.debug("   → parentEleve : uid={} | nom={} | type={}",
@@ -95,8 +95,8 @@ public class UserDTO {
             }
         }
 
-        log.debug("relationEleve (CONTACT → ELEVE) : {} élément(s)",
-                relationEleve != null ? relationEleve.size() : 0);
+        log.debug("relationEleve (CONTACT → ELEVE) pour uid={} : {} élément(s)",
+                uid, relationEleve != null ? relationEleve.size() : 0);
         if (relationEleve != null) {
             for (RelationEleveContact r : relationEleve) {
                 log.debug("   → relationEleve : uid={} | nom={} | type={}",
@@ -106,8 +106,8 @@ public class UserDTO {
             }
         }
 
-        log.debug("apprentis : {} élément(s)",
-                apprentis != null ? apprentis.size() : 0);
+        log.debug("apprentis pour uid={} : {} élément(s)",
+                uid, apprentis != null ? apprentis.size() : 0);
         if (apprentis != null) {
             for (RelationEleveContact r : apprentis) {
                 log.debug("   → apprenti : uid={} | nom={} | type={}",

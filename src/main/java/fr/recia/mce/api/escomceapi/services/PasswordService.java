@@ -183,7 +183,7 @@ public class PasswordService {
                 throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
             }
 
-            PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo);
+            PasswordResult result = generatePassword(request.getNewPass(), withSamba, algo, person.getUid());
 
             // Clore l'ancien mot de passe dans l'historique
             closeLastPassword(person);
@@ -210,7 +210,7 @@ public class PasswordService {
     // Génération du hash
     // ---------------------------------------------------------------
 
-    private PasswordResult generatePassword(String password, boolean withSamba, Algo algo) {
+    private PasswordResult generatePassword(String password, boolean withSamba, Algo algo, String uid) {
 
         PasswordResult result = new PasswordResult();
 
@@ -230,9 +230,7 @@ public class PasswordService {
             result.sambaLm = makeLmHash(password);
             result.sambaNt = makeNtHash(password);
 
-            log.debug("HASH SAMBA GÉNÉRÉ lm={} nt={}",
-                    result.sambaLm,
-                    result.sambaNt);
+            log.debug("Hashes samba générés pour uid={} (lm présent={}, nt présent={})", uid, result.sambaLm, result.sambaNt);
         }
 
         return result;
@@ -273,7 +271,7 @@ public class PasswordService {
                 .getCustomParams()
                 .getRegexGroupsWithSshaPass();
 
-        log.debug("vérificationSSHA — regex configurée : '{}'", regex);
+        log.debug("vérificationSSHA — regex configurée pour uid={} : '{}'", uid, regex);
 
         if (regex == null || regex.isBlank()) {
             specialLog.warn("Audit [REQUIRES_SSHA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucune regex configurée pour les groupes SSHA", uid);
@@ -308,7 +306,7 @@ public class PasswordService {
         for (String group : groups) {
             boolean matches = pattern.matcher(group).matches();
             if (debug) {
-                log.debug("  → groupe='{}' | correspondance={}", group, matches);
+                log.debug("  → groupe='{}' | correspondance={} (uid={})", group, matches, person.getUid());
             }
             if (matches) {
                 matched = true;
@@ -389,7 +387,7 @@ public class PasswordService {
                 .getCustomParams()
                 .getRegexGroupsWithSambaNt();
 
-        log.debug("vérificationSamba — regex configurée : '{}'", regex);
+        log.debug("vérificationSamba — regex configurée pour uid={} : '{}'", uid, regex);
 
         if (regex == null || regex.isBlank()) {
             specialLog.warn("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucune regex configurée pour les groupes Samba NT", uid);
@@ -424,7 +422,7 @@ public class PasswordService {
         for (String group : groups) {
             boolean matches = pattern.matcher(group).find();
             if (debug) {
-                log.debug("  → groupe='{}' | correspondance={}", group, matches);
+                log.debug("  → groupe='{}' | correspondance={} (uid={})", group, matches, person.getUid());
             }
             if (matches) {
                 matched = true;
@@ -758,7 +756,7 @@ public class PasswordService {
      */
     @Transactional
     public void savePasswordToHistory(PersonneDTO personne, String hashLdap) {
-        specialLog.info("Audit [SAVE_PASSWORD_HISTORY] : Sauvegarde du mot de passe dans l'historique pour l'utilisateur {}", personne.getUid());
+        specialLog.info("Audit [SAVE_PASSWORD_HISTORY] : Sauvegarde du mot de passe dans l'historique pour l'utilisateur [{}]", personne.getUid());
 
         APersonne aPersonne = personne.getAPersonneBase();
         Date today = new Date();
@@ -777,7 +775,7 @@ public class PasswordService {
         });
 
         if (alreadyToday) {
-            specialLog.warn("Audit [SAVE_PASSWORD_HISTORY] : Une entrée existe pour aujourd'hui, mise à jour du hash pour l'utilisateur {}", personne.getUid());
+            specialLog.warn("Audit [SAVE_PASSWORD_HISTORY] : Une entrée existe pour aujourd'hui, mise à jour du hash pour l'utilisateur [{}]", personne.getUid());
             cerberePasswordRepository.updatePasswordForToday(aPersonne.getId(), hashLdap);
         } else {
             CerberePassword cp = new CerberePassword(aPersonne, hashLdap, today);
@@ -817,7 +815,7 @@ public class PasswordService {
      * Vérifie si le mot de passe en clair a déjà été utilisé par le passé.
      */
     public boolean isPasswordAlreadyUsed(PersonneDTO personne, String newPasswordClair) {
-        log.debug("Vérification si le mot de passe a déjà été utilisé pour l'utilisateur {}", personne.getUid());
+        log.debug("Vérification si le mot de passe a déjà été utilisé pour l'utilisateur [{}]", personne.getUid());
         List<CerberePassword> history = cerberePasswordRepository.findByAPersonne(personne.getAPersonneBase());
 
         for (CerberePassword cp : history) {
@@ -856,7 +854,7 @@ public class PasswordService {
 
     private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {
         Long id = person.getAPersonneBase().getId();
-        log.debug("miseÀJourMotDePasseEnBase — id={} lm={} nt={}", id, result.sambaLm, result.sambaNt);
+        log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null, result.sambaNt != null);
 
         APersonne entity = aPersonneRepository.findById(id)
                 .orElseThrow(() -> {
@@ -864,18 +862,18 @@ public class PasswordService {
                     return new IllegalStateException("Utilisateur introuvable en base");
                 });
 
-        log.debug("AVANT DÉFINITION — sambaLm actuel en base : {}", entity.getSambaLmpassword());
+        log.debug("AVANT DÉFINITION — sambaLm présent en base pour uid={} : {}", person.getUid(), entity.getSambaLmpassword() != null);
 
         entity.setPassword(result.ldapHash);
         entity.setSambaLmpassword(result.sambaLm);
         entity.setSambaNtpassword(result.sambaNt);
         entity.setDateModification(new Date());
 
-        log.debug("APRÈS DÉFINITION — sambaLm à sauvegarder : {}", entity.getSambaLmpassword());
+        log.debug("APRÈS DÉFINITION — sambaLm à sauvegarder pour uid={} : présent={}", person.getUid(), entity.getSambaLmpassword() != null);
 
         APersonne saved = aPersonneRepository.saveAndFlush(entity);
 
-        log.debug("APRÈS SAUVEGARDE — sambaLm sauvegardé : {}", saved.getSambaLmpassword());
+        log.debug("APRÈS SAUVEGARDE — sambaLm sauvegardé pour uid={} : présent={}", person.getUid(), saved.getSambaLmpassword() != null);
     }
 
     private void updatePasswordInLdap(String uid, String hash) {

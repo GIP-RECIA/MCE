@@ -152,7 +152,7 @@ public class StructureServiceImpl implements IStructureService {
         List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
 
         log.debug("=== isReseauRecia pour uid={} ===", p.getUid());
-        log.debug("ESCOUAI={}", uais);
+        log.debug("ESCOUAI pour uid={} : {}", p.getUid(), uais);
 
         if (uais == null || uais.isEmpty()) {
             log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (pas d'UAI)", p.getUid());
@@ -163,25 +163,25 @@ public class StructureServiceImpl implements IStructureService {
         for (String uai : uais) {
             index++;
             if (log.isDebugEnabled()) {
-                log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}'...", index, uais.size(), uai);
+                log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}' (uid={})...", index, uais.size(), uai, p.getUid());
             }
             IExternalStructure str = findStructureByUai(uai);
 
             if (str == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug("  - Aucune structure trouvée pour l'UAI '{}'", uai);
+                    log.debug("  - Aucune structure trouvée pour l'UAI '{}' (uid={})", uai, p.getUid());
                 }
                 continue;
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("  Structure trouvée : id={}, nom='{}', domaines={}",
-                        str.getId(), str.getDisplayName(), (Object) str.getDomaines());
+                log.debug("  Structure trouvée pour uid={} : id={}, nom='{}', domaines={}",
+                        p.getUid(), str.getId(), str.getDisplayName(), (Object) str.getDomaines());
             }
 
             boolean estRecia = isReseauRecia(str);
             if (log.isDebugEnabled()) {
-                log.debug("   isReseauRecia(str) pour UAI '{}' = {}", uai, estRecia);
+                log.debug("   isReseauRecia(str) pour UAI '{}' (uid={}) = {}", uai, p.getUid(), estRecia);
             }
 
             if (estRecia) {

@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -100,8 +102,8 @@ public class GlobalExceptionHandler {
 
     // Toujours en dernier
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-        log.error("Une erreur inattendue s'est produite lors du traitement de la requête - Détail : {}", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
+        log.error("Une erreur inattendue s'est produite lors du traitement de la requête [{}] - Détail : {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity.internalServerError()
                 .body(new ErrorResponse("INTERNAL_SERVER_ERROR", "Une erreur interne est survenue"));
     }

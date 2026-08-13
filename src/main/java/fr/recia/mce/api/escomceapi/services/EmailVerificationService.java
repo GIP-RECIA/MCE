@@ -107,7 +107,7 @@ public class EmailVerificationService {
 
         sendEmail(email, code);
 
-        log.info("Email de verification envoye a {} pour l'utilisateur [uid={}]", email, uid);
+        log.info("Email de vérification envoyé à {} pour l'utilisateur [uid={}]", email, uid);
     }
 
     private void sendEmail(String to, String code) {
@@ -128,7 +128,7 @@ public class EmailVerificationService {
         try {
             mailSender.send(message);
         } catch (MailException e) {
-            log.error("Erreur lors de l'envoi de l'email de verification a {} : {}", to, e.getMessage());
+            log.error("Erreur lors de l'envoi de l'email de vérification à {} : {}", to, e.getMessage());
             throw new RuntimeException("Erreur lors de l'envoi de l'email de verification", e);
         }
     }
@@ -146,7 +146,7 @@ public class EmailVerificationService {
                 cerbereConfirmationRepository.findPendingByPersonIdAndCode(person.getId(), hashedCode);
 
         if (optConfirmation.isEmpty()) {
-            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code invalide ou déjà utilisé (code={})", uid, code);
+            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code invalide ou déjà utilisé", uid);
             throw new IllegalArgumentException("Code de verification invalide ou deja utilise");
         }
 
@@ -165,7 +165,7 @@ public class EmailVerificationService {
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
 
-        log.info("Email verifie avec succes pour l'utilisateur [uid={}] -> {}", uid, email);
+        log.info("Email vérifié avec succès pour l'utilisateur [uid={}] -> {}", uid, email);
     }
 
 }

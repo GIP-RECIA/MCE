@@ -112,7 +112,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
         try {
             return ldapTemplate.search(query, mapper);
         } catch (Exception e) {
-            log.error("Erreur lors de la recherche LDAP batch : {}", e.getMessage());
+            log.error("Erreur lors de la recherche LDAP batch pour les uids={} - Détail : {}", uids, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP lors de la recherche batch", e);
         }
     }
@@ -209,7 +209,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
 
         try {
             ldapTemplate.modifyAttributes(dn, mods);
-            log.debug("Email LDAP mis à jour pour l'uid : {} au DN : {} avec le nouvel email : {}", uid, dn, newEmail);
+            log.debug("Email LDAP mis à jour pour uid={} au DN={} avec le nouvel email={}", uid, dn, newEmail);
         } catch (Exception e) {
             log.error("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid,
                     e.getMessage());
@@ -255,7 +255,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
 
         try {
             ldapTemplate.modifyAttributes(dn, mods);
-            log.debug("Attribut LDAP {} mis à jour pour l'uid : {} au DN : {} avec la valeur : {}",
+            log.debug("Attribut LDAP {} mis à jour pour uid={} au DN={} avec la valeur={}",
                     externalUserHelper.getUserAvatarAttribute(), uid, dn, newAvatarUrl);
         } catch (Exception e) {
             log.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification LDAP | Détail : {}", uid, e.getMessage());
