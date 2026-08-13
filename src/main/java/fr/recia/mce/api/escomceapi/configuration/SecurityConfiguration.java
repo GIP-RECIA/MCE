@@ -25,7 +25,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,23 +44,41 @@ public class SecurityConfiguration {
         return new SoffitApiAuthenticationManager();
     }
 
+    private static final String[] SWAGGER_WHITELIST = {
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs/**",
+        "/webjars/**"
+    };
+
+    private static final String[] TEMPORARY_PERMIT_LIST = {
+        "/api/personne/mce/getuser",
+        "/api/password/**",
+        "/api/personne/mce/id",
+        "/api/personne/mce/**",
+        "/api/personne/fonction/**"
+    };
+
+    private static final String[] PUBLIC_ENDPOINTS = {
+        "/api/personne/mce/verify-email"
+    };
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(
-                mceProperties.getSoffit().getJwtSignatureKey());
+        final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
         filter.setAuthenticationManager(authenticationManager());
+
         http.addFilter(filter);
-
         http.csrf(AbstractHttpConfigurer::disable);
-
         http.authorizeHttpRequests(authz -> authz
-                .antMatchers("/health-check").permitAll()
-                .antMatchers("/api/**").authenticated()
-                .anyRequest().denyAll());
-
-        http.sessionManagement().sessionFixation().newSession();
+            .antMatchers(SWAGGER_WHITELIST).permitAll()
+            .antMatchers("/health-check").permitAll()
+            .antMatchers(PUBLIC_ENDPOINTS).permitAll()
+            .antMatchers(TEMPORARY_PERMIT_LIST).permitAll()
+            .antMatchers("/api/**").authenticated()
+            .anyRequest().denyAll());
+        http.sessionManagement(session -> session.sessionFixation().newSession());
 
         return http.build();
     }
-
 }

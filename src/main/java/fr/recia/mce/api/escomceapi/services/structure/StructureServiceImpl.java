@@ -15,7 +15,6 @@
  */
 package fr.recia.mce.api.escomceapi.services.structure;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,10 +23,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalStructDao;
@@ -45,18 +44,26 @@ public class StructureServiceImpl implements IStructureService {
     @Autowired
     private CacheManager cacheManager;
 
+    private final DomaineProperties domaineProperties;
+
     private List<IExternalStructure> allStructures;
 
     private final Map<String, IExternalStructure> siren2structure = Collections
-            .synchronizedMap(new HashMap<String, IExternalStructure>());
+            .synchronizedMap(new HashMap<>());
 
     private final Map<String, IExternalStructure> uai2structure = Collections
-            .synchronizedMap(new HashMap<String, IExternalStructure>());
+            .synchronizedMap(new HashMap<>());
 
-    @Value("${app.service.custom-params.domaine-etab-recia}")
-    private String domaineEtabRecia;
+    private final Set<String> setDomaineEtabRecia = new HashSet<>();
+    private final Set<String> setIncludeEtabRecia = new HashSet<>();
+    private final Set<String> setExcludeEtabRecia = new HashSet<>();
 
-    private Set<String> setDomaineEtabRecia = new HashSet<>();
+    public StructureServiceImpl(DomaineProperties domaineProperties) {
+        this.domaineProperties = domaineProperties;
+        setDomaineEtabRecia.addAll(domaineProperties.getGestionRecia());
+        setIncludeEtabRecia.addAll(domaineProperties.getGestionInclude());
+        setExcludeEtabRecia.addAll(domaineProperties.getGestionExclude());
+    }
 
     @Override
     public List<IExternalStructure> getAllStructures() {
@@ -90,77 +97,102 @@ public class StructureServiceImpl implements IStructureService {
     public IExternalStructure findStructureBySiren(String siren) {
 
         if (isStructureLoaded()) {
-            log.info("structures exists : {}", siren);
+            log.debug("Recherche de structure avec le SIREN : {}", siren);
 
             return siren2structure.get(siren);
         }
-        log.info("struct null");
+        log.warn("Tentative de recherche de structure par SIREN [{}], mais le cache des structures n'est pas encore chargé.", siren);
         return null;
     }
 
     @Override
     public IExternalStructure findStructureByUai(String uai) {
         if (isStructureLoaded()) {
-            log.info("structures with uai exists : {}", uai);
+            log.debug("Recherche de structure avec l'UAI : {}", uai);
 
             return uai2structure.get(uai);
         }
-        log.info("struct null");
+        log.warn("Tentative de recherche de structure par UAI [{}], mais le cache des structures n'est pas encore chargé.", uai);
         return null;
     }
 
     @Override
     public boolean isReseauRecia(IExternalStructure str) {
         String uaiOrSiren = str.getUai();
+        log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}",
+                uaiOrSiren, (Object) str.getDomaines());
+
         if (isDomaineRecia(str)) {
-            if (uaiOrSiren != null) {
-                return true;
+            log.debug("    ** Domaine RECIA détecté");
+            if (uaiOrSiren != null && setExcludeEtabRecia.contains(uaiOrSiren)) {
+                log.debug("    * UAI '{}' dans la liste d'exclusion {} → EXCLU", uaiOrSiren, setExcludeEtabRecia);
+                return false;
             }
-            return false;
+            log.debug("    - ACCEPTÉ (domaine Recia, UAI non exclue)");
+            return true;
         }
+
+        if (uaiOrSiren != null && setIncludeEtabRecia.contains(uaiOrSiren)) {
+            log.debug("    UAI '{}' dans la liste d'inclusion {} → INCLUS", uaiOrSiren, setIncludeEtabRecia);
+            return true;
+        }
+
+        log.debug("    Domaine non RECIA ET UAI '{}' pas dans inclusion {}", uaiOrSiren, setIncludeEtabRecia);
         return false;
     }
 
     @Override
     public boolean isReseauRecia(PersonneDTO p) {
 
-        List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
-        List<String> domPerson = p.getExtUser().getAttribute("ESCODomaines");
-
-        // if (uais != null) {
-        // for (String uai : uais) {
-        // log.info("uai : {}", uai);
-        // IExternalStructure struct = this.findStructureByUai(uai);
-
-        // log.info("struct valeur : {}", struct);
-
-        // if (struct != null && isReseauRecia(struct)) {
-        // return true;
-
-        // }
-        // }
-        // }
-
-        if (domaineEtabRecia.isEmpty()) {
-            log.info("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
+        if (p.getExtUser() == null) {
+            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
             return false;
         }
 
-        if (!domPerson.isEmpty() && !uais.isEmpty()) {
-            if (setDomaineEtabRecia.isEmpty()) {
-                for (String domaine : domaineEtabRecia.split(" ")) {
-                    log.info("domaineRecia : {}", domaine);
+        List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
 
-                    setDomaineEtabRecia.add(domaine);
-                }
+        log.debug("=== isReseauRecia pour uid={} ===", p.getUid());
+        log.debug("ESCOUAI pour uid={} : {}", p.getUid(), uais);
+
+        if (uais == null || uais.isEmpty()) {
+            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (pas d'UAI)", p.getUid());
+            return false;
+        }
+
+        int index = 0;
+        for (String uai : uais) {
+            index++;
+            if (log.isDebugEnabled()) {
+                log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}' (uid={})...", index, uais.size(), uai, p.getUid());
             }
-            for (String domP : domPerson) {
+            IExternalStructure str = findStructureByUai(uai);
 
-                if (setDomaineEtabRecia.contains(domP))
-                    return true;
+            if (str == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("  - Aucune structure trouvée pour l'UAI '{}' (uid={})", uai, p.getUid());
+                }
+                continue;
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("  Structure trouvée pour uid={} : id={}, nom='{}', domaines={}",
+                        p.getUid(), str.getId(), str.getDisplayName(), (Object) str.getDomaines());
+            }
+
+            boolean estRecia = isReseauRecia(str);
+            if (log.isDebugEnabled()) {
+                log.debug("   isReseauRecia(str) pour UAI '{}' (uid={}) = {}", uai, p.getUid(), estRecia);
+            }
+
+            if (estRecia) {
+                if (log.isDebugEnabled()) {
+                    log.debug("- Résultat final : uid={} APPARTIENT au réseau Recia (via UAI '{}')", p.getUid(), uai);
+                }
+                return true;
             }
         }
 
+        log.debug("- Résultat final : uid={} N'APPARTIENT PAS au réseau Recia (aucune UAI n'a matché)", p.getUid());
         return false;
     }
 
@@ -169,48 +201,25 @@ public class StructureServiceImpl implements IStructureService {
         if (struct == null)
             return false;
 
-        String[] domaines = struct.getDomaines();
-        List<String> doms = new ArrayList<>();
-        if (domaines != null) {
-            for (String string : domaines) {
-                doms.add(string);
-            }
-        }
-
-        if (domaineEtabRecia == null) {
-            log.info("Aucun domaine de gestion du réseau etab par le gip définit (domaineEtabRecia)");
+        if (setDomaineEtabRecia.isEmpty()) {
+            log.warn(
+                    "Erreur de configuration : La propriété 'domaine.gestion-recia' est vide. Impossible de déterminer le statut du réseau Recia pour la structure [id={}].",
+                    struct.getId());
             return false;
         }
-        if (setDomaineEtabRecia.isEmpty()) {
-            for (String domaine : domaineEtabRecia.split(" ")) {
-                setDomaineEtabRecia.add(domaine);
-            }
-        }
 
-        if (doms != null) {
-
-            for (String dom : doms) {
+        String[] domaines = struct.getDomaines();
+        if (domaines != null) {
+            for (String dom : domaines) {
                 if (setDomaineEtabRecia.contains(dom))
                     return true;
             }
         } else {
-            log.error("Structure sans domaine " + struct.getDisplayName() + " " + struct.getId() + " (437)");
+            log.error("Erreur de cohérence des données : La structure [id={}, nom={}] n'a aucun attribut de domaine défini. (Contexte : isDomaineRecia)",
+                    struct.getId(), struct.getDisplayName());
         }
 
         return false;
-    }
-
-    public void setDomaineEtabRecia(String domaineEtabRecia) {
-
-        this.domaineEtabRecia = domaineEtabRecia;
-        setDomaineEtabRecia.clear();
-        if (domaineEtabRecia != null) {
-            for (String domaine : domaineEtabRecia.split(" ")) {
-                setDomaineEtabRecia.add(domaine);
-            }
-        }
-        this.domaineEtabRecia = setDomaineEtabRecia.isEmpty() ? null : domaineEtabRecia;
-
     }
 
 }

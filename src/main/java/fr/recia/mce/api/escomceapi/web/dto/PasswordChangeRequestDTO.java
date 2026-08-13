@@ -17,11 +17,18 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import lombok.Data;
 
-@Data
-public class PasswordChangeRequest {
+import javax.validation.constraints.NotBlank;
 
+@Data
+public class PasswordChangeRequestDTO {
+
+    @NotBlank(message = "L'ancien mot de passe est requis")
     private String oldPass;
+
+    @NotBlank(message = "Le nouveau mot de passe est requis")
     private String newPass;
+
+    @NotBlank(message = "La confirmation du mot de passe est requise")
     private String confirmPass;
 
 }

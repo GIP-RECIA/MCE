@@ -19,6 +19,7 @@ import fr.recia.mce.api.escomceapi.db.beans.Structure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import lombok.Getter;
 import lombok.Setter;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 @Getter
 @Setter
@@ -45,7 +46,7 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
     // }
 
     @Override
-    public int compareTo(FonctionDTO arg0) {
+    public int compareTo(@NonNull FonctionDTO arg0) {
         if (this == arg0)
             return 0;
         int res = this.structure.compareTo(arg0.structure);
@@ -91,11 +92,9 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
         } else if (!fonction.equals(other.fonction))
             return false;
         if (structure == null) {
-            if (other.structure != null)
-                return false;
-        } else if (!structure.equals(other.structure))
-            return false;
-        return true;
+            return other.structure == null;
+        } else
+            return structure.equals(other.structure);
     }
 
     // public FonctionDTO(final AFonction af, final Fonction f, final

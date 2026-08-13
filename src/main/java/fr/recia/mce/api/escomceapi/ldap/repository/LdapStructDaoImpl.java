@@ -50,7 +50,7 @@ public class LdapStructDaoImpl implements IExternalStructDao {
         System.out.println(filter.encode());
 
         if (log.isDebugEnabled()) {
-            log.debug("Ldap filter applied: {}", filter);
+            log.debug("Filtre LDAP appliqué : {}", filter);
         }
 
         ContextMapper<IExternalStructure> mapper = new LdapStructureContextMapper(this.externalStructHelper);
@@ -63,11 +63,15 @@ public class LdapStructDaoImpl implements IExternalStructDao {
         List<IExternalStructure> structs;
         try {
             structs = ldapTemplate.search(query, mapper);
+            if (structs != null) {
+                log.debug("Recherche LDAP réussie : {} structures trouvées avec le filtre [{}]", structs.size(), filter);
+            } else {
+                log.warn("La recherche LDAP a retourné des structures nulles pour le filtre [{}]", filter);
+            }
         } catch (Exception e) {
-            structs = null;
-            log.info("error structs null : {}", e);
+            log.error("Échec du chargement des structures depuis LDAP - Raison : Erreur technique lors de la recherche | Détail : {}", e.getMessage());
+            return null;
         }
-        log.info("{} structures found.", structs.size());
 
         return structs;
     }

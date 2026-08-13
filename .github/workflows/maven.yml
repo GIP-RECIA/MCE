@@ -1,0 +1,203 @@
+# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ 'main', 'stage_2026' ]
+    paths: ['**.java', '**.js', '**.ts', '**.vue', '.github/workflows/**', 'pom.xml', 'package.json', 'package-lock.json']
+  pull_request:
+    branches: [ '**' ]
+
+env:
+  LANG: 'fr_FR.UTF-8'
+  LC_ALL: 'fr_FR.UTF-8'
+  LANGUAGE: 'fr_FR.UTF-8'
+  LC_CTYPE: 'fr_FR.UTF-8'
+  TZ: 'Europe/Paris'
+
+jobs:
+  license-and-notice:
+    runs-on: ubuntu-latest
+
+    env:
+      JAVA_VERSION: '11'
+
+    name: Check license headers and notice
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Check license headers
+        run: ./mvnw license:check
+
+      - name: Check NOTICE
+        run: ./mvnw notice:check
+
+  backend:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java: ['11']
+        mariadb: ['10.6', 'latest']
+
+    env:
+      MARIADB_IMG: 'wodby/mariadb'
+      JACOCO_JAVA: '11'
+      JACOCO_MARIADB: '10.6'
+
+    name: Java ${{ matrix.java }} & MariaDB ${{ matrix.mariadb }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create badges directory
+        run: mkdir -p badges
+
+      - name: Set timezone
+        uses: szenius/set-timezone@v2.0
+        with:
+          timezoneLinux: 'Europe/Paris'
+
+      - name: Set up locale ENV
+        run: |
+          sudo locale-gen $LANG
+          sudo update-locale LANG=$LANG
+          sudo apt install net-tools mysql-client
+
+      - name: Check locales
+        run: locale -a
+
+      - name: Pull ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }} image
+        run: docker pull ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }}
+
+      - name: Run MariaDB container
+        run: |
+          docker run -t -d --name mariadb --rm \
+            --health-cmd="mysqladmin -uroot -proot ping" --health-interval=10s --health-timeout=10s --health-retries=10 \
+            -p 3306:3306/tcp \
+            -e "TZ=Europe/Paris" \
+            -e "MYSQL_USER=root" \
+            -e "MYSQL_ROOT_PASSWORD=root" \
+            -e "MYSQL_DATABASE=mce_test" \
+            -e "MYSQL_DEFAULT_STORAGE_ENGINE=InnoDB" \
+            -e "MYSQL_CHARACTER_SET_SERVER=utf8mb4" \
+            -e "MYSQL_COLLATION_SERVER=utf8mb4_unicode_520_ci" \
+            -e "MYSQL_INNODB_BUFFER_POOL_SIZE=2G" \
+            -e "MYSQL_INNODB_DEFAULT_ROW_FORMAT=dynamic" \
+            -e "MYSQL_INNODB_DATA_FILE_PATH=ibdata1:100M:autoextend:max:10G" \
+            -e "MYSQL_INNODB_FLUSH_LOG_AT_TRX_COMMIT=1" \
+            -e "MYSQL_INNODB_LOG_BUFFER_SIZE=64M" \
+            -e "MYSQL_INNODB_LOG_FILE_SIZE=256M" \
+            -e "MYSQL_INNODB_STRICT_MODE=ON" \
+            -e "MYSQL_LOWER_CASE_TABLE_NAMES=1" \
+            -e "MYSQL_MAX_CONNECT_ERRORS=100" \
+            -e "MYSQL_MAX_CONNECTIONS=1000" \
+            -e "MYSQL_QUERY_CACHE_LIMIT=10M" \
+            -e "MYSQL_QUERY_CACHE_SIZE=0" \
+            -e "MYSQL_QUERY_CACHE_TYPE=OFF" \
+            ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }}
+          echo "Waiting for MariaDB to be healthy..."
+          for i in $(seq 1 30); do
+            if docker exec mariadb mysqladmin ping -uroot -proot --silent 2>/dev/null; then
+              echo "MariaDB is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Test MariaDB
+        run: docker exec mariadb /bin/bash -c "mysql -h127.0.0.1 -uroot -proot -e \"show variables like '%time_zone'; select now();\""
+
+      - name: Check date
+        run: |
+          date
+          mysql -h127.0.0.1 -uroot -proot -e "show variables like '%time_zone'; select now();"
+
+      - name: Set up JDK ${{ matrix.java }} version
+        uses: actions/setup-java@v5
+        with:
+          java-version: "${{ matrix.java }}"
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: DB connection test and conf checks
+        run: |
+          netstat -pnltu
+          mysql -h127.0.0.1 -uroot -proot -e "SHOW DATABASES;"
+          mysql -h127.0.0.1 -uroot -proot -e "show variables like 'char%'; show variables like 'collation%';show variables like 'innodb_default_row_format';"
+          mysql -h127.0.0.1 -uroot -proot -e "USE mce_test;SHOW TABLES;"
+
+      - name: Project requirements
+        run: |
+          ./mvnw --version
+          ./mvnw clean generate-sources
+          ./mvnw compile
+          mkdir -p ${{ github.workspace }}/tmp
+
+      - name: Maven running API test
+        run: ./mvnw test -Dapp.upload.path=${{ github.workspace }}/tmp -Dapp.upload.protectedPath=${{ github.workspace }}/tmp -Dspring.jpa.show-sql=false -B
+
+      - name: Generate JaCoCo badge
+        id: jacoco
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          badges-directory: badges
+          generate-branches-badge: true
+          generate-summary: true
+
+      - name: Log coverage percentages to workflow output
+        run: |
+          echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
+          echo "branches = ${{ steps.jacoco.outputs.branches }}"
+
+      - name: Upload JaCoCo coverage report as a workflow artifact
+        if: ${{ matrix.mariadb == env.JACOCO_MARIADB && matrix.java == env.JACOCO_JAVA }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-report-java-${{ matrix.java }}
+          path: target/site/jacoco/
+
+      - name: Commit and push the coverage badges and summary file
+        if: ${{ github.event_name != 'pull_request' && matrix.java == env.JACOCO_JAVA && matrix.mariadb == env.JACOCO_MARIADB }}
+        run: |
+          cd badges
+          if [[ `git status --porcelain *.svg *.json` ]]; then
+            git config --global user.name 'github-actions'
+            git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add *.svg *.json
+            git commit -m "Autogenerated JaCoCo coverage badges"
+            git push
+          fi
+
+      - name: Comment on PR with coverage percentages
+        if: ${{ github.event_name == 'pull_request' && matrix.java == env.JACOCO_JAVA && matrix.mariadb == env.JACOCO_MARIADB }}
+        run: |
+          REPORT=$(<badges/coverage-summary.json)
+          COVERAGE=$(jq -r '.coverage' <<< "$REPORT")%
+          BRANCHES=$(jq -r '.branches' <<< "$REPORT")%
+          NEWLINE=$'\n'
+          BODY="## JaCoCo Test Coverage Summary Statistics${NEWLINE}* __Coverage:__ ${COVERAGE}${NEWLINE}* __Branches:__ ${BRANCHES}"
+          gh pr comment ${{github.event.pull_request.number}} -b "${BODY}"
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build with Maven
+        run: ./mvnw clean package -Dmaven.test.skip=true -B
+
+      - name: Stop MariaDB container
+        if: always()
+        run: docker stop mariadb 2>/dev/null || true

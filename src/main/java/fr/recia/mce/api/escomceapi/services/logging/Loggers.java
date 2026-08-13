@@ -13,18 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.configuration;
+package fr.recia.mce.api.escomceapi.services.logging;
 
-import org.ehcache.event.CacheEvent;
-import org.ehcache.event.CacheEventListener;
-
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
-public class CacheEventLogger implements CacheEventListener<Object, Object> {
-    @Override
-    public void onEvent(CacheEvent<?, ?> cacheEvent) {
-        log.info("CacheEvent = {} , Key = {} , OldValue = {} , NewValue = {}", cacheEvent.getType(),
-                cacheEvent.getKey(), cacheEvent.getOldValue(), cacheEvent.getNewValue());
-    }
+public interface Loggers {
+    String AUDIT = "MCE_SPECIAL_LOGGER";
 }

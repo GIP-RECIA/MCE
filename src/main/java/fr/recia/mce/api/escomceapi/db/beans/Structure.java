@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.db.beans;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,22 +38,10 @@ public class Structure implements Comparable<Structure> {
     private String type;
     private String source;
 
-    public boolean isOpen4Ent() {
-        return open4Ent;
-    }
-
-    public String getNom() {
-        return nom;
-    }
-
     public void setNom(final String nom) {
         if (nom != null) {
             this.nom = nom.intern();
         }
-    }
-
-    public String getDisplayName() {
-        return displayName;
     }
 
     public void setDisplayName(final String displayName) {
@@ -61,18 +50,10 @@ public class Structure implements Comparable<Structure> {
         }
     }
 
-    public String getUai() {
-        return uai;
-    }
-
     public void setUai(final String uai) {
         if (uai != null) {
             this.uai = uai.intern();
         }
-    }
-
-    public String getSkin() {
-        return skin;
     }
 
     public void setSkin(final String skin) {
@@ -81,26 +62,10 @@ public class Structure implements Comparable<Structure> {
         }
     }
 
-    public String getVille() {
-        return ville;
-    }
-
-    public void setVille(final String ville) {
-        this.ville = ville;
-    }
-
-    public String getSiren() {
-        return siren;
-    }
-
     public void setSiren(final String siren) {
         if (siren != null) {
             this.siren = siren.intern();
         }
-    }
-
-    public String[] getDomaines() {
-        return domaines;
     }
 
     public void setDomaines(final String[] domaines) {
@@ -112,10 +77,6 @@ public class Structure implements Comparable<Structure> {
         }
     }
 
-    public String getType() {
-        return type;
-    }
-
     public void setType(final String type) {
         if (type != null) {
             this.type = type.intern();
@@ -123,7 +84,7 @@ public class Structure implements Comparable<Structure> {
     }
 
     @Override
-    public int compareTo(final Structure arg0) {
+    public int compareTo(final @NonNull Structure arg0) {
         if (arg0 == this) {
             return 0;
         }
@@ -151,21 +112,9 @@ public class Structure implements Comparable<Structure> {
         }
         Structure other = (Structure) obj;
         if (siren == null) {
-            if (other.siren != null) {
-                return false;
-            }
-        } else if (!siren.equals(other.siren)) {
-            return false;
-        }
-        return true;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(final String source) {
-        this.source = source;
+            return other.siren == null;
+        } else
+            return siren.equals(other.siren);
     }
 
 }

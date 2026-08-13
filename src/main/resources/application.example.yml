@@ -1,22 +1,29 @@
 server:
-    port: 8090
+    port: 8080
     servlet:
         context-path: /
+    error:
+        path: /error
 
 spring:
+    mvc:
+        throw-exception-if-no-handler-found: true
+    web:
+        resources:
+            add-mappings: false
     cache:
         jcache:
             config: "classpath:ehcache.xml"
-    application: 
+    application:
         name: mce-project
-    
+
     datasource:
         url: jdbc:mariadb://
-        username: 
-        password: 
+        username:
+        password:
 
     jpa:
-        show-sql: true 
+        show-sql: true
         hibernate:
             naming:
                 implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
@@ -24,66 +31,136 @@ spring:
         properties:
             hibernate:
                 format_sql: true
-        
 
     ldap:
         base:
         urls:
             - ldap://
-        username: 
-        password: 
+        username:
+        password:
 
-# management:
-#   endpoints:
-#     web:
-#       exposure:
-#         include:
-#         - '*'
+    mail:
+        host:
+        port: 25
+        username:
+        password:
+        properties:
+            mail:
+                smtp:
+                    auth: false
+                    starttls:
+                        enable: false
+                    connectiontimeout: 5000
+                    timeout: 5000
+
+springdoc:
+    swagger-ui:
+        path: /swagger-ui.html
+        enabled: true
+    api-docs:
+        path: /v3/api-docs
+        enabled: true
+    packages-to-scan: fr.recia.mce.api.escomceapi.web.rest
+
+domaine:
+    gestion-recia:
+        - lycees.netocentre.fr
+        - cfa.netocentre.fr
+        - www.chercan.fr
+    gestion-include:
+        - "0370074E"
+        - "0410860M"
+        - "0280957N"
+        - "0180037T"
+        - "0180766K"
+        - "0360718K"
+    gestion-exclude: []
+
+logging:
+    file:
+        path: ./src/logs
+    level:
+        root: ERROR
+        fr.recia.mce: DEBUG
+        MCE_SPECIAL_LOGGER: INFO
+        org.hibernate.SQL: ERROR
 
 app:
     service:
-        classe-properties: 
-            ldap-attributs-classe:
-            regex-siren-and-classe: 
-            group-siren: 
-            group-classe: 
-            group-matiere: 
-        grp-pedago--properties: 
-            ldap-attributs-classe: 
-            regex-siren-and-classe: 
-            group-siren: 
-            group-classe: 
-            group-matiere: 
+        classe-properties:
+            ldap-attributs-classe: 'ENTEleveClasses ENTAuxEnsClassesMatieres'
+            regex-siren-and-classe: 'ENTStructureSIREN=(\w+),[^\$]+\$([^\$]+)(\$([^\$]+))?'
+            group-siren: 1
+            group-classe: 2
+            group-matiere: 4
+        grp-pedago-properties:
+            ldap-attributs-classe: 'ENTEleveGroupes ENTAuxEnsGroupesMatieres ENTAuxEnsGroupes'
+            regex-siren-and-classe: 'ENTStructureSIREN=(\w+),[^\$]+\$([^\$]+)(\$([^\$]+))?'
+            group-siren: 1
+            group-classe: 2
+            group-matiere: 4
         custom-params:
-            lien-edu: 
-            lien-pass-etab: 
-            domaine-etab-recia: 
+            lien-edu: 'https://moncompte.educonnect.education.gouv.fr'
+            lien-pass-etab: 'https://pwd.escolan.recia.fr/'
+            regex-groups-with-ssha-pass: '^coll:Collectivites:GIP-RECIA:Tous_GIP-RECIA$'
+            regex-groups-with-samba-nt: '^coll:Applications:ESCOLAN:GCR:.*$'
+        relation-properties:
+            regex-uid: 'uid=(\w+),.*'
+            regex-relation: 'uid=(\w+),[^$]+\$([^$]+)\$([^$]+)\$(1|2)\$([^$]+)\$([^$]+)'
+            group-uid: 1
+            group-typ-rel: 2
+            group-resp-finance: 3
+            group-resp-legal: 4
+            group-code-contact: 5
+            group-code-paiement: 6
     ldap:
         user-branch:
-            eleve-relation: 
-            eleve-tuteur-entr: 
-            tuteur-eleves: 
-            eleve-enseignements: 
-            code-matiere-enseignement: 
-            other-displayed-attributes: 
-            other-backend-attributes: 
+            eleve-relation: 'ENTElevePersRelEleve'
+            avatar-attribute: 'ESCOPersonPhoto'
+            eleve-tuteur-entr: 'ENTEleveEntrTutStage'
+            tuteur-eleves: 'ENTAuxTuteurStageEleves'
+            eleve-enseignements: 'ENTEleveEnseignements'
+            code-matiere-enseignement: ''
+            other-displayed-attributes:
+                - 'ENTEleveEnseignements'
+                - 'ENTEleveClasses'
+                - 'ENTEleveGroupes'
+                - 'ENTAuxEnsClasses'
+                - 'ENTAuxEnsClassesMatieres'
+                - 'ENTAuxEnsGroupes'
+                - 'ENTAuxEnsMatiereEnseignEtab'
+            other-backend-attributes:
+                - 'ESCODomaines'
+                - 'ESCOUAI'
         struct-branch:
-            domaines: 
-            name-struct: 
-            structure-jointure: 
-            skin: 
-            type-struct: 
-            uai: 
-            ville: 
-    
+            domaines: 'ESCODomaines'
+            name-struct: 'ENTStructureNomCourant'
+            structure-jointure: 'ENTStructureJointure'
+            skin: 'ESCODefaultUserProfile'
+            type-struct: 'ENTStructureTypeStruct'
+            uai: 'ENTStructureUAI'
+            ville: 'l'
+
     soffit:
-        jwt-signature-key: 
-    
+        jwt-signature-key:
+
+    avatar:
+        base-url: '/api/personne/mce/'
+        storage-path: './data/avatars'
+        filename: avatar0.jpg
+        filename-backup: avatar1.jpg
+        max-size: 524288
+        allowed-types:
+            - image/jpeg
+            - image/png
+            - image/jpg
+
     cors:
         enable: true
         allow-credentials: true
         allowed-origins: >
             http://localhost:5173
+            https://*.test.recia.dev
         exposed-headers:
             - x-auth-token
             - x-requested-with
@@ -101,3 +178,12 @@ app:
             - PUT
             - POST
             - DELETE
+
+mail:
+    from-email: no_reply@recia.fr
+    from-name: Mon Compte Etablissement
+    regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
+    regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
+    verification:
+        frontend-url: http://localhost:5173/verification-email
+        expiry-hours: 1

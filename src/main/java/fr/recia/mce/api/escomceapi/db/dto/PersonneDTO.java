@@ -19,6 +19,7 @@ import java.util.Date;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import fr.recia.mce.api.escomceapi.db.beans.Personne;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
@@ -44,6 +45,7 @@ public class PersonneDTO extends Personne {
 
     private String mailFromLdap;
 
+    @JsonIgnore
     private IExternalUser extUser;
 
     public PersonneDTO(final APersonne aPersonne) {
@@ -134,7 +136,9 @@ public class PersonneDTO extends Personne {
         if (mail == null) {
             if (aPersonneBase.getCategorie().equals("Eleve")) {
                 // add a condition only if its a student, isEleve()
-                log.info("mailfixe is null, then retrieve it from ldap");
+                log.warn(
+                        "L'utilisateur [uid={}] n'a pas d'email principal en base de données. Tentative de récupération d'un email de secours depuis l'annuaire LDAP.",
+                        getUid());
                 mail = getMailFromLdap();
             }
         }
@@ -154,8 +158,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Change le flag doForward en base
-     * 
+     *
      * @param doForward
+     *            nouvelle valeur du flag
      */
     protected void setForward(final boolean doForward) {
         aPersonneBase.setDoForward(doForward);
@@ -164,7 +169,7 @@ public class PersonneDTO extends Personne {
 
     /**
      * Récupère le mot de passe en base
-     * 
+     *
      * @return le mot de passe codé ou non
      */
     protected String getDbPassword() {
@@ -173,18 +178,20 @@ public class PersonneDTO extends Personne {
 
     /**
      * fixe le mot de passe en base.
-     * 
+     *
      * @param password
+     *            nouveau mot de passe
      */
-    protected void setDbPassword(final String password) {
+    public void setDbPassword(final String password) {
         aPersonneBase.setPassword(password);
         setDateModification();
     }
 
     /**
      * Fixe l'état de la personne.
-     * 
+     *
      * @param etat
+     *            nouvel état
      */
     protected void setEtat(final String etat) {
         aPersonneBase.setEtat(etat);
@@ -192,10 +199,10 @@ public class PersonneDTO extends Personne {
     }
 
     /**
-     * met a jour l'url de la photo dans sarapis mais pas dans ldap
-     * pour la mise a jour dans les 2 utiliser DaoServicePersonne.setPhotoUrl
-     * 
+     * met a jour l'url de la photo dans sarapis mais pas dans ldap pour la mise a jour dans les 2 utiliser DaoServicePersonne.setPhotoUrl
+     *
      * @param url
+     *            nouvelle URL de l'avatar
      */
     @Override
     public void setAvatarUrl(String url) {
@@ -216,8 +223,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Modifie la date de modification.
-     * 
+     *
      * @param dateModification
+     *            nouvelle date
      */
     public void setDateModification(final Date dateModification) {
         aPersonneBase.setDateModification(dateModification);
@@ -238,8 +246,9 @@ public class PersonneDTO extends Personne {
 
     /**
      * Fixe la date de signature de la charte.
-     * 
+     *
      * @param datedesignature
+     *            date de signature
      */
     public void setDateValideCharte(final Date datedesignature) {
         aPersonneBase.setValidationCharte(datedesignature);
@@ -250,7 +259,7 @@ public class PersonneDTO extends Personne {
      *
      * @return apersonne
      */
-    APersonne getApersonne() {
+    public APersonne getApersonne() {
         return aPersonneBase;
     }
 

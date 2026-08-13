@@ -13,13 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.configuration;
+package fr.recia.mce.api.escomceapi.configuration.bean;
 
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.Configuration;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
-@Configuration
-@EnableCaching
-public class CacheConfig {
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+@ConfigurationProperties(prefix = "domaine")
+@Data
+public class DomaineProperties {
+
+    private List<String> gestionRecia = new ArrayList<>();
+    private List<String> gestionInclude = new ArrayList<>();
+    private List<String> gestionExclude = new ArrayList<>();
 
 }

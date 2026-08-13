@@ -29,6 +29,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/personne")
@@ -40,9 +43,16 @@ public class FonctionRestController {
     @GetMapping("/fonction/{id}")
     public ResponseEntity<Collection<FonctionDTO>> getFonctionsOfPerson(@PathVariable Long id) {
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
-        log.info("fonctions of person: {}", fonctions);
+        log.debug("Fonctions de la personne [id={}] : {}", id, fonctions);
         return new ResponseEntity<>(fonctions, HttpStatus.OK);
 
+    }
+
+    @PutMapping("/fonction/{id}/dateFin")
+    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody boolean active) {
+        log.debug("Mise à jour de l'état (active={}) de la fonction [id={}]", active, id);
+        fonctionService.updateDateFin(id, active);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
 }

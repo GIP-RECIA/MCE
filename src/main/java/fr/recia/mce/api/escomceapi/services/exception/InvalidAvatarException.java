@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi;
+package fr.recia.mce.api.escomceapi.services.exception;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-
-@SpringBootTest
-class MceProjectApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
-
+/**
+ * Exception levée lors d'une validation d'avatar échouée.
+ */
+public class InvalidAvatarException extends RuntimeException {
+    public InvalidAvatarException(String message) {
+        super(message);
+    }
 }

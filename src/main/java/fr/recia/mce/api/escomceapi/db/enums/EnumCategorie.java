@@ -15,29 +15,19 @@
  */
 package fr.recia.mce.api.escomceapi.db.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum EnumCategorie {
 
-    AUTRE(""),
-    PARENT("Personne_relation_eleve"),
-    ELEVE("Eleve"),
-    PROF("Enseignant"),
-    NON_PROF_ACAD("Non_enseignant_service_academique"),
-    NON_PROF_ETAB("Non_enseignant_etablissement"),
-    NON_PROF_COL_LOCAL("Non_enseignant_collectivite_locale"),
-    ENTREPRISE("Responsable_Entreprise"),
-    TUTEUR("Tuteur_stage");
+    AUTRE(""), PARENT("Personne_relation_eleve"), ELEVE("Eleve"), PROF("Enseignant"), NON_PROF_ACAD("Non_enseignant_service_academique"), NON_PROF_ETAB(
+            "Non_enseignant_etablissement"), NON_PROF_COL_LOCAL(
+                    "Non_enseignant_collectivite_locale"), ENTREPRISE("Responsable_Entreprise"), TUTEUR("Tuteur_stage");
 
     private String dbname;
 
     private EnumCategorie(String dbname) {
         this.dbname = dbname.intern();
-    }
-
-    /**
-     * @return the dbname
-     */
-    public String getDbname() {
-        return dbname;
     }
 
     public static EnumCategorie fromString(String dbname) {

@@ -36,8 +36,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "login", uniqueConstraints = { @UniqueConstraint(columnNames = "apersonne_alias"),
-        @UniqueConstraint(columnNames = "apersonne_login"), @UniqueConstraint(columnNames = "nom") })
+@Table(name = "login", uniqueConstraints = {@UniqueConstraint(columnNames = "apersonne_alias"),
+        @UniqueConstraint(columnNames = "apersonne_login"), @UniqueConstraint(columnNames = "nom")})
 @Getter
 @Setter
 public class Login implements Serializable {

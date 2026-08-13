@@ -27,6 +27,7 @@ public class ServiceProperties {
 
     private ClasseCalculatorProperties classeProperties = new ClasseCalculatorProperties();
     private GrpPedagoCalculator grpPedagoProperties = new GrpPedagoCalculator();
+    private RelationProperties relationProperties = new RelationProperties();
     private CustomParams customParams = new CustomParams();
 
     @Data
@@ -62,12 +63,35 @@ public class ServiceProperties {
 
     @Data
     @Validated
+    public static class RelationProperties {
+
+        private String regexUid;
+
+        private String regexRelation;
+
+        private int groupUid;
+
+        private int groupTypRel;
+
+        private int groupRespFinance;
+
+        private int groupRespLegal;
+
+        private int groupCodeContact;
+
+        private int groupCodePaiement;
+
+    }
+
+    @Data
+    @Validated
     public static class CustomParams {
 
         private String lienEdu;
         private String lienPassEtab;
         private String domaineEtabRecia;
         private String regexGroupsWithSshaPass;
+        private String regexGroupsWithSambaNt;
 
     }
 
@@ -76,6 +100,7 @@ public class ServiceProperties {
         return "{\n\"ServiceProperties\":{"
                 + ",\n \"classeProperties\":" + classeProperties
                 + ",\n \"grpPedagoProperties\":" + grpPedagoProperties
+                + ",\n \"relationProperties\":" + relationProperties
                 + ",\n \"CustomParams\":" + customParams
                 + "\n}\n}";
     }

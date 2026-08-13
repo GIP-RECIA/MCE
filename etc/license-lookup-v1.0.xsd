@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns="https://source.jasig.org/schemas/maven-notice-plugin/license-lookup"
+            targetNamespace="https://source.jasig.org/schemas/maven-notice-plugin/license-lookup"
+            elementFormDefault="qualified">
+  <xsd:element name="license-lookup">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="artifact" minOccurs="0" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:all>
+              <xsd:element name="groupId" type="xsd:string"/>
+              <xsd:element name="artifactId" type="xsd:string"/>
+              <xsd:element name="license" type="xsd:string"/>
+            </xsd:all>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

@@ -35,14 +35,15 @@ import javax.persistence.TemporalType;
 import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "astructure", uniqueConstraints = {
         @UniqueConstraint(columnNames = "siren"),
-        @UniqueConstraint(columnNames = { "source", "cle" }),
-        @UniqueConstraint(columnNames = "nom") })
+        @UniqueConstraint(columnNames = {"source", "cle"}),
+        @UniqueConstraint(columnNames = "nom")})
 @Getter
 @Setter
 public class AStructure implements Serializable {
@@ -58,10 +59,12 @@ public class AStructure implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contact_id")
+    @JsonIgnore
     private APersonne aPersonneByContactId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "responsable_id")
+    @JsonIgnore
     private APersonne aPersonneByResponsableId;
 
     @Temporal(TemporalType.TIMESTAMP)
@@ -105,6 +108,7 @@ public class AStructure implements Serializable {
     private Date anneeScolaire;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "aStructure")
+    @JsonIgnore
     private Set<APersonne> aPersonnes = new HashSet<>(0);
 
     // @OneToMany(fetch = FetchType.LAZY, mappedBy = "astructure")

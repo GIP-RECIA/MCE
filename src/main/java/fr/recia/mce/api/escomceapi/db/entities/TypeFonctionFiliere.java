@@ -33,7 +33,7 @@ import lombok.Setter;
 
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {
-        "codeFiliere", "source" }))
+        "codeFiliere", "source"}))
 @Getter
 @Setter
 public class TypeFonctionFiliere {

@@ -42,7 +42,7 @@ public class CerbereEnfant implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "idParent")
-    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private APersonne aPersonneByIdParent;
 
     @ManyToOne(fetch = FetchType.LAZY)

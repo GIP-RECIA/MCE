@@ -18,7 +18,6 @@ package fr.recia.mce.api.escomceapi.db.beans;
 import java.util.Date;
 
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
-import fr.recia.mce.api.escomceapi.utils.LdapPassword;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,7 +32,6 @@ public class Personne {
     private String mailFixe;
     private String mail;
     private boolean mailForward;
-    private LdapPassword ldapPassword;
     private boolean charteValide;
     // private EnumEtat etat;
     // private Structure structure;
@@ -45,6 +43,7 @@ public class Personne {
 
     private boolean isCfa;
     private boolean isSSHAPass;
+    private boolean isNtPass;
 
     private boolean mailFixeConfirm;
     private boolean mailPersoConfirm;
@@ -72,11 +71,4 @@ public class Personne {
         return null;
     }
 
-    public boolean isSSHAPass() {
-        return isSSHAPass;
-    }
-
-    public void setSSHAPass(boolean isSSHAPass) {
-        this.isSSHAPass = isSSHAPass;
-    }
 }

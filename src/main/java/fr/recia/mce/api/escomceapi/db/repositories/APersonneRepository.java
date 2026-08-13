@@ -15,16 +15,21 @@
  */
 package fr.recia.mce.api.escomceapi.db.repositories;
 
-import java.util.Collection;
-
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+import java.util.List;
 
 @Repository
 public interface APersonneRepository extends AbstractRepository<APersonne, Long> {
+
+    @Query("SELECT a FROM APersonne a WHERE a.uid = :uid")
+    APersonne findByUid(final String uid);
 
     @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, s, l) " +
             "FROM APersonne a " +
@@ -34,11 +39,26 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     PersonneDTO getPersonneByUid(final String uid);
 
     @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, ce, s, l) " +
-            "from APersonne a, CerbereEnfant ce, AStructure s , Login l " +
-            "where ce.aPersonneByIdParent.id = :parent " +
-            "and ce.aPersonneByIdEnfant.id = a.id " +
-            "and a.id = l.aPersonneByAPersonneLogin " +
-            "and s.id = a.aStructure "
-            + "and ( a.etat != 'Delete' or a.dateModification < a.dateAcquittement)")
+            "FROM APersonne a, CerbereEnfant ce, AStructure s, Login l " +
+            "WHERE ce.aPersonneByIdParent.id = :parent " +
+            "AND ce.aPersonneByIdEnfant.id = a.id " +
+            "AND a.id = l.aPersonneByAPersonneLogin " +
+            "AND s.id = a.aStructure " +
+            "AND (a.etat != 'Delete' OR a.dateModification < a.dateAcquittement)")
     Collection<PersonneDTO> findAllEnfantOf(Long parent);
+
+    /**
+     * Fallback DB : Retourne les parents/tuteurs d'un élève (utilisé quand LDAP ne renvoie rien)
+     */
+    @Query("SELECT new fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact(" +
+            "'CONTACT2ELEVE', " + // sens = du parent vers l'enfant
+            "c.aPersonneByIdParent, " + // le PARENT
+            "c.aPersonneByIdEnfant, " + // l'ENFANT
+            "c.typeRelation, " +
+            "c.lienParente, " +
+            "true) " +
+            "FROM CerbereEnfant c " +
+            "WHERE c.aPersonneByIdEnfant.uid = :uidEleve")
+    List<RelationEleveContact> findAllParentOfEleve(@Param("uidEleve") String uidEleve);
+
 }
