@@ -16,23 +16,21 @@
 package fr.recia.mce.api.escomceapi.aop.notification.configuration;
 
 import fr.recia.notifications.event_rest_client_kafka.HttpNotificationClient;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+@Data
 @Configuration
+@ConfigurationProperties(prefix = "notification-api")
 public class NotificationAspectConfig {
-    @Value("${notification-api.url}")
-    private String apiUrl;
-
-    @Value("${notification-api.service-name}")
+    private String url;
     private String serviceName;
-
-    @Value("${notification-api.api-key}")
     private String apiKey;
 
     @Bean
     public HttpNotificationClient notificationClient() {
-        return new HttpNotificationClient(apiUrl, serviceName, apiKey);
+        return new HttpNotificationClient(url, serviceName, apiKey);
     }
 }

@@ -15,6 +15,8 @@
  */
 package fr.recia.mce.api.escomceapi.aop.notification;
 
+import fr.recia.mce.api.escomceapi.aop.notification.configuration.NotificationAspectConfigPassword;
+import fr.recia.mce.api.escomceapi.aop.notification.configuration.NotificationAspectConfigMail;
 import fr.recia.notifications.event_rest_client_kafka.HttpNotificationClient;
 import fr.recia.notifications.model_kafka.model.*;
 import lombok.Data;
@@ -23,7 +25,10 @@ import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 
 @Component
@@ -32,42 +37,53 @@ import java.util.List;
 @Data
 public class NotificationAspect {
     private final HttpNotificationClient notificationClient;
+    private final NotificationAspectConfigPassword notificationAspectConfigPassword;
+    private final NotificationAspectConfigMail notificationAspectConfigMail;
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+        DateTimeFormatter.ofPattern("dd/MM/yyyy 'à' HH:mm", Locale.FRENCH);
+
+    private String buildMessage(String template) {
+        return template + ZonedDateTime.now().format(DATE_TIME_FORMATTER);
+    }
 
     @After("execution(* fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp.updatePassword(..)) && args(uid, newHashedPassword)")
     public void notifPasswordChange(String uid, String newHashedPassword) {
         try {
-            String id = uid;
-            String title = "MON COMPTE ÉTUDIANT";
-            String message = "Votre mot de passe a été mis à jour";
-            List<Channel> channel = List.of(Channel.WEB);
-            String idLink = "";
-            Priority priority = Priority.NORMAL;
-            TargetType targetType = TargetType.UID;
+            final String id = uid;
+            final String title = notificationAspectConfigPassword.getTitle();
+            final String message = buildMessage(notificationAspectConfigPassword.getMessage());
+            final List<Channel> channel = List.of(Channel.WEB);
+            final String idLink = "";
+            final Priority priority = Priority.NORMAL;
+            final TargetType targetType = TargetType.UID;
 
             notificationClient.sendNotification(title, message, idLink, id, channel, priority, targetType);
 
-            log.debug("Le mot de passe de {} a été mis à jour", id);
-        }catch (Exception e) {
-            log.debug("Erreur: la notification n'a pas pu être envoyée", e);
+            log.debug("Notification pour changement de mot de passe de {} a été mis à jour", id);
+        } catch (Exception e) {
+            log.error("Erreur: la notification n'a pas pu être envoyée", e);
         }
     }
 
-    @After("execution(* fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp.updateEmail(..)) && args(uid, newEmail)")
-    public void notifEmailChange(String uid, String newEmail) {
+    @After("execution(* fr.recia.mce.api.escomceapi.services.PersonneService.updateEmail(..)) && args(uid, ..)")
+    public void notifEmailChange(String uid) {
         try {
-            String id = uid;
-            String title = "MON COMPTE ÉTUDIANT";
-            String message = "Votre email a été mis à jour, avec cette adresse : " + newEmail;
-            List<Channel> channel = List.of(Channel.WEB);
-            String idLink = "";
-            Priority priority = Priority.NORMAL;
-            TargetType targetType = TargetType.UID;
+            final String id = uid;
+            final String title = notificationAspectConfigMail.getTitle();
+            final String message = buildMessage(notificationAspectConfigMail.getMessage());
+            final List<Channel> channel = List.of(Channel.WEB);
+            final String idLink = "";
+            final Priority priority = Priority.NORMAL;
+            final TargetType targetType = TargetType.UID;
+
+            log.trace("TEST POUR L'ENVOIE DE NOTIFICATION, L'ID EST-IL RÉCUPÉRÉ ? ID : {}", id);
 
             notificationClient.sendNotification(title, message, idLink, id, channel, priority, targetType);
 
-            log.debug("Le mail de {} a été modifié", id);
-        }catch (Exception e) {
-            log.debug("Erreur: la notification n'a pas pu être envoyée", e);
+            log.info("Notification pour changement de mail {} a été envoyé", id);
+        } catch (Exception e) {
+            log.error("Erreur: la notification n'a pas pu être envoyée", e);
         }
     }
 }
