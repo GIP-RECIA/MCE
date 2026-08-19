@@ -28,6 +28,10 @@ public class NotificationAspectConfig {
     private String url;
     private String serviceName;
     private String apiKey;
+    private String titleMdp;
+    private String messageMdp;
+    private String titleMail;
+    private String messageMail;
 
     @Bean
     public HttpNotificationClient notificationClient() {
