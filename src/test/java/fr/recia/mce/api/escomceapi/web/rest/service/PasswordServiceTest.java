@@ -50,7 +50,6 @@ import java.util.*;
 import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -89,9 +88,12 @@ class PasswordServiceTest {
         aPersonne = new APersonne();
         aPersonne.setId(100L);
         aPersonne.setUid(uid);
+        aPersonne.setEtat("Valide");
         personneDTO = new PersonneDTO(aPersonne);
         personneDTO.setExtUser(extUser); // Initialisation pour les tests LDAP
         lenient().when(externalUserHelper.getUserGroupAttribute()).thenReturn("memberOf");
+        lenient().when(mceProperties.getSecurity().getPasswordPolicy().getMinLength()).thenReturn(12);
+        lenient().when(mceProperties.getSecurity().getPasswordPolicy().getMinTypes()).thenReturn(3);
     }
 
     private PasswordChangeRequestDTO createRequest(String oldPass, String newPass, String confirmPass) {
@@ -110,26 +112,26 @@ class PasswordServiceTest {
         @Test
         @DisplayName("Doit accepter les mots de passe respectant tous les critères (Cas standard)")
         void shouldAcceptValidPasswords() {
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("Abc123Valid!"));
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("Password@2026"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("Abc123Valid!"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("Password@2026"));
         }
 
         @Test
         @DisplayName("Doit accepter un mot de passe avec exactement 12 caractères et 3 types")
         void shouldAcceptExactly12CharsWith3Types() {
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("Abc123456789"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("Abc123456789"));
         }
 
         @Test
         @DisplayName("Doit accepter un mot de passe avec les 4 types de caractères")
         void shouldAcceptAll4Types() {
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("aB1!password"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("aB1!password"));
         }
 
         @Test
         @DisplayName("Doit refuser si le mot de passe est nul")
         void shouldRejectNull() {
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough(null))
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough(null))
                     .isInstanceOf(WeakPasswordException.class)
                     .hasMessage("Mot de passe requis");
         }
@@ -137,7 +139,7 @@ class PasswordServiceTest {
         @Test
         @DisplayName("Doit refuser si le mot de passe est vide")
         void shouldRejectEmpty() {
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough(""))
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough(""))
                     .isInstanceOf(WeakPasswordException.class)
                     .hasMessageContaining("12 caractères");
         }
@@ -145,7 +147,7 @@ class PasswordServiceTest {
         @Test
         @DisplayName("Doit refuser si moins de 12 caractères (Ex: 11)")
         void shouldRejectTooShort() {
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("Abc1234567!"))
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("Abc1234567!"))
                     .isInstanceOf(WeakPasswordException.class)
                     .hasMessageContaining("12 caractères");
         }
@@ -153,34 +155,34 @@ class PasswordServiceTest {
         @Test
         @DisplayName("Doit refuser si seulement 1 type de caractères")
         void shouldRejectOnlyOneType() {
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("aaaaaaaaaaaa")) // Minuscules
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("aaaaaaaaaaaa")) // Minuscules
                     .isInstanceOf(WeakPasswordException.class)
-                    .hasMessageContaining("trois types différents");
+                    .hasMessageContaining("3 types différents");
 
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("AAAAAAAAAAAA")) // Majuscules
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("AAAAAAAAAAAA")) // Majuscules
                     .isInstanceOf(WeakPasswordException.class);
 
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("111111111111")) // Chiffres
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("111111111111")) // Chiffres
                     .isInstanceOf(WeakPasswordException.class);
 
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("!!!!!!!!!!!!")) // Symboles
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("!!!!!!!!!!!!")) // Symboles
                     .isInstanceOf(WeakPasswordException.class);
         }
 
         @Test
         @DisplayName("Doit refuser si seulement 2 types de caractères")
         void shouldRejectOnlyTwoTypes() {
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("aaaaaAAAAAAA")) // Lower + Upper
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("aaaaaAAAAAAA")) // Lower + Upper
                     .isInstanceOf(WeakPasswordException.class)
-                    .hasMessageContaining("trois types différents");
+                    .hasMessageContaining("3 types différents");
 
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("aaaaa1111111")) // Lower + Digit
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("aaaaa1111111")) // Lower + Digit
                     .isInstanceOf(WeakPasswordException.class);
 
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("AAAAA1111111")) // Upper + Digit
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("AAAAA1111111")) // Upper + Digit
                     .isInstanceOf(WeakPasswordException.class);
 
-            assertThatThrownBy(() -> PasswordService.isPasswordStrongEnough("aaaaa!!!!!!!")) // Lower + Symbol
+            assertThatThrownBy(() -> passwordService.isPasswordStrongEnough("aaaaa!!!!!!!")) // Lower + Symbol
                     .isInstanceOf(WeakPasswordException.class);
         }
 
@@ -188,20 +190,20 @@ class PasswordServiceTest {
         @DisplayName("Doit accepter les combinaisons de 3 types (Toutes les variantes)")
         void shouldAcceptAll3TypeCombinations() {
             // Lower + Upper + Digit
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("abcABC123456"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("abcABC123456"));
             // Lower + Upper + Symbol
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("abcABC!!!!!!"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("abcABC!!!!!!"));
             // Lower + Digit + Symbol
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("abc123456!!!"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("abc123456!!!"));
             // Upper + Digit + Symbol
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("ABC123456!!!"));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("ABC123456!!!"));
         }
 
         @Test
         @DisplayName("Doit gérer les espaces comme des symboles")
         void shouldHandleSpacesAsSymbols() {
             // Lower (abc) + Upper (DEF) + Space (symbol)
-            assertThatNoException().isThrownBy(() -> PasswordService.isPasswordStrongEnough("abc DEF      "));
+            assertThatNoException().isThrownBy(() -> passwordService.isPasswordStrongEnough("abc DEF      "));
         }
 
     }

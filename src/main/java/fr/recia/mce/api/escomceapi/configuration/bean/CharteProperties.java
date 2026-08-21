@@ -13,20 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.configuration;
+package fr.recia.mce.api.escomceapi.configuration.bean;
 
-public class Constants {
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
-    private Constants() {
-        throw new IllegalStateException("Utility class");
-    }
+import java.util.HashMap;
+import java.util.Map;
 
-    public static final String PROPERTIES_TO_JSON_DELIMITER = "\", \"";
-    public static final String PROPERTIES_TO_JSON_PREFIX = "[ \"";
-    public static final String PROPERTIES_TO_JSON_SUFFIX = "\" ]";
+@Component
+@ConfigurationProperties(prefix = "charte")
+@Data
+public class CharteProperties {
 
-    public static final String SPRING_PROFILE_DEVELOPMENT = "dev";
-    public static final String SPRING_PROFILE_PRODUCTION = "prod";
-    public static final String SPRING_PROFILE_TEST = "test";
+    private String defaultUrl;
+    private Map<String, String> urls = new HashMap<>();
+    private Map<String, String> serverMapping = new HashMap<>();
 
 }

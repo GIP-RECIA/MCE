@@ -55,6 +55,9 @@ import java.util.Objects;
 @Slf4j
 public class PersonneService {
 
+    private static final String DB_CACHE_NAME = "personneDBCache";
+    private static final String LDAP_CACHE_NAME = "personneLDAPCache";
+
     @Autowired
     private MCEProperties mceProperties;
 
@@ -74,7 +77,7 @@ public class PersonneService {
     private MailProperties mailProperties;
 
     public PersonneDTO getUserByUid(String uid) {
-        Cache cache = cacheManager.getCache("personneDBCache");
+        Cache cache = cacheManager.getCache(DB_CACHE_NAME);
         if (cache != null) {
             PersonneDTO cached = cache.get(uid, PersonneDTO.class);
             if (cached != null) {
@@ -101,7 +104,7 @@ public class PersonneService {
     private IExternalUser getUserLdap(String uid) {
         IExternalUser userLdap = null;
 
-        Cache cache = cacheManager.getCache("personneLDAPCache");
+        Cache cache = cacheManager.getCache(LDAP_CACHE_NAME);
 
         if (cache != null) {
             IExternalUser getUser = cache.get(uid, IExternalUser.class);
@@ -356,15 +359,30 @@ public class PersonneService {
         return StringUtils.isBlank(personne.getMailFixe());
     }
 
+    @Transactional
+    public void signCharte(String uid) {
+        log.info("[signCharte] DEBUT uid={}", uid);
+        APersonne entity = aPersonneRepository.findByUid(uid);
+        if (entity == null) {
+            throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
+        }
+        entity.setValidationCharte(new Date());
+        aPersonneRepository.save(entity);
+        clearUserCaches(uid);
+        log.info("[signCharte] FIN uid={}", uid);
+    }
+
     public void clearUserCaches(String uid) {
-        Cache dbCache = cacheManager.getCache("personneDBCache");
+        log.info("[clearUserCaches] DEBUT uid={}", uid);
+        Cache dbCache = cacheManager.getCache(DB_CACHE_NAME);
         if (dbCache != null) {
             dbCache.evict(uid);
         }
-        Cache ldapCache = cacheManager.getCache("personneLDAPCache");
+        Cache ldapCache = cacheManager.getCache(LDAP_CACHE_NAME);
         if (ldapCache != null) {
             ldapCache.evict(uid);
         }
+        log.info("[clearUserCaches] FIN uid={}", uid);
     }
 
 }

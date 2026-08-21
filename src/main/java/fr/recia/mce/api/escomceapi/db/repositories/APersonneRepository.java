@@ -31,21 +31,29 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     @Query("SELECT a FROM APersonne a WHERE a.uid = :uid")
     APersonne findByUid(final String uid);
 
+    @Query("SELECT a.uid, a.displayName, a.id, a.email, a.emailPersonnel, a.aStructure.siren FROM APersonne a " +
+            "WHERE LOWER(a.sn) = LOWER(:nom) AND LOWER(a.givenName) = LOWER(:prenom) " +
+            "AND a.etat != 'Delete' AND LOWER(a.categorie) = LOWER(:categorie) " +
+            "AND a.aStructure.siren IN (:sirens)")
+    List<Object[]> searchByNomPrenomAndCategorieAndSirens(@Param("nom") String nom, @Param("prenom") String prenom,
+                                                          @Param("categorie") String categorie,
+                                                          @Param("sirens") Collection<String> sirens);
+
     @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, s, l) " +
             "FROM APersonne a " +
-            "JOIN Login l ON a.id = l.aPersonneByAPersonneLogin " +
-            "JOIN AStructure s ON s.id = a.aStructure " +
+            "JOIN Login l ON a = l.aPersonneByAPersonneLogin " +
+            "JOIN AStructure s ON s = a.aStructure " +
             "WHERE a.uid = :uid")
     PersonneDTO getPersonneByUid(final String uid);
 
     @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, ce, s, l) " +
             "FROM APersonne a, CerbereEnfant ce, AStructure s, Login l " +
             "WHERE ce.aPersonneByIdParent.id = :parent " +
-            "AND ce.aPersonneByIdEnfant.id = a.id " +
-            "AND a.id = l.aPersonneByAPersonneLogin " +
-            "AND s.id = a.aStructure " +
+            "AND ce.aPersonneByIdEnfant = a " +
+            "AND a = l.aPersonneByAPersonneLogin " +
+            "AND s = a.aStructure " +
             "AND (a.etat != 'Delete' OR a.dateModification < a.dateAcquittement)")
-    Collection<PersonneDTO> findAllEnfantOf(Long parent);
+    Collection<PersonneDTO> findAllEnfantOf(@Param("parent") Long parent);
 
     /**
      * Fallback DB : Retourne les parents/tuteurs d'un élève (utilisé quand LDAP ne renvoie rien)

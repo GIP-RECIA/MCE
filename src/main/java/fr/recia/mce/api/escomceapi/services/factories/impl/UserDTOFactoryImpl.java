@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -69,6 +70,8 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(readOnly = true)
 @Getter
 public class UserDTOFactoryImpl implements IUserDTOFactory {
+
+    private static final String GUEST_USER_PREFIX = "guest";
 
     @Autowired
     private transient APersonneRepository daoPersonne;
@@ -110,6 +113,9 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private MCEProperties mceProperties;
+
+    @Autowired
+    private MailProperties mailProperties;
 
     @Autowired
     private CerbereConfirmationRepository cerbereConfirmationRepository;
@@ -326,7 +332,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     public UserDTO from(PersonneDTO model, IExternalUser extModel) {
         structureService.getAllStructures();
 
-        if (model == null || extModel == null) return null;
+        if (model == null || extModel == null)
+            return null;
 
         APersonne base = model.getAPersonneBase();
         if (base == null) {
@@ -372,23 +379,23 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         String userIdentifiant = model.getIdentifiant();
         List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
         UserDTO user = new UserDTO(
-            base.getId(),
-            model.getUid(),
-            model.getDisplayName(),
-            base.getGivenName(),
-            base.getSn(),
-            base.getCivilite(),
-            base.getCategorie(),
-            canEditEmail,
-            userIdentifiant,
-            etab,
-            resolvedEmail,
-            resolvedEmailPersonnel,
-            model.getNaissance(),
-            resolveAvatarUrl(base),
-            base.getEtat(),
-            passEditable,
-            userPublic, showGeneralInfo(), respEleves, eleves, apprentisList);
+                base.getId(),
+                model.getUid(),
+                model.getDisplayName(),
+                base.getGivenName(),
+                base.getSn(),
+                base.getCivilite(),
+                base.getCategorie(),
+                canEditEmail,
+                userIdentifiant,
+                etab,
+                resolvedEmail,
+                resolvedEmailPersonnel,
+                model.getNaissance(),
+                resolveAvatarUrl(base),
+                base.getEtat(),
+                passEditable,
+                userPublic, showGeneralInfo(), respEleves, eleves, apprentisList);
 
         return user;
     }
@@ -402,14 +409,16 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return new ArrayList<>(iRelationEleveService.allEleveEnRelation(base.getId()));
     }
 
-    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN = "[^@]+@ac-orleans-tours.fr";
+    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT = "[^@]+@ac-orleans-tours.fr";
 
     private boolean computePassEditable(PersonneDTO model, EnumPublic pub) {
         if (pub == null) {
             return false;
         }
+        String acMailPattern = mailProperties.getAcMailPattern();
+        if (acMailPattern == null) acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null
-                && model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
+                && model.getMailFixe().matches(acMailPattern)) {
             return model.isNtPass();
         }
         return pub.isConnectOk() || model.isNtPass();
@@ -419,16 +428,20 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         if (pub == null) {
             return false;
         }
+        String acMailPattern = mailProperties.getAcMailPattern();
+        if (acMailPattern == null) acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
-                || !model.getMailFixe().matches(AC_ORLEANS_TOURS_MAIL_PATTERN)) {
+                || !model.getMailFixe().matches(acMailPattern)) {
             return pub.isEduconnect();
         }
         return false;
     }
 
     private boolean computeCanEditEmail(EnumPublic pub, APersonne base, PersonneDTO model) {
-        if (pub.isEleve()) return true;
-        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()) return true;
+        if (pub.isEleve())
+            return true;
+        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty())
+            return true;
         return model.getMailFixe() == null || model.getMailFixe().isEmpty();
     }
 
@@ -453,7 +466,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     }
 
     private String resolveEtablissementName(PersonneDTO model) {
-        if (model.getStructureDto() == null) return null;
+        if (model.getStructureDto() == null)
+            return null;
         try {
             return model.getStructureDto().getDisplayName();
         } catch (Exception e) {
@@ -536,7 +550,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     private boolean isSubInvalid() {
 
-        final boolean isNotOk = soffitHolder.getSub() == null || soffitHolder.getSub().startsWith("guest");
+        final boolean isNotOk = soffitHolder.getSub() == null || soffitHolder.getSub().startsWith(GUEST_USER_PREFIX);
         if (isNotOk)
             log.info("Requête refusée : l'utilisateur est un invité ou n'a pas de réclamation 'sub' (sub : {})", soffitHolder.getSub());
 

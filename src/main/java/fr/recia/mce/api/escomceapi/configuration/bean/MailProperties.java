@@ -27,16 +27,31 @@ public class MailProperties {
     private String regexValideAddr;
     private String regexsDomainesExclus;
     private String domainesConfiance;
+    private String acMailPattern;
 
     private String fromEmail;
     private String fromName;
 
     private Verification verification = new Verification();
+    private EmailTemplates templates = new EmailTemplates();
 
     @Data
     public static class Verification {
         private String frontendUrl;
+        private int codeLength = 6;
         private long expiryHours = 24;
+    }
+
+    @Data
+    public static class EmailTemplates {
+        private Template verification = new Template();
+        private Template reset = new Template();
+
+        @Data
+        public static class Template {
+            private String subject = "";
+            private String body = "";
+        }
     }
 
 }

@@ -16,8 +16,10 @@
 package fr.recia.mce.api.escomceapi.services.structure;
 
 import java.util.List;
+import java.util.Set;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 
 public interface IStructureService {
@@ -31,5 +33,9 @@ public interface IStructureService {
     boolean isReseauRecia(IExternalStructure str);
 
     boolean isReseauRecia(PersonneDTO p);
+
+    Set<String> getAllVilles();
+
+    Set<String> findVillesBySurType(SurType surType);
 
 }

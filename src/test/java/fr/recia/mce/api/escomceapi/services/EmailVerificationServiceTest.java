@@ -44,8 +44,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -90,6 +88,14 @@ class EmailVerificationServiceTest {
         verification.setExpiryHours(24);
         lenient().when(mailProperties.getVerification()).thenReturn(verification);
         lenient().when(mailProperties.getFromEmail()).thenReturn("noreply@mce.fr");
+
+        MailProperties.EmailTemplates templates = new MailProperties.EmailTemplates();
+        MailProperties.EmailTemplates.Template verificationTemplate =
+                new MailProperties.EmailTemplates.Template();
+        verificationTemplate.setSubject("Verification");
+        verificationTemplate.setBody("Votre code de verification est : {{code}}");
+        templates.setVerification(verificationTemplate);
+        lenient().when(mailProperties.getTemplates()).thenReturn(templates);
     }
 
     private String sha256(String code) {
@@ -131,15 +137,15 @@ class EmailVerificationServiceTest {
 
             service.sendVerificationEmail(uid, email);
 
-            verify(cerbereConfirmationRepository).deletePendingByPersonId(42L);
+            verify(cerbereConfirmationRepository).deletePendingEmailVerificationByPersonId(42L);
             verify(cerbereConfirmationRepository).save(confirmationCaptor.capture());
             verify(mailSender).send(mailCaptor.capture());
 
             CerbereConfirmation saved = confirmationCaptor.getValue();
             assertThat(saved.getAPersonne()).isEqualTo(person);
             assertThat(saved.getMail()).isEqualTo(email);
-            assertThat(saved.getCode()).isNotNull().hasSize(64);
-            assertThat(saved.getCode()).matches("[0-9a-f]{64}");
+            assertThat(saved.getCode()).isNotNull().startsWith("VERIFY:");
+            assertThat(saved.getCode()).matches("VERIFY:[0-9a-f]{64}");
             assertThat(saved.getConfirmation()).isNull();
             assertThat(saved.getLimite()).isAfter(new Date());
 
@@ -158,7 +164,7 @@ class EmailVerificationServiceTest {
 
             assertThatThrownBy(() -> service.sendVerificationEmail(uid, email))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining(uid);
+                    .hasMessageContaining("Aucun compte associé");
 
             verifyNoInteractions(cerbereConfirmationRepository, mailSender);
         }
@@ -185,14 +191,14 @@ class EmailVerificationServiceTest {
         @DisplayName("Succès : confirme l'email et appelle updateEmail")
         void success() {
             String code = "123456";
-            String hashedCode = sha256(code);
+            String hashedCode = "VERIFY:" + sha256(code);
             CerbereConfirmation confirmation = new CerbereConfirmation();
             confirmation.setCode(hashedCode);
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
 
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
-            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, hashedCode))
+            when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedCode))
                     .thenReturn(Optional.of(confirmation));
 
             service.verifyEmail(uid, code);
@@ -209,7 +215,7 @@ class EmailVerificationServiceTest {
 
             assertThatThrownBy(() -> service.verifyEmail(uid, "code"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining(uid);
+                    .hasMessageContaining("Aucun compte associé");
 
             verifyNoInteractions(cerbereConfirmationRepository, personneService);
         }
@@ -218,15 +224,15 @@ class EmailVerificationServiceTest {
         @DisplayName("Échec : code invalide")
         void invalidCode() {
             String badCode = "999999";
-            String hashedBadCode = sha256(badCode);
+            String hashedBadCode = "VERIFY:" + sha256(badCode);
 
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
-            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, hashedBadCode))
+            when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedBadCode))
                     .thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.verifyEmail(uid, badCode))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Code de verification invalide");
+                    .hasMessageContaining("code de vérification est incorrect");
 
             verifyNoInteractions(personneService);
         }
@@ -235,19 +241,19 @@ class EmailVerificationServiceTest {
         @DisplayName("Échec : code expiré")
         void expiredCode() {
             String code = "654321";
-            String hashedCode = sha256(code);
+            String hashedCode = "VERIFY:" + sha256(code);
             CerbereConfirmation confirmation = new CerbereConfirmation();
             confirmation.setCode(hashedCode);
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().minus(1, ChronoUnit.HOURS)));
 
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
-            when(cerbereConfirmationRepository.findPendingByPersonIdAndCode(42L, hashedCode))
+            when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedCode))
                     .thenReturn(Optional.of(confirmation));
 
             assertThatThrownBy(() -> service.verifyEmail(uid, code))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("expire");
+                    .hasMessageContaining("a expiré");
 
             verify(cerbereConfirmationRepository).delete(confirmation);
             verifyNoInteractions(personneService);

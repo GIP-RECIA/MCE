@@ -18,14 +18,14 @@ package fr.recia.mce.api.escomceapi.configuration.bean;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static fr.recia.mce.api.escomceapi.configuration.Constants.PROPERTIES_TO_JSON_DELIMITER;
-import static fr.recia.mce.api.escomceapi.configuration.Constants.PROPERTIES_TO_JSON_PREFIX;
-import static fr.recia.mce.api.escomceapi.configuration.Constants.PROPERTIES_TO_JSON_SUFFIX;
-
 import lombok.Data;
 
 @Data
 public class CorsProperties {
+
+    private static final String JSON_DELIMITER = "\", \"";
+    private static final String JSON_PREFIX = "[ \"";
+    private static final String JSON_SUFFIX = "\" ]";
 
     private boolean enable;
     private boolean allowCredentials;
@@ -41,23 +41,19 @@ public class CorsProperties {
                 ",\n\t\"allowCredentials\": " + allowCredentials +
                 ",\n\t\"allowedOrigins\": " + allowedOrigins.stream()
                         .map(String::valueOf)
-                        .collect(Collectors.joining(PROPERTIES_TO_JSON_DELIMITER, PROPERTIES_TO_JSON_PREFIX,
-                                PROPERTIES_TO_JSON_SUFFIX))
+                        .collect(Collectors.joining(JSON_DELIMITER, JSON_PREFIX, JSON_SUFFIX))
                 +
                 ",\n\t\"exposedHeaders\": " + exposedHeaders.stream()
                         .map(String::valueOf)
-                        .collect(Collectors.joining(PROPERTIES_TO_JSON_DELIMITER, PROPERTIES_TO_JSON_PREFIX,
-                                PROPERTIES_TO_JSON_SUFFIX))
+                        .collect(Collectors.joining(JSON_DELIMITER, JSON_PREFIX, JSON_SUFFIX))
                 +
                 ",\n\t\"allowedHeaders\": " + allowedHeaders.stream()
                         .map(String::valueOf)
-                        .collect(Collectors.joining(PROPERTIES_TO_JSON_DELIMITER, PROPERTIES_TO_JSON_PREFIX,
-                                PROPERTIES_TO_JSON_SUFFIX))
+                        .collect(Collectors.joining(JSON_DELIMITER, JSON_PREFIX, JSON_SUFFIX))
                 +
                 ",\n\t\"allowedMethods\": " + allowedMethods.stream()
                         .map(String::valueOf)
-                        .collect(Collectors.joining(PROPERTIES_TO_JSON_DELIMITER, PROPERTIES_TO_JSON_PREFIX,
-                                PROPERTIES_TO_JSON_SUFFIX))
+                        .collect(Collectors.joining(JSON_DELIMITER, JSON_PREFIX, JSON_SUFFIX))
                 +
                 "\n}";
     }

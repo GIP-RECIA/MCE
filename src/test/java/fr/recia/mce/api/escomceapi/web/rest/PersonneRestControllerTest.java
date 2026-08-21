@@ -25,9 +25,11 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
+import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
@@ -101,6 +103,18 @@ class PersonneRestControllerTest {
     @MockBean
     @SuppressWarnings("unused")
     private EmailVerificationService emailVerificationService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private CharteService charteService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository aPersonneRepository;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository cerbereConfirmationRepository;
 
     private static final String BASE_URL = "/api/personne/mce/";
     private static final String USER = "test.user";
@@ -545,7 +559,7 @@ class PersonneRestControllerTest {
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value("SUCCESS"))
-                    .andExpect(jsonPath("$.message").value("Email verifie avec succes"));
+                    .andExpect(jsonPath("$.message").value("Email verifié avec succès"));
 
             verify(emailVerificationService).verifyEmail(USER, "123456");
         }
@@ -557,14 +571,14 @@ class PersonneRestControllerTest {
             request.setUid(USER);
             request.setCode("000000");
 
-            doThrow(new IllegalArgumentException("Code de verification invalide ou deja utilise"))
+            doThrow(new InvalidCodeException("Code de verification invalide ou deja utilise"))
                     .when(emailVerificationService).verifyEmail(USER, "000000");
 
             mockMvc.perform(post(BASE_URL + "verify-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("VERIFICATION_FAILED"))
+                    .andExpect(jsonPath("$.code").value("INVALID_CODE"))
                     .andExpect(jsonPath("$.message").value("Code de verification invalide ou deja utilise"));
         }
 

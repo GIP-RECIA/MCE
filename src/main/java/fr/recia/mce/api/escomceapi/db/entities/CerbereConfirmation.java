@@ -28,7 +28,9 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+import javax.persistence.Transient;
 
+import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -82,5 +84,14 @@ public class CerbereConfirmation {
         this.limite = limite;
         this.confirmation = confirmation;
         this.editor = editor;
+    }
+
+    /**
+     * Type dérivé du préfixe du code hashé (VERIFY: ou RESET:).
+     * Pas de colonne en base — le type est déterminé dynamiquement depuis {@code code}.
+     */
+    @Transient
+    public ConfirmationType getType() {
+        return ConfirmationType.fromCode(this.code);
     }
 }

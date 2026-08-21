@@ -251,7 +251,8 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
         // Check if it’s a class or a group and add to respective lists
         if (log.isDebugEnabled()) {
-            log.debug("DEBUG: handleEleve pour uid={} : ldapAttr={}, classAttrs={}, groupAttrs={}", uid, ldapAttr, Arrays.toString(classAttrs), Arrays.toString(groupAttrs));
+            log.debug("DEBUG: handleEleve pour uid={} : ldapAttr={}, classAttrs={}, groupAttrs={}", uid, ldapAttr, Arrays.toString(classAttrs),
+                    Arrays.toString(groupAttrs));
         }
 
         boolean isClassAttr = Arrays.asList(classAttrs).contains(ldapAttr);
@@ -354,7 +355,8 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         // 2. Essayer de trouver via l'attribut ENTAuxEnsMatiereEnseignEtab
         List<String> attrMatiereEnseignEtab = person.getAttribute("ENTAuxEnsMatiereEnseignEtab");
         if (log.isDebugEnabled()) {
-            log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour uid={} siren={} code={} : attr={}", person.getId(), siren, code, attrMatiereEnseignEtab);
+            log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour uid={} siren={} code={} : attr={}", person.getId(), siren, code,
+                    attrMatiereEnseignEtab);
         }
         if (attrMatiereEnseignEtab != null) {
             Pattern patternMatiere = Pattern.compile("ENTStructureSIREN=(\\w+).+\\$([^$]+)");

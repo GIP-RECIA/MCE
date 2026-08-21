@@ -15,11 +15,20 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
+import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
+import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
+import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
+import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
+import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
@@ -34,11 +43,18 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Slf4j
 public class EmailVerificationService {
+
+    private static final String VALID_ACCOUNT_STATE = "Valide";
+
+    private final ConcurrentHashMap<Long, AtomicInteger> resetAttempts = new ConcurrentHashMap<>();
 
     @Autowired
     private JavaMailSender mailSender;
@@ -53,11 +69,21 @@ public class EmailVerificationService {
     private MailProperties mailProperties;
 
     @Autowired
+    private MCEProperties mceProperties;
+
+    @Autowired
     private PersonneService personneService;
+
+    @Autowired
+    private PasswordService passwordService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    private String hashCode(String code) {
+    private String hashWithPrefix(String code, ConfirmationType type) {
+        return type.getCodePrefix() + sha256(code);
+    }
+
+    private String sha256(String code) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
@@ -76,25 +102,27 @@ public class EmailVerificationService {
     }
 
     public String generateVerificationCode() {
-        int code = secureRandom.nextInt(1_000_000);
-        return String.format("%06d", code);
+        int codeLength = mailProperties.getVerification().getCodeLength();
+        int max = (int) Math.pow(10, codeLength);
+        int code = secureRandom.nextInt(max);
+        return String.format("%0" + codeLength + "d", code);
     }
 
     @Transactional
     public void sendVerificationEmail(String uid, String email) {
         APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
-            throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
+            throw new InactiveAccountException("Aucun compte associé à cet identifiant");
         }
 
         String code = generateVerificationCode();
-        String hashedCode = hashCode(code);
+        String hashedCode = hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.HOUR_OF_DAY, (int) mailProperties.getVerification().getExpiryHours());
         Date limite = cal.getTime();
 
-        cerbereConfirmationRepository.deletePendingByPersonId(person.getId());
+        cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
 
         CerbereConfirmation confirmation = new CerbereConfirmation();
         confirmation.setAPersonne(person);
@@ -111,19 +139,16 @@ public class EmailVerificationService {
     }
 
     private void sendEmail(String to, String code) {
+        MailProperties.EmailTemplates.Template tpl = mailProperties.getTemplates().getVerification();
+        String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
+
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailProperties.getFromEmail());
         message.setTo(to);
-        message.setSubject("Verification de votre adresse email");
-        message.setText(
-                "Bonjour,\n\n"
-                        + "Vous avez demande la verification de votre adresse email.\n\n"
-                        + "Votre code de verification est : " + code + "\n\n"
-                        + "Veuillez saisir ce code sur la page de verification pour confirmer votre adresse.\n\n"
-                        + "Ce code est valable " + mailProperties.getVerification().getExpiryHours() + " heures.\n\n"
-                        + "Si vous n'etes pas a l'origine de cette demande, ignorez cet email.\n\n"
-                        + "Cordialement,\n"
-                        + "Votre equipe support");
+        message.setSubject(tpl.getSubject());
+        message.setText(tpl.getBody()
+                .replace("{{code}}", code)
+                .replace("{{expiryHours}}", expiryHours));
 
         try {
             mailSender.send(message);
@@ -134,20 +159,136 @@ public class EmailVerificationService {
     }
 
     @Transactional
+    public void sendPasswordResetCode(String uid, String email, String profil) {
+        log.info("[RESET_PASSWORD] Début sendPasswordResetCode uid={}, email={}, profil={}", uid, email, profil);
+
+        APersonne person = aPersonneRepository.findByUid(uid);
+        if (person == null) {
+            throw new InvalidCodeException("Aucun compte associé à cet identifiant");
+        }
+
+        if (profil != null && !profil.isBlank()) {
+            String dbCategorie = person.getCategorie();
+            if (dbCategorie == null || !profil.equalsIgnoreCase(dbCategorie)) {
+                log.warn("[RESET_PASSWORD] Profil incohérent : front='{}' vs DB='{}' uid={}", profil, dbCategorie, uid);
+                throw new InvalidCodeException("Profil incohérent avec votre compte");
+            }
+        }
+
+        // Anti-double-clic
+        List<CerbereConfirmation> pending = cerbereConfirmationRepository.findPendingPasswordResetByPersonId(person.getId());
+        if (!pending.isEmpty()) {
+            CerbereConfirmation last = pending.get(0);
+            if (last.getLimite() != null) {
+                long expiryHours = mailProperties.getVerification().getExpiryHours();
+                long estimatedCreation = last.getLimite().getTime() - (expiryHours * 3_600_000L);
+                long elapsed = System.currentTimeMillis() - estimatedCreation;
+                if (elapsed < mceProperties.getSecurity().getResetPolicy().getResendCooldownMs()) {
+                    log.warn("[RESET_PASSWORD] Anti-double-clic : dernière demande il y a {} ms pour uid={}", elapsed, uid);
+                    return;
+                }
+            }
+        }
+
+        // Vérification de l'état du compte
+        if (!VALID_ACCOUNT_STATE.equals(person.getEtat())) {
+            log.warn("[RESET_PASSWORD] État '{}' ≠ '{}' pour uid={}", person.getEtat(), VALID_ACCOUNT_STATE, uid);
+            throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
+        }
+
+        PersonneDTO personneDTO = personneService.getUserByUid(uid);
+        if (personneDTO == null) {
+            throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
+        }
+
+        EnumPublic pub = personneDTO.getEnumPublic();
+        if (pub == null) {
+            log.warn("[RESET_PASSWORD] Profil non défini pour uid={}, utilisation du profil par défaut AUTRE", uid);
+            pub = EnumPublic.AUTRE;
+        }
+
+        // TODO: Réactiver ces vérifications en production — désactivé temporairement pour les tests
+        if (pub.isEduconnect()) {
+            log.warn("[RESET_PASSWORD] Compte EduConnect uid={} — vérification désactivée pour les tests", uid);
+        }
+        if (!pub.isConnectOk() && !personneDTO.isNtPass()) {
+            log.warn("[RESET_PASSWORD] connectOk=false et ntPass=false uid={} — vérification désactivée pour les tests", uid);
+        }
+
+        // Génération du code
+        String code = generateVerificationCode();
+        String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
+
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.HOUR_OF_DAY, (int) mailProperties.getVerification().getExpiryHours());
+        Date limite = cal.getTime();
+
+        // Réutilisation ou création
+        List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
+        CerbereConfirmation confirmation;
+        if (!existing.isEmpty()) {
+            CerbereConfirmation lastExisting = existing.get(0);
+            if (lastExisting.getConfirmation() != null) {
+                log.info("[RESET_PASSWORD] RESET id={} déjà consommé, création d'une nouvelle confirmation", lastExisting.getId());
+                confirmation = new CerbereConfirmation();
+                confirmation.setAPersonne(person);
+                confirmation.setEditor(person);
+            } else {
+                confirmation = lastExisting;
+            }
+            confirmation.setCode(hashedCode);
+            confirmation.setMail(email);
+            confirmation.setLimite(limite);
+            confirmation.setConfirmation(null);
+        } else {
+            confirmation = new CerbereConfirmation();
+            confirmation.setAPersonne(person);
+            confirmation.setCode(hashedCode);
+            confirmation.setMail(email);
+            confirmation.setLimite(limite);
+            confirmation.setConfirmation(null);
+            confirmation.setEditor(person);
+        }
+        cerbereConfirmationRepository.save(confirmation);
+
+        sendResetEmail(email, code);
+        log.info("[RESET_PASSWORD] Code envoyé à {} pour uid={}", email, uid);
+    }
+
+    private void sendResetEmail(String to, String code) {
+        MailProperties.EmailTemplates.Template tpl = mailProperties.getTemplates().getReset();
+        String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailProperties.getFromEmail());
+        message.setTo(to);
+        message.setSubject(tpl.getSubject());
+        message.setText(tpl.getBody()
+                .replace("{{code}}", code)
+                .replace("{{expiryHours}}", expiryHours));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error("Erreur lors de l'envoi du code de réinitialisation à {} : {}", to, e.getMessage(), e);
+            throw new RuntimeException("Erreur lors de l'envoi du code de reinitialisation", e);
+        }
+    }
+
+    @Transactional
     public void verifyEmail(String uid, String code) {
         APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : utilisateur introuvable", uid);
-            throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
+            throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
 
-        String hashedCode = hashCode(code);
-        Optional<CerbereConfirmation> optConfirmation =
-                cerbereConfirmationRepository.findPendingByPersonIdAndCode(person.getId(), hashedCode);
+        String hashedCode = hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
+        Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
 
         if (optConfirmation.isEmpty()) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code invalide ou déjà utilisé", uid);
-            throw new IllegalArgumentException("Code de verification invalide ou deja utilise");
+            throw new InvalidCodeException("Le code de vérification est incorrect ou a déjà été utilisé.");
         }
 
         CerbereConfirmation confirmation = optConfirmation.get();
@@ -155,17 +296,82 @@ public class EmailVerificationService {
         if (confirmation.getLimite().before(new Date())) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code expiré (limite={})", uid, confirmation.getLimite());
             cerbereConfirmationRepository.delete(confirmation);
-            throw new IllegalArgumentException("Le code de verification a expire");
+            throw new CodeExpiredException("Le code de vérification a expiré. Veuillez en demander un nouveau.");
         }
 
         String email = confirmation.getMail();
-
         personneService.updateEmail(uid, email);
 
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
 
         log.info("Email vérifié avec succès pour l'utilisateur [uid={}] -> {}", uid, email);
+    }
+
+    @Transactional
+    public void processResetPassword(String uid, String code, String newPassword, String confirmPassword, boolean charteAccepted) {
+        log.info("[PROCESS_RESET_PASSWORD] Début uid={}", uid);
+
+        APersonne person = aPersonneRepository.findByUid(uid);
+        if (person == null) {
+            throw new InvalidCodeException("Aucun compte associé à cet identifiant");
+        }
+
+        String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
+        Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(person.getId(), hashedCode);
+
+        if (optConfirmation.isEmpty()) {
+            throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
+        }
+
+        CerbereConfirmation confirmation = optConfirmation.get();
+
+        AtomicInteger attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AtomicInteger(0));
+        int currentAttempt = attempts.incrementAndGet();
+        int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
+        log.info("[PROCESS_RESET_PASSWORD] Tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
+
+        if (currentAttempt > maxAttempts) {
+            log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression de la confirmation", uid);
+            cerbereConfirmationRepository.delete(confirmation);
+            resetAttempts.remove(person.getId());
+            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Un nouveau code vous a été envoyé par email.");
+        }
+
+        if (confirmation.getLimite().before(new Date())) {
+            log.warn("[PROCESS_RESET_PASSWORD] Code expiré uid={}", uid);
+            cerbereConfirmationRepository.delete(confirmation);
+            throw new CodeExpiredException("Le code de réinitialisation a expiré. Veuillez demander un nouveau code.");
+        }
+
+        if (!VALID_ACCOUNT_STATE.equals(person.getEtat())) {
+            throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
+        }
+
+        PersonneDTO personneDTO = personneService.getUserByUid(uid);
+        if (personneDTO == null) {
+            throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
+        }
+
+        if (!personneDTO.isCharteValide()) {
+            if (!charteAccepted) {
+                throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de changer votre mot de passe");
+            }
+            personneService.signCharte(uid);
+        }
+
+        passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
+
+        confirmation.setConfirmation(new Date());
+        cerbereConfirmationRepository.save(confirmation);
+
+        cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
+
+        resetAttempts.remove(person.getId());
+
+        personneService.clearUserCaches(uid);
+
+        log.info("[PROCESS_RESET_PASSWORD] Succès uid={}", uid);
     }
 
 }

@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalStructDao;
 import lombok.Getter;
@@ -46,7 +48,7 @@ public class StructureServiceImpl implements IStructureService {
 
     private final DomaineProperties domaineProperties;
 
-    private List<IExternalStructure> allStructures;
+    private volatile List<IExternalStructure> allStructures;
 
     private final Map<String, IExternalStructure> siren2structure = Collections
             .synchronizedMap(new HashMap<>());
@@ -68,22 +70,14 @@ public class StructureServiceImpl implements IStructureService {
     @Override
     public List<IExternalStructure> getAllStructures() {
 
-        String siren;
-        String uai;
-
         if (allStructures == null) {
             allStructures = externalStructDao.loadAllStructure();
-        }
-
-        for (IExternalStructure struct : allStructures) {
-            siren = struct.getId();
-            uai = struct.getUai();
-            siren2structure.put(siren, struct);
-
-            if (uai != null) {
-                uai2structure.put(uai, struct);
+            for (IExternalStructure struct : allStructures) {
+                siren2structure.put(struct.getId(), struct);
+                if (struct.getUai() != null) {
+                    uai2structure.put(struct.getUai(), struct);
+                }
             }
-
         }
 
         return allStructures;
@@ -220,6 +214,32 @@ public class StructureServiceImpl implements IStructureService {
         }
 
         return false;
+    }
+
+    @Override
+    public Set<String> getAllVilles() {
+        Set<String> villes = new TreeSet<>();
+        for (IExternalStructure struct : getAllStructures()) {
+            String ville = struct.getVille();
+            if (ville != null && !ville.isBlank()) {
+                villes.add(ville.toUpperCase());
+            }
+        }
+        return villes;
+    }
+
+    @Override
+    public Set<String> findVillesBySurType(SurType surType) {
+        Set<String> villes = new TreeSet<>();
+        for (IExternalStructure struct : getAllStructures()) {
+            if (surType.matches(struct.getType())) {
+                String ville = struct.getVille();
+                if (ville != null && !ville.isBlank()) {
+                    villes.add(ville.toUpperCase());
+                }
+            }
+        }
+        return villes;
     }
 
 }

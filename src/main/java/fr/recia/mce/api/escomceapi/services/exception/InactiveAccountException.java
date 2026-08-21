@@ -13,19 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.ldap;
+package fr.recia.mce.api.escomceapi.services.exception;
 
-public interface IExternalStructure extends IExternalSubject {
-
-    String getName();
-
-    String getUai();
-
-    String getType();
-
-    String getVille();
-
-    String[] getDomaines();
-
-    String getSource();
+public class InactiveAccountException extends IllegalArgumentException {
+    public InactiveAccountException(String message) {
+        super(message);
+    }
 }

@@ -49,7 +49,15 @@ public class LdapStructureContextMapper implements ContextMapper<IExternalStruct
 
         structs.setType(context.getStringAttribute(externalStructHelper.getStructTypeAttribute()));
 
+        String ville = context.getStringAttribute(externalStructHelper.getStructVilleAttribute());
+        structs.setVille(ville != null ? ville.toUpperCase() : null);
+
         structs.setDomaines(context.getStringAttributes(externalStructHelper.getStructDomainesAttribute()));
+
+        String jointure = context.getStringAttribute(externalStructHelper.getStructJointureAttribute());
+        if (jointure != null && jointure.contains("$")) {
+            structs.setSource(jointure.substring(0, jointure.indexOf('$')));
+        }
 
         return structs;
     }

@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.ldap;
+package fr.recia.mce.api.escomceapi.web.dto;
 
-public interface IExternalStructure extends IExternalSubject {
+import lombok.Data;
 
-    String getName();
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
 
-    String getUai();
+@Data
+public class ForgotPasswordRequestDTO {
 
-    String getType();
+    @NotBlank(message = "L'identifiant est obligatoire")
+    private String uid;
 
-    String getVille();
+    @NotBlank(message = "L'adresse email est obligatoire")
+    @Email(message = "Le format de l'adresse email est invalide")
+    private String email;
 
-    String[] getDomaines();
-
-    String getSource();
+    private String profil;
 }

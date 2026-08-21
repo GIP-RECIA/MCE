@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.configuration;
 import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.SecurityProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.SoffitProperties;
 import lombok.Data;
@@ -41,6 +42,7 @@ public class MCEProperties {
     private CustomLdapProperties ldap = new CustomLdapProperties();
     private ServiceProperties service = new ServiceProperties();
     private SoffitProperties soffit = new SoffitProperties();
+    private SecurityProperties security = new SecurityProperties();
 
     @PostConstruct
     private void init() throws JsonProcessingException {
@@ -56,6 +58,7 @@ public class MCEProperties {
                 + ",\n\t \"ldap\":" + ldap
                 + ",\n\t \"service\":" + service
                 + ",\n\t \"soffit\":" + soffit
+                + ",\n\t \"security\":" + security
                 + "\n\t}\n}";
     }
 

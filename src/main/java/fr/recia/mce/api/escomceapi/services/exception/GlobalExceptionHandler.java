@@ -53,6 +53,42 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("INVALID_AVATAR", ex.getMessage()));
     }
 
+    @ExceptionHandler(ChampsObligatoiresException.class)
+    public ResponseEntity<ErrorResponse> handleChampsObligatoires(ChampsObligatoiresException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCodeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCode(InvalidCodeException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_CODE", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CodeExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleCodeExpired(CodeExpiredException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("CODE_EXPIRED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MaxAttemptsExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxAttempts(MaxAttemptsExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new ErrorResponse("MAX_ATTEMPTS_EXCEEDED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InactiveAccountException.class)
+    public ResponseEntity<ErrorResponse> handleInactiveAccount(InactiveAccountException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INACTIVE_ACCOUNT", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CharteNotAcceptedException.class)
+    public ResponseEntity<ErrorResponse> handleCharteNotAccepted(CharteNotAcceptedException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("CHARTE_REQUIRED", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

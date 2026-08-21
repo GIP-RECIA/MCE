@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.services.factories.impl;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -133,6 +134,8 @@ class UserDTOFactoryImplTest {
         ServiceProperties serviceProperties = new ServiceProperties();
         lenient().when(mceProperties.getAvatar()).thenReturn(new AvatarProperties());
         lenient().when(mceProperties.getService()).thenReturn(serviceProperties);
+        MailProperties mailProperties = new MailProperties();
+        mailProperties.setAcMailPattern("[^@]+@ac-orleans-tours.fr");
 
         lenient().when(structureService.isReseauRecia(any(PersonneDTO.class))).thenReturn(false);
 
@@ -152,6 +155,7 @@ class UserDTOFactoryImplTest {
         ReflectionTestUtils.setField(factory, "classeGroupeService", classeGroupeService);
         ReflectionTestUtils.setField(factory, "soffitHolder", soffitHolder);
         ReflectionTestUtils.setField(factory, "extUserHelper", extUserHelper);
+        ReflectionTestUtils.setField(factory, "mailProperties", mailProperties);
     }
 
     private UserDTO buildUserDto(EnumPublic pub, String mailFixe) {
@@ -174,8 +178,7 @@ class UserDTOFactoryImplTest {
                 Arguments.of(EnumPublic.ELEVE, "eleve@test.fr", true),
                 Arguments.of(EnumPublic.APPRENANT, "apprenant@cfa.fr", true),
                 Arguments.of(EnumPublic.EXTERIEUR, "externe@test.fr", true),
-                Arguments.of(EnumPublic.AUTRE, "autre@test.fr", true)
-        );
+                Arguments.of(EnumPublic.AUTRE, "autre@test.fr", true));
     }
 
     static Stream<Arguments> mdpMatrixWithoutMailFixe() {
@@ -183,8 +186,7 @@ class UserDTOFactoryImplTest {
                 Arguments.of(EnumPublic.EDUCATION, false),
                 Arguments.of(EnumPublic.AGRI, false),
                 Arguments.of(EnumPublic.PERSONNEL, true),
-                Arguments.of(EnumPublic.ELEVE, true)
-        );
+                Arguments.of(EnumPublic.ELEVE, true));
     }
 
     static Stream<Arguments> blockedProfilesForPasswordChange() {
@@ -194,8 +196,7 @@ class UserDTOFactoryImplTest {
                 Arguments.of(EnumPublic.AGRI, "user@educagri.fr"),
                 Arguments.of(EnumPublic.CVDL, "user@region.fr"),
                 Arguments.of(EnumPublic.ELEVE_EDUC, "eleve@test.fr"),
-                Arguments.of(EnumPublic.PARENT_EDUC, "parent@test.fr")
-        );
+                Arguments.of(EnumPublic.PARENT_EDUC, "parent@test.fr"));
     }
 
     static Stream<Arguments> allowedProfilesForPasswordChange() {
@@ -205,8 +206,7 @@ class UserDTOFactoryImplTest {
                 Arguments.of(EnumPublic.ELEVE, null),
                 Arguments.of(EnumPublic.APPRENANT, "apprenant@cfa.fr"),
                 Arguments.of(EnumPublic.EXTERIEUR, "externe@test.fr"),
-                Arguments.of(EnumPublic.AUTRE, "autre@test.fr")
-        );
+                Arguments.of(EnumPublic.AUTRE, "autre@test.fr"));
     }
 
     @Nested

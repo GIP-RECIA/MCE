@@ -38,7 +38,11 @@ public class ExternalStructure implements IExternalStructure {
 
     private String type;
 
+    private String ville;
+
     private String[] domaines;
+
+    private String source;
 
     private Map<String, List<String>> attributes = new HashMap<>();
 

@@ -13,19 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.ldap;
+package fr.recia.mce.api.escomceapi.web.dto;
 
-public interface IExternalStructure extends IExternalSubject {
+import lombok.Data;
 
-    String getName();
+import javax.validation.constraints.NotBlank;
 
-    String getUai();
+@Data
+public class SearchUidRequestDTO {
 
-    String getType();
+    @NotBlank(message = "Le nom est obligatoire")
+    private String nom;
 
-    String getVille();
+    @NotBlank(message = "Le prénom est obligatoire")
+    private String prenom;
 
-    String[] getDomaines();
+    @NotBlank(message = "L'email est obligatoire")
+    private String email;
 
-    String getSource();
+    private String profil;
+
+    private String typeEtablissement;
+
+    private String ville;
+
+    private String etablissement;
 }

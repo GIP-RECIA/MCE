@@ -13,19 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.ldap;
+package fr.recia.mce.api.escomceapi.web.dto;
 
-public interface IExternalStructure extends IExternalSubject {
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-    String getName();
+@Data
+@AllArgsConstructor
+public class SearchUidResponseDTO {
 
-    String getUai();
-
-    String getType();
-
-    String getVille();
-
-    String[] getDomaines();
-
-    String getSource();
+    private String uid;
+    private String displayName;
 }
