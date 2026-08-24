@@ -217,12 +217,17 @@ public class EmailVerificationService {
             pub = EnumPublic.AUTRE;
         }
 
-        // TODO: Réactiver ces vérifications en production — désactivé temporairement pour les tests
+        // Comptes sans mot de passe local réinitialisable :
+        // - EduConnect (parents/élèves éduc nat) : le mot de passe se gère sur le portail EduConnect ;
+        // - sans connectOk ni ntPass, aucun mode d'authentification local n'existe
+        //   (même règle que UserDTOFactoryImpl.computePassEditable).
         if (pub.isEduconnect()) {
-            log.warn("[RESET_PASSWORD] Compte EduConnect uid={} — vérification désactivée pour les tests", uid);
+            log.warn("[RESET_PASSWORD] Refus : compte EduConnect uid={}", uid);
+            throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
         }
         if (!pub.isConnectOk() && !personneDTO.isNtPass()) {
-            log.warn("[RESET_PASSWORD] connectOk=false et ntPass=false uid={} — vérification désactivée pour les tests", uid);
+            log.warn("[RESET_PASSWORD] Refus : ni connectOk ni ntPass uid={}", uid);
+            throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
         }
 
         // Génération du code
