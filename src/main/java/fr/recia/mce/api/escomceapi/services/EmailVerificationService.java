@@ -36,6 +36,8 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -138,7 +140,7 @@ public class EmailVerificationService {
         // Nouveau code de vérification : le compteur de tentatives repart de zéro.
         verificationAttempts.remove(person.getId());
 
-        sendEmail(email, code);
+        sendAfterCommit(() -> sendEmail(email, code));
 
         log.info("Email de vérification envoyé à {} pour l'utilisateur [uid={}]", email, uid);
     }
@@ -277,8 +279,27 @@ public class EmailVerificationService {
         // Nouvelle demande de code : le compteur de tentatives repart de zéro.
         resetAttempts.remove(person.getId());
 
-        sendResetEmail(email, code);
-        log.info("[RESET_PASSWORD] Code envoyé à {} pour uid={}", email, uid);
+        final String recipient = email;
+        sendAfterCommit(() -> sendResetEmail(recipient, code));
+        log.info("[RESET_PASSWORD] Code généré pour uid={} (envoi programmé après commit)", uid);
+    }
+
+    /**
+     * Diffère l'envoi SMTP au commit de la transaction : un rollback ne doit pas laisser
+     * partir un code inexistant, et le SMTP lent ne doit pas retenir la connexion DB.
+     * Hors transaction (contexte sans synchronisation), l'envoi est immédiat.
+     */
+    private void sendAfterCommit(Runnable emailAction) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    emailAction.run();
+                }
+            });
+        } else {
+            emailAction.run();
+        }
     }
 
     /**
