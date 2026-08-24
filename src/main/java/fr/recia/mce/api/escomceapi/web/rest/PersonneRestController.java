@@ -255,6 +255,14 @@ public class PersonneRestController {
         List<Object[]> results;
         Collection<String> sirens = resolveSirens(typeEtablissement, ville, etablissement);
         log.info("[SEARCH_UID] Filtre structures : {} SIREN(s) pour profil={}", sirens.size(), profil);
+        if (sirens.isEmpty()) {
+            // Garde-fou : un IN () vide est rejeté par le driver SQL — aucun établissement
+            // ne peut de toute façon correspondre à un filtre vide.
+            log.warn("[SEARCH_UID] Aucun SIREN résolu pour type={}, ville={} → SEARCH_NO_RESULT",
+                    typeEtablissement, ville);
+            return ResponseEntity.ok(new ErrorResponse("SEARCH_NO_RESULT",
+                    "Aucun utilisateur trouvé avec ces informations"));
+        }
         results = aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(nom, prenom, profil, sirens);
         log.info("[SEARCH_UID] {} résultat(s) DB pour nom={}, prenom={}", results.size(), nom, prenom);
 
