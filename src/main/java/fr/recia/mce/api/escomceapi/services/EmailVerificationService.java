@@ -34,6 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -56,9 +57,46 @@ public class EmailVerificationService {
 
     private static final String VALID_ACCOUNT_STATE = "Valide";
 
-    private final ConcurrentHashMap<Long, AtomicInteger> resetAttempts = new ConcurrentHashMap<>();
+    /**
+     * Durée de conservation d'une entrée de compteur de tentatives : doit dépasser
+     * la durée de vie d'un code (expiryHours) pour ne pas purger un compteur encore
+     * pertinent, tout en libérant la mémoire des comptes abandonnés en cours de route.
+     */
+    private static final long ATTEMPT_ENTRY_TTL_MS = 2 * 3_600_000L;
 
-    private final ConcurrentHashMap<Long, AtomicInteger> verificationAttempts = new ConcurrentHashMap<>();
+    /**
+     * Compteur de tentatives horodaté : le champ {@code lastTouchMs} est rafraîchi à
+     * chaque accès (bon ou mauvais code), ce qui permet à {@link #purgeStaleAttemptEntries()}
+     * de supprimer les entrées des utilisateurs partis sans conclure.
+     */
+    static final class AttemptEntry {
+        final AtomicInteger count = new AtomicInteger(0);
+        volatile long lastTouchMs = System.currentTimeMillis();
+
+        boolean isStale(long nowMs) {
+            return nowMs - lastTouchMs >= ATTEMPT_ENTRY_TTL_MS;
+        }
+
+        void touch() {
+            lastTouchMs = System.currentTimeMillis();
+        }
+    }
+
+    private final ConcurrentHashMap<Long, AttemptEntry> resetAttempts = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<Long, AttemptEntry> verificationAttempts = new ConcurrentHashMap<>();
+
+    @Scheduled(fixedDelayString = "PT15M")
+    public void purgeStaleAttemptEntries() {
+        long now = System.currentTimeMillis();
+        int before = resetAttempts.size() + verificationAttempts.size();
+        resetAttempts.entrySet().removeIf(e -> e.getValue().isStale(now));
+        verificationAttempts.entrySet().removeIf(e -> e.getValue().isStale(now));
+        int removed = before - resetAttempts.size() - verificationAttempts.size();
+        if (removed > 0) {
+            log.info("Purge des compteurs de tentatives expirés : {} entrée(s) supprimée(s)", removed);
+        }
+    }
 
     @Autowired
     private JavaMailSender mailSender;
@@ -356,18 +394,19 @@ public class EmailVerificationService {
         // Même protection anti-bruteforce que pour le reset : seuls les codes
         // incorrects consomment une tentative ; au-delà de maxAttempts le code
         // en attente est détruit.
-        AtomicInteger attempts = verificationAttempts.computeIfAbsent(person.getId(), k -> new AtomicInteger(0));
+        AttemptEntry attempts = verificationAttempts.computeIfAbsent(person.getId(), k -> new AttemptEntry());
+        attempts.touch();
         int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
 
-        if (attempts.get() >= maxAttempts) {
-            log.warn("[VERIFY_EMAIL] Compteur saturé ({}/{}) uid={} : suppression du code", attempts.get(), maxAttempts, uid);
+        if (attempts.count.get() >= maxAttempts) {
+            log.warn("[VERIFY_EMAIL] Compteur saturé ({}/{}) uid={} : suppression du code", attempts.count.get(), maxAttempts, uid);
             cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
             verificationAttempts.remove(person.getId());
             throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de vérification.");
         }
 
         if (optConfirmation.isEmpty()) {
-            int currentAttempt = attempts.incrementAndGet();
+            int currentAttempt = attempts.count.incrementAndGet();
             log.info("[VERIFY_EMAIL] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
             if (currentAttempt > maxAttempts) {
                 cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
@@ -407,14 +446,15 @@ public class EmailVerificationService {
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
 
-        AtomicInteger attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AtomicInteger(0));
+        AttemptEntry attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AttemptEntry());
+        attempts.touch();
         int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
 
         // Compteur saturé par des mauvais codes : le code en attente est détruit,
         // même si celui soumis cette fois est le bon.
-        if (attempts.get() >= maxAttempts) {
+        if (attempts.count.get() >= maxAttempts) {
             log.warn("[PROCESS_RESET_PASSWORD] Compteur saturé ({}/{}) uid={} : suppression du code",
-                    attempts.get(), maxAttempts, uid);
+                    attempts.count.get(), maxAttempts, uid);
             cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
             resetAttempts.remove(person.getId());
             throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
@@ -426,7 +466,7 @@ public class EmailVerificationService {
         // Seuls les codes incorrects consomment une tentative : les échecs bénins
         // (charte non acceptée, mot de passe faible…) ne doivent pas pénaliser l'utilisateur.
         if (optConfirmation.isEmpty()) {
-            int currentAttempt = attempts.incrementAndGet();
+            int currentAttempt = attempts.count.incrementAndGet();
             log.info("[PROCESS_RESET_PASSWORD] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
             if (currentAttempt > maxAttempts) {
                 log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression du code", uid);
