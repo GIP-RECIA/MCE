@@ -56,6 +56,8 @@ public class EmailVerificationService {
 
     private final ConcurrentHashMap<Long, AtomicInteger> resetAttempts = new ConcurrentHashMap<>();
 
+    private final ConcurrentHashMap<Long, AtomicInteger> verificationAttempts = new ConcurrentHashMap<>();
+
     @Autowired
     private JavaMailSender mailSender;
 
@@ -132,6 +134,9 @@ public class EmailVerificationService {
         confirmation.setConfirmation(null);
         confirmation.setEditor(person);
         cerbereConfirmationRepository.save(confirmation);
+
+        // Nouveau code de vérification : le compteur de tentatives repart de zéro.
+        verificationAttempts.remove(person.getId());
 
         sendEmail(email, code);
 
@@ -324,7 +329,27 @@ public class EmailVerificationService {
         String hashedCode = hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
 
+        // Même protection anti-bruteforce que pour le reset : seuls les codes
+        // incorrects consomment une tentative ; au-delà de maxAttempts le code
+        // en attente est détruit.
+        AtomicInteger attempts = verificationAttempts.computeIfAbsent(person.getId(), k -> new AtomicInteger(0));
+        int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
+
+        if (attempts.get() >= maxAttempts) {
+            log.warn("[VERIFY_EMAIL] Compteur saturé ({}/{}) uid={} : suppression du code", attempts.get(), maxAttempts, uid);
+            cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
+            verificationAttempts.remove(person.getId());
+            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de vérification.");
+        }
+
         if (optConfirmation.isEmpty()) {
+            int currentAttempt = attempts.incrementAndGet();
+            log.info("[VERIFY_EMAIL] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
+            if (currentAttempt > maxAttempts) {
+                cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
+                verificationAttempts.remove(person.getId());
+                throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de vérification.");
+            }
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code invalide ou déjà utilisé", uid);
             throw new InvalidCodeException("Le code de vérification est incorrect ou a déjà été utilisé.");
         }
@@ -334,6 +359,7 @@ public class EmailVerificationService {
         if (confirmation.getLimite().before(new Date())) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code expiré (limite={})", uid, confirmation.getLimite());
             cerbereConfirmationRepository.delete(confirmation);
+            verificationAttempts.remove(person.getId());
             throw new CodeExpiredException("Le code de vérification a expiré. Veuillez en demander un nouveau.");
         }
 
@@ -342,6 +368,8 @@ public class EmailVerificationService {
 
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
+
+        verificationAttempts.remove(person.getId());
 
         log.info("Email vérifié avec succès pour l'utilisateur [uid={}] -> {}", uid, email);
     }
