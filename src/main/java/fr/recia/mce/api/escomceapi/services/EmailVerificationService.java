@@ -266,6 +266,9 @@ public class EmailVerificationService {
         }
         cerbereConfirmationRepository.save(confirmation);
 
+        // Nouvelle demande de code : le compteur de tentatives repart de zéro.
+        resetAttempts.remove(person.getId());
+
         sendResetEmail(email, code);
         log.info("[RESET_PASSWORD] Code envoyé à {} pour uid={}", email, uid);
     }
@@ -352,26 +355,37 @@ public class EmailVerificationService {
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
 
+        AtomicInteger attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AtomicInteger(0));
+        int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
+
+        // Compteur saturé par des mauvais codes : le code en attente est détruit,
+        // même si celui soumis cette fois est le bon.
+        if (attempts.get() >= maxAttempts) {
+            log.warn("[PROCESS_RESET_PASSWORD] Compteur saturé ({}/{}) uid={} : suppression du code",
+                    attempts.get(), maxAttempts, uid);
+            cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
+            resetAttempts.remove(person.getId());
+            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
+        }
+
         String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(person.getId(), hashedCode);
 
+        // Seuls les codes incorrects consomment une tentative : les échecs bénins
+        // (charte non acceptée, mot de passe faible…) ne doivent pas pénaliser l'utilisateur.
         if (optConfirmation.isEmpty()) {
+            int currentAttempt = attempts.incrementAndGet();
+            log.info("[PROCESS_RESET_PASSWORD] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
+            if (currentAttempt > maxAttempts) {
+                log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression du code", uid);
+                cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
+                resetAttempts.remove(person.getId());
+                throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
+            }
             throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
         }
 
         CerbereConfirmation confirmation = optConfirmation.get();
-
-        AtomicInteger attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AtomicInteger(0));
-        int currentAttempt = attempts.incrementAndGet();
-        int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
-        log.info("[PROCESS_RESET_PASSWORD] Tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
-
-        if (currentAttempt > maxAttempts) {
-            log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression de la confirmation", uid);
-            cerbereConfirmationRepository.delete(confirmation);
-            resetAttempts.remove(person.getId());
-            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
-        }
 
         if (confirmation.getLimite().before(new Date())) {
             log.warn("[PROCESS_RESET_PASSWORD] Code expiré uid={}", uid);
