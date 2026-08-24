@@ -300,11 +300,7 @@ public class PersonneRestController {
             @Valid @RequestBody ResetPasswordRequestDTO request) {
 
         String uid = request.getUid();
-        String maskedCode = (request.getCode() != null && request.getCode().length() >= 2)
-                ? request.getCode().substring(0, 2) + "****"
-                : "****";
-
-        log.info("[RESET_PASSWORD] Demande uid={}, code={}, charteAccepted={}", uid, maskedCode, request.isCharteAccepted());
+        log.info("[RESET_PASSWORD] Demande uid={}, charteAccepted={}", uid, request.isCharteAccepted());
 
         emailVerificationService.processResetPassword(
                 uid, request.getCode(),
