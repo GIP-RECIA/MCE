@@ -18,10 +18,12 @@ package fr.recia.mce.api.escomceapi.db.repositories;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import javax.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 
@@ -31,6 +33,14 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     @Query("SELECT a FROM APersonne a WHERE a.uid = :uid")
     APersonne findByUid(final String uid);
 
+    /**
+     * Charge la personne avec un verrou pessimiste : sérialise les demandes concurrentes
+     * (ex. deux POST forgot-password simultanés pour le même uid) afin d'éviter la création
+     * de plusieurs codes valides en parallèle. À appeler dans une transaction.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM APersonne a WHERE a.uid = :uid")
+    APersonne findByUidWithLock(@Param("uid") final String uid);
     @Query("SELECT a.uid, a.displayName, a.id, a.email, a.emailPersonnel, a.aStructure.siren FROM APersonne a " +
             "WHERE LOWER(a.sn) = LOWER(:nom) AND LOWER(a.givenName) = LOWER(:prenom) " +
             "AND a.etat != 'Delete' AND LOWER(a.categorie) = LOWER(:categorie) " +

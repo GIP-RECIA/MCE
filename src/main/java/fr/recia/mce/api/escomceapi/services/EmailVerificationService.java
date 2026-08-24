@@ -170,7 +170,10 @@ public class EmailVerificationService {
             email = email.trim();
         }
 
-        APersonne person = aPersonneRepository.findByUid(uid);
+        // Verrou pessimiste sur la ligne personne : deux requêtes simultanées pour le
+        // même uid sont sérialisées ; la seconde retombera sur l'anti-double-clic
+        // au lieu de créer un second code valide.
+        APersonne person = aPersonneRepository.findByUidWithLock(uid);
         if (person == null) {
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
