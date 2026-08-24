@@ -4,6 +4,10 @@ server:
         context-path: /
     error:
         path: /error
+    # Derrière un reverse proxy : getRemoteAddr() renvoie l'IP client depuis X-Forwarded-For,
+    # mais SEULEMENT si le pair direct est un proxy interne (RFC1918/loopback par défaut).
+    # Proxy sur IP publique → étendre server.tomcat.remoteip.internal-proxies.
+    forward-headers-strategy: native
 
 spring:
     mvc:
@@ -179,11 +183,45 @@ app:
             - POST
             - DELETE
 
+    security:
+        rate-limit:
+            permits-per-second: 0.167
+            max-entries: 10000
+        reset-policy:
+            max-attempts: 5
+            resend-cooldown-ms: 60000
+        password-policy:
+            min-length: 12
+            min-types: 3
+
 mail:
     from-email: no_reply@recia.fr
     from-name: Mon Compte Etablissement
     regexValideAddr: '[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(\.[A-Za-z-]{2,4})'
     regexsDomainesExclus: 'netocentre.fr touraine-eschool.fr chercan.fr colleges41.fr mon-e-college.loiret.fr e-college.indre.fr colleges-eureliens.fr'
+    ac-mail-pattern: '[^@]+@ac-orleans-tours.fr'
     verification:
         frontend-url: http://localhost:5173/verification-email
+        code-length: 6
         expiry-hours: 1
+    templates:
+        verification:
+            subject: "Vérification de votre adresse email"
+            body: |
+                Bonjour,
+                Votre code de vérification est : {{code}}
+                Ce code est valable {{expiryHours}} heure(s).
+        reset:
+            subject: "Réinitialisation de votre mot de passe"
+            body: |
+                Bonjour,
+                Votre code de réinitialisation est : {{code}}
+                Ce code est valable {{expiryHours}} heure(s).
+
+charte:
+    default-url: "https://lycees.netocentre.fr/files/textes/droits_usage.html"
+    urls:
+        # URL par source d'établissement (ex: "COLL-45", "AC-ORLEANS-TOURS" → préfixe avant "-")
+        LYCEE: "https://lycees.netocentre.fr/files/textes/droits_usage.html"
+    serverMapping:
+        # correspondance host → source, cf. application.yml

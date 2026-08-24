@@ -161,6 +161,9 @@ public class EmailVerificationService {
     @Transactional
     public void sendPasswordResetCode(String uid, String email, String profil) {
         log.info("[RESET_PASSWORD] Début sendPasswordResetCode uid={}, email={}, profil={}", uid, email, profil);
+        if (email != null) {
+            email = email.trim();
+        }
 
         APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
@@ -173,6 +176,13 @@ public class EmailVerificationService {
                 log.warn("[RESET_PASSWORD] Profil incohérent : front='{}' vs DB='{}' uid={}", profil, dbCategorie, uid);
                 throw new InvalidCodeException("Profil incohérent avec votre compte");
             }
+        }
+
+        // L'email fourni doit appartenir au compte : sans ce contrôle, quiconque
+        // connaît un uid recevrait le code sur sa propre adresse.
+        if (!isEmailAssociatedWithAccount(person, email)) {
+            log.warn("[RESET_PASSWORD] Email non associé à ce compte : uid={}", uid);
+            throw new InvalidCodeException("Cette adresse email n'est pas associée à votre compte");
         }
 
         // Anti-double-clic
@@ -255,6 +265,26 @@ public class EmailVerificationService {
         log.info("[RESET_PASSWORD] Code envoyé à {} pour uid={}", email, uid);
     }
 
+    /**
+     * L'email fourni doit correspondre (insensible à la casse) à l'email du compte,
+     * à l'email personnel, ou à un email confirmé via Cerbère.
+     */
+    private boolean isEmailAssociatedWithAccount(APersonne person, String providedEmail) {
+        if (providedEmail == null || providedEmail.isBlank()) {
+            return false;
+        }
+        String candidate = providedEmail.trim();
+        if (sameEmail(candidate, person.getEmail()) || sameEmail(candidate, person.getEmailPersonnel())) {
+            return true;
+        }
+        return cerbereConfirmationRepository.findConfirmedByPersonId(person.getId()).stream()
+                .anyMatch(c -> sameEmail(candidate, c.getMail()));
+    }
+
+    private boolean sameEmail(String a, String b) {
+        return a != null && b != null && a.equalsIgnoreCase(b.trim());
+    }
+
     private void sendResetEmail(String to, String code) {
         MailProperties.EmailTemplates.Template tpl = mailProperties.getTemplates().getReset();
         String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
@@ -335,12 +365,13 @@ public class EmailVerificationService {
             log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression de la confirmation", uid);
             cerbereConfirmationRepository.delete(confirmation);
             resetAttempts.remove(person.getId());
-            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Un nouveau code vous a été envoyé par email.");
+            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
         }
 
         if (confirmation.getLimite().before(new Date())) {
             log.warn("[PROCESS_RESET_PASSWORD] Code expiré uid={}", uid);
             cerbereConfirmationRepository.delete(confirmation);
+            resetAttempts.remove(person.getId());
             throw new CodeExpiredException("Le code de réinitialisation a expiré. Veuillez demander un nouveau code.");
         }
 

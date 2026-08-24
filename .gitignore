@@ -45,3 +45,6 @@ build/
 *.rar
 
 src/main/resources/config/*
+# Artefacts d'exécution
+/data/
+/src/logs/
