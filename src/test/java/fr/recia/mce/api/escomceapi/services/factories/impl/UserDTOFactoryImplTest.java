@@ -364,29 +364,29 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("ELEVE_EDUC + ntPass=true → mdp=true (ntPass débloque)")
+        @DisplayName("ELEVE_EDUC + ntPass=true → mdp=false (EduConnect prime)")
         void eleveEducWithNtPass() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
             lenient().when(model.getMailFixe()).thenReturn("eleve@ac-orleans-tours.fr");
             lenient().when(aPersonneBase.getEmail()).thenReturn("eleve@ac-orleans-tours.fr");
-            when(model.isNtPass()).thenReturn(true);
+            lenient().when(model.isNtPass()).thenReturn(true);
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getMdp()).isTrue();
+            assertThat(result.getMdp()).isFalse();
         }
 
         @Test
-        @DisplayName("PARENT_EDUC + ntPass=true → mdp=true (ntPass débloque)")
+        @DisplayName("PARENT_EDUC + ntPass=true → mdp=false (EduConnect prime)")
         void parentEducWithNtPass() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.PARENT_EDUC);
             lenient().when(model.getMailFixe()).thenReturn("parent@ac-orleans-tours.fr");
             lenient().when(aPersonneBase.getEmail()).thenReturn("parent@ac-orleans-tours.fr");
-            when(model.isNtPass()).thenReturn(true);
+            lenient().when(model.isNtPass()).thenReturn(true);
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getMdp()).isTrue();
+            assertThat(result.getMdp()).isFalse();
         }
     }
 
@@ -785,6 +785,20 @@ class UserDTOFactoryImplTest {
 
             verify(passwordService).changePassword(model, req);
             verify(personneService).clearUserCaches("testUid");
+        }
+
+        @Test
+        @DisplayName("EduConnect avec ntPass → refusé (le check EduConnect prime)")
+        void passwordChangeDeniedForEduConnectWithNtPass() {
+            when(soffitHolder.getSub()).thenReturn("testSub");
+            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
+            lenient().when(model.isNtPass()).thenReturn(true);
+            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
+
+            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(passwordService, never()).changePassword(any(), any());
         }
 
         @Test

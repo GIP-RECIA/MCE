@@ -25,19 +25,28 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
+import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
+import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
+import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
+import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
+import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
+import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
+import org.springframework.security.access.AccessDeniedException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +61,8 @@ import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
@@ -116,6 +127,12 @@ class PersonneRestControllerTest {
     @SuppressWarnings("unused")
     private fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository cerbereConfirmationRepository;
 
+    @MockBean
+    private fr.recia.mce.api.escomceapi.services.structure.IStructureService structureService;
+
+    @Autowired
+    private MCEProperties mceProperties;
+
     private static final String BASE_URL = "/api/personne/mce/";
     private static final String USER = "test.user";
 
@@ -123,6 +140,7 @@ class PersonneRestControllerTest {
     void setUp() throws Exception {
         when(soffitHolder.getSub()).thenReturn(USER);
         when(soffitInterceptor.preHandle(any(), any(), any())).thenReturn(true);
+        mceProperties.getSecurity().getRateLimit().setPermitsPerSecond(1_000_000.0);
     }
 
     private PasswordChangeRequestDTO buildValidPasswordChangeRequest() {
@@ -541,6 +559,67 @@ class PersonneRestControllerTest {
                     .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
                     .andExpect(jsonPath("$.message").value("Les adresses email ne correspondent pas"));
         }
+
+        @Test
+        @DisplayName("Domaine de l'adresse email exclu → 400 BAD_REQUEST, aucun email envoyé")
+        void shouldReturnBadRequestWhenDomainExcluded() throws Exception {
+            doThrow(new IllegalArgumentException("Le domaine de l'adresse email est exclu"))
+                    .when(personneService).validateEmailForUpdate(USER, "test@example.com");
+
+            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                    .andExpect(jsonPath("$.message").value("Le domaine de l'adresse email est exclu"));
+
+            verify(emailVerificationService, never()).sendVerificationEmail(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Format de l'adresse email invalide (service) → 400 BAD_REQUEST")
+        void shouldReturnBadRequestWhenEmailFormatInvalid() throws Exception {
+            doThrow(new IllegalArgumentException("Le format de l'adresse email n'est pas valide"))
+                    .when(personneService).validateEmailForUpdate(USER, "test@example.com");
+
+            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+
+            verify(emailVerificationService, never()).sendVerificationEmail(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Email personnel non modifiable pour ce profil → 403 FORBIDDEN")
+        void shouldReturnForbiddenWhenEmailNotEditable() throws Exception {
+            doThrow(new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel"))
+                    .when(personneService).validateEmailForUpdate(USER, "test@example.com");
+
+            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+            verify(emailVerificationService, never()).sendVerificationEmail(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Utilisateur introuvable → 404 NOT_FOUND")
+        void shouldReturnNotFoundWhenUserUnknown() throws Exception {
+            doThrow(new PersonneNotFoundException("Utilisateur introuvable en base : " + USER))
+                    .when(personneService).validateEmailForUpdate(USER, "test@example.com");
+
+            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+
+            verify(emailVerificationService, never()).sendVerificationEmail(anyString(), anyString());
+        }
     }
 
     @Nested
@@ -594,6 +673,55 @@ class PersonneRestControllerTest {
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
+
+        @Test
+        @DisplayName("Échec : code expiré → 400 CODE_EXPIRED")
+        void shouldFailWhenCodeExpired() throws Exception {
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setUid(USER);
+            request.setCode("123456");
+
+            doThrow(new CodeExpiredException("Le code de vérification a expiré. Veuillez en demander un nouveau."))
+                    .when(emailVerificationService).verifyEmail(USER, "123456");
+
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("CODE_EXPIRED"));
+        }
+
+        @Test
+        @DisplayName("Échec : trop de tentatives → 429 MAX_ATTEMPTS_EXCEEDED")
+        void shouldFailWhenMaxAttemptsExceeded() throws Exception {
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setUid(USER);
+            request.setCode("123456");
+
+            doThrow(new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de vérification."))
+                    .when(emailVerificationService).verifyEmail(USER, "123456");
+
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.code").value("MAX_ATTEMPTS_EXCEEDED"));
+        }
+
+        @Test
+        @DisplayName("Échec : uid manquant → 400 VALIDATION_ERROR")
+        void shouldFailWhenUidMissing() throws Exception {
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setCode("123456");
+
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
     }
 
     @Nested
@@ -638,6 +766,26 @@ class PersonneRestControllerTest {
                     .file("file", "content".getBytes()))
                     .andExpect(status().isForbidden());
         }
+
+        @Test
+        @DisplayName("Upload d'avatar invalide (format/taille) → 400 INVALID_AVATAR")
+        void shouldReturnBadRequestWhenAvatarInvalid() throws Exception {
+            doThrow(new InvalidAvatarException("Avatar invalide : format non supporté ou fichier trop volumineux"))
+                    .when(personneService).updateAvatar(eq(USER), any(byte[].class));
+
+            mockMvc.perform(multipart(BASE_URL + USER + "/avatar")
+                    .file("file", "fake-image-content".getBytes()))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_AVATAR"));
+        }
+
+        @Test
+        @DisplayName("Upload sans fichier → 500 INTERNAL_SERVER_ERROR (file.getBytes() sur null)")
+        void shouldFailWhenNoFileProvided() throws Exception {
+            mockMvc.perform(multipart(BASE_URL + USER + "/avatar"))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
+        }
     }
 
     @Nested
@@ -660,6 +808,444 @@ class PersonneRestControllerTest {
 
             mockMvc.perform(get(BASE_URL + "getuser"))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Flux mot de passe oublié
+    // ─────────────────────────────────────────────────────────────────────
+
+    private static final String FORGOT_URL = BASE_URL + "forgot-password";
+    private static final String RESET_URL = BASE_URL + "reset-password";
+    private static final String SEARCH_UID_URL = BASE_URL + "search-uid";
+
+    @Nested
+    @DisplayName("Tests du point d'accès /forgot-password")
+    class ForgotPasswordEndpointTests {
+
+        private final String validBody = "{\"uid\":\"dupontj\",\"email\":\"jean.dupont@example.fr\",\"profil\":\"ELEVE\"}";
+
+        @Test
+        @DisplayName("Succès → 200 RESET_CODE_SENT")
+        void shouldReturnResetCodeSent() throws Exception {
+            doNothing().when(emailVerificationService)
+                    .sendPasswordResetCode("dupontj", "jean.dupont@example.fr", "ELEVE");
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("RESET_CODE_SENT"));
+
+            verify(emailVerificationService).sendPasswordResetCode("dupontj", "jean.dupont@example.fr", "ELEVE");
+        }
+
+        @Test
+        @DisplayName("Uid inconnu (IllegalArgumentException) → 400 FORGOT_PASSWORD_FAILED")
+        void shouldReturnForgotPasswordFailed() throws Exception {
+            doThrow(new InvalidCodeException("Aucun compte associé à cet identifiant"))
+                    .when(emailVerificationService).sendPasswordResetCode(anyString(), anyString(), anyString());
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("FORGOT_PASSWORD_FAILED"));
+        }
+
+        @Test
+        @DisplayName("Erreur technique (RuntimeException) → 500 INTERNAL_ERROR")
+        void shouldReturnInternalError() throws Exception {
+            doThrow(new RuntimeException("SMTP down"))
+                    .when(emailVerificationService).sendPasswordResetCode(anyString(), anyString(), anyString());
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"));
+        }
+
+        @Test
+        @DisplayName("Uid manquant → 400 VALIDATION_ERROR")
+        void shouldValidateMissingUid() throws Exception {
+            String body = "{\"email\":\"jean.dupont@example.fr\"}";
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
+
+        @Test
+        @DisplayName("Email mal formé → 400 VALIDATION_ERROR")
+        void shouldValidateEmailFormat() throws Exception {
+            String body = "{\"uid\":\"dupontj\",\"email\":\"pas-un-email\"}";
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
+
+        @Test
+        @DisplayName("Email absent (obligatoire) → 400 VALIDATION_ERROR")
+        void shouldRejectMissingEmail() throws Exception {
+            String body = "{\"uid\":\"dupontj\",\"profil\":\"ELEVE\"}";
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
+
+        @Test
+        @DisplayName("Email vide (obligatoire) → 400 VALIDATION_ERROR")
+        void shouldRejectBlankEmail() throws Exception {
+            String body = "{\"uid\":\"dupontj\",\"email\":\"\",\"profil\":\"ELEVE\"}";
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
+
+        @Test
+        @DisplayName("Exception ContactAdminException → 400 CONTACT_ADMIN_REQUIRED")
+        void shouldReturnContactAdminRequired() throws Exception {
+            doThrow(new ContactAdminException(
+                    "Aucune adresse email n'est associée à votre compte. Veuillez contacter un administrateur de votre établissement."))
+                    .when(emailVerificationService).sendPasswordResetCode(anyString(), anyString(), anyString());
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("CONTACT_ADMIN_REQUIRED"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests du point d'accès /reset-password")
+    class ResetPasswordEndpointTests {
+
+        private final String validBody = "{\"uid\":\"dupontj\",\"code\":\"123456\",\"charteAccepted\":true,"
+                + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
+
+        private void serviceThrows(RuntimeException ex) {
+            doThrow(ex).when(emailVerificationService).processResetPassword(
+                    eq("dupontj"), eq("123456"), anyString(), anyString(), eq(true));
+        }
+
+        @Test
+        @DisplayName("Succès → 200 PASSWORD_RESET_SUCCESS")
+        void shouldReturnPasswordResetSuccess() throws Exception {
+            doNothing().when(emailVerificationService).processResetPassword(
+                    anyString(), anyString(), anyString(), anyString(), anyBoolean());
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("PASSWORD_RESET_SUCCESS"));
+
+            verify(emailVerificationService).processResetPassword(
+                    "dupontj", "123456", "N3wPassw0rd!X", "N3wPassw0rd!X", true);
+        }
+
+        @Test
+        @DisplayName("Code invalide → 400 INVALID_CODE")
+        void shouldMapInvalidCode() throws Exception {
+            serviceThrows(new InvalidCodeException("Le code de réinitialisation est incorrect"));
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_CODE"));
+        }
+
+        @Test
+        @DisplayName("Code expiré → 400 CODE_EXPIRED")
+        void shouldMapCodeExpired() throws Exception {
+            serviceThrows(new CodeExpiredException("Le code de réinitialisation a expiré"));
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("CODE_EXPIRED"));
+        }
+
+        @Test
+        @DisplayName("Trop de tentatives → 429 MAX_ATTEMPTS_EXCEEDED")
+        void shouldMapMaxAttempts() throws Exception {
+            serviceThrows(new MaxAttemptsExceededException("Trop de tentatives échouées"));
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.code").value("MAX_ATTEMPTS_EXCEEDED"));
+        }
+
+        @Test
+        @DisplayName("Charte non acceptée → 400 CHARTE_REQUIRED")
+        void shouldMapCharteRequired() throws Exception {
+            serviceThrows(new CharteNotAcceptedException("Vous devez accepter les conditions générales"));
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("CHARTE_REQUIRED"));
+        }
+
+        @Test
+        @DisplayName("Mot de passe faible → 400 WEAK_PASSWORD")
+        void shouldMapWeakPassword() throws Exception {
+            serviceThrows(new WeakPasswordException("Le mot de passe doit contenir au moins 12 caractères"));
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+        }
+
+        @Test
+        @DisplayName("Mots de passe différents → 400 BAD_REQUEST")
+        void shouldMapPasswordMismatch() throws Exception {
+            serviceThrows(new IllegalArgumentException("La confirmation du mot de passe ne correspond pas"));
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+        }
+
+        @Test
+        @DisplayName("Code non conforme (≠ 6 chiffres) → 400 VALIDATION_ERROR")
+        void shouldValidateSixDigitCode() throws Exception {
+            String body = "{\"uid\":\"dupontj\",\"code\":\"12ab56\",\"charteAccepted\":true,"
+                    + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
+
+        @Test
+        @DisplayName("newPassword manquant → 400 VALIDATION_ERROR")
+        void shouldValidateMissingNewPassword() throws Exception {
+            String body = "{\"uid\":\"dupontj\",\"code\":\"123456\",\"charteAccepted\":true,"
+                    + "\"confirmPassword\":\"N3wPassw0rd!X\"}";
+
+            mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(emailVerificationService);
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests du point d'accès /search-uid")
+    class SearchUidEndpointTests {
+
+        private final String validBody = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\","
+                + "\"profil\":\"ELEVE\",\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+                + "\"etablissement\":\"19450023200014\"}";
+
+        private IExternalStructure structure(String id, String type, String ville) {
+            IExternalStructure s = mock(IExternalStructure.class);
+            when(s.getId()).thenReturn(id);
+            when(s.getType()).thenReturn(type);
+            when(s.getVille()).thenReturn(ville);
+            return s;
+        }
+
+        @Test
+        @DisplayName("Résultats trouvés → 200 avec la liste uid/displayName")
+        void shouldReturnMatchingUids() throws Exception {
+            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
+            when(structureService.getAllStructures()).thenReturn(List.of(etab));
+            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
+                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
+                    .thenReturn(List.<Object[]>of(new Object[]{
+                            "dupontj", "DUPONT Jean", 7L, "jean.dupont@ac-orleans-tours.fr", null}));
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].uid").value("dupontj"))
+                    .andExpect(jsonPath("$[0].displayName").value("DUPONT Jean"));
+        }
+
+        @Test
+        @DisplayName("Filtrage email : une ligne dont l'email ne correspond pas est exclue")
+        void shouldFilterRowsByEmail() throws Exception {
+            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
+            when(structureService.getAllStructures()).thenReturn(List.of(etab));
+            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(any(), any(), any(), any()))
+                    .thenReturn(List.<Object[]>of(new Object[]{
+                            "autreuid", "AUTRE User", 8L, "autre@example.fr", null}));
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("SEARCH_NO_RESULT"));
+        }
+
+        @Test
+        @DisplayName("Aucun résultat en base → 200 SEARCH_NO_RESULT")
+        void shouldReturnSearchNoResult() throws Exception {
+            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
+            when(structureService.getAllStructures()).thenReturn(List.of(etab));
+            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(any(), any(), any(), any()))
+                    .thenReturn(List.of());
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("SEARCH_NO_RESULT"));
+        }
+
+        @Test
+        @DisplayName("Aucun SIREN résolu → SEARCH_NO_RESULT sans interroger la base (IN () vide)")
+        void emptySirenFilterShortCircuitsWithoutDbCall() throws Exception {
+            when(structureService.getAllStructures()).thenReturn(List.of());
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("SEARCH_NO_RESULT"));
+
+            verify(aPersonneRepository, never()).searchByNomPrenomAndCategorieAndSirens(
+                    any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("Champ obligatoire manquant → 400 VALIDATION_ERROR")
+        void shouldValidateRequiredFields() throws Exception {
+            String body = "{\"nom\":\"\",\"prenom\":\"Jean\",\"email\":\"j@x.fr\",\"profil\":\"ELEVE\","
+                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}";
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
+
+        @Test
+        @DisplayName("Chaque champ obligatoire manquant → 400 VALIDATION_ERROR, base jamais interrogée")
+        void shouldRejectMissingFieldForEachRequiredField() throws Exception {
+            String base = "\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"";
+            String[] bodies = {
+                    // nom manquant (clé absente)
+                    "{\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
+                    // nom null
+                    "{\"nom\":null," + base + "}",
+                    // nom vide
+                    "{\"nom\":\"\"," + base + "}",
+                    // prenom manquant
+                    "{\"nom\":\"DUPONT\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
+                    // profil manquant
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
+                    // typeEtablissement vide
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
+                    // ville manquante
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"etablissement\":\"1\"}",
+                    // etablissement null
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":null}"
+            };
+
+            for (String body : bodies) {
+                mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+            }
+
+            verify(aPersonneRepository, never()).searchByNomPrenomAndCategorieAndSirens(
+                    any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("Type d'établissement inconnu → 400 VALIDATION_ERROR")
+        void shouldRejectUnknownSurType() throws Exception {
+            String body = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"j@x.fr\",\"profil\":\"ELEVE\","
+                    + "\"typeEtablissement\":\"PRIMAIRE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}";
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
+
+        @Test
+        @DisplayName("Plusieurs homonymes → 400 SEARCH_MULTIPLE_RESULTS")
+        void shouldReturnSearchMultipleResults() throws Exception {
+            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
+            when(structureService.getAllStructures()).thenReturn(List.of(etab));
+            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
+                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
+                    .thenReturn(List.<Object[]>of(
+                            new Object[]{"dupontj", "DUPONT Jean", 7L, "jean.dupont@ac-orleans-tours.fr", null},
+                            new Object[]{"dupontj2", "DUPONT Jean", 8L, "jean.dupont@ac-orleans-tours.fr", null}));
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("SEARCH_MULTIPLE_RESULTS"));
+        }
+
+        @Test
+        @DisplayName("Email optionnel : search-uid sans email → fonctionne normalement")
+        void shouldWorkWithoutEmail() throws Exception {
+            String body = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"19450023200014\"}";
+            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
+            when(structureService.getAllStructures()).thenReturn(List.of(etab));
+            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
+                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
+                    .thenReturn(List.<Object[]>of(new Object[]{
+                            "dupontj", "DUPONT Jean", 7L, "jean.dupont@ac-orleans-tours.fr", null}));
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].uid").value("dupontj"));
+        }
+
+        @Test
+        @DisplayName("Email optionnel : search-uid sans email → ne filtre pas par email")
+        void shouldNotFilterByEmailWhenEmailIsBlank() throws Exception {
+            String body = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"19450023200014\"}";
+            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
+            when(structureService.getAllStructures()).thenReturn(List.of(etab));
+            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
+                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
+                    .thenReturn(List.<Object[]>of(new Object[]{
+                            "dupontj", "DUPONT Jean", 7L, "autre@autre.fr", null}));
+
+            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].uid").value("dupontj"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests du point d'accès /charte-status")
+    class CharteStatusEndpointTests {
+
+        @Test
+        @DisplayName("Charte requise → charteSignee=false")
+        void shouldReportCharteRequired() throws Exception {
+            when(charteService.isCharteRequired("dupontj")).thenReturn(true);
+            when(charteService.getCharteUrl("dupontj")).thenReturn("https://charte.example.fr/ac");
+
+            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.charteRequired").value(true))
+                    .andExpect(jsonPath("$.charteUrl").value("https://charte.example.fr/ac"))
+                    .andExpect(jsonPath("$.charteSignee").value(false));
+        }
+
+        @Test
+        @DisplayName("Charte déjà signée → charteSignee=true")
+        void shouldReportCharteSigned() throws Exception {
+            when(charteService.isCharteRequired("dupontj")).thenReturn(false);
+            when(charteService.getCharteUrl("dupontj")).thenReturn("https://charte.example.fr/ac");
+
+            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.charteRequired").value(false))
+                    .andExpect(jsonPath("$.charteSignee").value(true));
         }
     }
 }
