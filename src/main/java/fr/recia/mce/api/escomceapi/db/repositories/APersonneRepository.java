@@ -34,20 +34,23 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     APersonne findByUid(final String uid);
 
     /**
-     * Charge la personne avec un verrou pessimiste : sérialise les demandes concurrentes
-     * (ex. deux POST forgot-password simultanés pour le même uid) afin d'éviter la création
-     * de plusieurs codes valides en parallèle. À appeler dans une transaction.
+     * Charge la personne avec un verrou pessimiste : sérialise les demandes concurrentes (ex. deux POST forgot-password simultanés pour le même uid) afin
+     * d'éviter la création de plusieurs codes valides en parallèle. À appeler dans une transaction.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM APersonne a WHERE a.uid = :uid")
     APersonne findByUidWithLock(@Param("uid") final String uid);
+
     @Query("SELECT a.uid, a.displayName, a.id, a.email, a.emailPersonnel, a.aStructure.siren FROM APersonne a " +
             "WHERE LOWER(a.sn) = LOWER(:nom) AND LOWER(a.givenName) = LOWER(:prenom) " +
             "AND a.etat != 'Delete' AND LOWER(a.categorie) = LOWER(:categorie) " +
             "AND a.aStructure.siren IN (:sirens)")
     List<Object[]> searchByNomPrenomAndCategorieAndSirens(@Param("nom") String nom, @Param("prenom") String prenom,
-                                                          @Param("categorie") String categorie,
-                                                          @Param("sirens") Collection<String> sirens);
+            @Param("categorie") String categorie,
+            @Param("sirens") Collection<String> sirens);
+
+    @Query("SELECT DISTINCT a.categorie FROM APersonne a ORDER BY a.categorie")
+    List<String> findDistinctCategories();
 
     @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, s, l) " +
             "FROM APersonne a " +

@@ -15,8 +15,6 @@
  */
 package fr.recia.mce.api.escomceapi.web.dto;
 
-import java.util.Arrays;
-
 import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import lombok.Getter;

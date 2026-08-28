@@ -20,7 +20,7 @@ import lombok.Getter;
 @Getter
 public enum EnumCategorie {
 
-    AUTRE(""), PARENT("Personne_relation_eleve"), ELEVE("Eleve"), PROF("Enseignant"), NON_PROF_ACAD("Non_enseignant_service_academique"), NON_PROF_ETAB(
+    PARENT("Personne_relation_eleve"), ELEVE("Eleve"), PROF("Enseignant"), NON_PROF_ACAD("Non_enseignant_service_academique"), NON_PROF_ETAB(
             "Non_enseignant_etablissement"), NON_PROF_COL_LOCAL(
                     "Non_enseignant_collectivite_locale"), ENTREPRISE("Responsable_Entreprise"), TUTEUR("Tuteur_stage");
 
@@ -32,13 +32,32 @@ public enum EnumCategorie {
 
     public static EnumCategorie fromString(String dbname) {
         if (dbname == null)
-            return AUTRE;
+            return null;
         String val = dbname.intern();
         for (EnumCategorie e : EnumCategorie.values()) {
             if (e.dbname.equals(val))
                 return e;
         }
-        return AUTRE;
+        return null;
+    }
+
+    /**
+     * Résout un profil reçu du front vers son {@link EnumCategorie}, qu'il soit fourni sous forme de nom d'enum ({@code NON_PROF_ACAD}) ou de valeur en base (
+     * {@code Non_enseignant_collectivite_locale}).
+     *
+     * @param input
+     *            profil envoyé par le front (nom d'enum ou dbname), insensible à la casse
+     * @return l'enum correspondant, ou {@code null} si le profil n'est pas reconnu
+     */
+    public static EnumCategorie fromProfile(String input) {
+        if (input == null || input.isBlank())
+            return null;
+        String val = input.intern();
+        for (EnumCategorie e : EnumCategorie.values()) {
+            if (e.name().equalsIgnoreCase(val) || e.dbname.equalsIgnoreCase(val))
+                return e;
+        }
+        return null;
     }
 
 }

@@ -20,8 +20,7 @@ import lombok.Getter;
 @Getter
 public enum ConfirmationType {
 
-    EMAIL_VERIFICATION("VERIFY:"),
-    PASSWORD_RESET("RESET:");
+    EMAIL_VERIFICATION("VERIFY:"), PASSWORD_RESET("RESET:");
 
     private final String codePrefix;
 
@@ -30,21 +29,22 @@ public enum ConfirmationType {
     }
 
     /**
-     * Retourne le préfixe SQL pour les clauses LIKE JPQL.
-     * Ex: {@code CONCAT(:prefix, '%')} avec {@code EMAIL_VERIFICATION.getLikePattern()} = {@code "VERIFY:%"}
+     * Retourne le préfixe SQL pour les clauses LIKE JPQL. Ex: {@code CONCAT(:prefix, '%')} avec {@code EMAIL_VERIFICATION.getLikePattern()} =
+     * {@code "VERIFY:%"}
      */
     public String getLikePattern() {
         return codePrefix + "%";
     }
 
     /**
-     * Déduit le type à partir du préfixe du code hashé stocké en base.
-     * Retourne null si le préfixe ne correspond à aucun type connu.
+     * Déduit le type à partir du préfixe du code hashé stocké en base. Retourne null si le préfixe ne correspond à aucun type connu.
      */
     public static ConfirmationType fromCode(String code) {
-        if (code == null) return null;
+        if (code == null)
+            return null;
         for (ConfirmationType type : values()) {
-            if (code.startsWith(type.codePrefix)) return type;
+            if (code.startsWith(type.codePrefix))
+                return type;
         }
         return null;
     }

@@ -53,7 +53,8 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
     // ── Pending par type + code ──
 
     @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.code = :code AND cc.confirmation IS NULL AND cc.code LIKE :likePattern")
-    Optional<CerbereConfirmation> findPendingByPersonIdAndCodeAndType(@Param("personId") Long personId, @Param("code") String code, @Param("likePattern") String likePattern);
+    Optional<CerbereConfirmation> findPendingByPersonIdAndCodeAndType(@Param("personId") Long personId, @Param("code") String code,
+            @Param("likePattern") String likePattern);
 
     default Optional<CerbereConfirmation> findPendingEmailVerificationByPersonIdAndCode(Long personId, String code) {
         return findPendingByPersonIdAndCodeAndType(personId, code, ConfirmationType.EMAIL_VERIFICATION.getLikePattern());
@@ -61,7 +62,8 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.code = :code AND cc.confirmation IS NULL AND cc.code LIKE :likePattern")
-    Optional<CerbereConfirmation> findPendingByPersonIdAndCodeAndTypeWithLock(@Param("personId") Long personId, @Param("code") String code, @Param("likePattern") String likePattern);
+    Optional<CerbereConfirmation> findPendingByPersonIdAndCodeAndTypeWithLock(@Param("personId") Long personId, @Param("code") String code,
+            @Param("likePattern") String likePattern);
 
     default Optional<CerbereConfirmation> findPendingPasswordResetByPersonIdAndCodeWithLock(Long personId, String code) {
         return findPendingByPersonIdAndCodeAndTypeWithLock(personId, code, ConfirmationType.PASSWORD_RESET.getLikePattern());

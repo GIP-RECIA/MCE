@@ -198,110 +198,110 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
 
-        switch (enumCat) {
-            case ELEVE :
-                if (ds != null) {
-                    switch (ds) {
-                        case CFA :
-                            res = EnumPublic.APPRENANT;
-                            break;
-                        case AC :
-                            res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
-                            break;
-                        case GIP :
-                        case LA :
-                        case COLL :
-                        default :
-                            res = EnumPublic.ELEVE;
+        if (enumCat == null) {
+            res = EnumPublic.AUTRE;
+        } else
+            switch (enumCat) {
+                case ELEVE :
+                    if (ds != null) {
+                        switch (ds) {
+                            case CFA :
+                                res = EnumPublic.APPRENANT;
+                                break;
+                            case AC :
+                                res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
+                                break;
+                            case GIP :
+                            case LA :
+                            case COLL :
+                            default :
+                                res = EnumPublic.ELEVE;
+                        }
+                    } else {
+                        res = EnumPublic.ELEVE;
                     }
-                } else {
-                    res = EnumPublic.ELEVE;
-                }
-                break;
+                    break;
 
-            case PARENT :
-                if (ds != null) {
-                    if (ds == DomSource.AC) {
-                        res = isLocalUser ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
+                case PARENT :
+                    if (ds != null) {
+                        if (ds == DomSource.AC) {
+                            res = isLocalUser ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
+                        } else {
+                            res = EnumPublic.PARENT;
+                        }
                     } else {
                         res = EnumPublic.PARENT;
                     }
-                } else {
-                    res = EnumPublic.PARENT;
-                }
-                break;
-
-            case PROF :
-                if (ds != null) {
-                    switch (ds) {
-                        case AC :
-                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
-                            break;
-                        case LA :
-                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
-                            break;
-                        case CFA :
-                        case GIP :
-                        case COLL :
-                        default :
-                            res = EnumPublic.PERSONNEL;
-                    }
-                } else {
-                    res = EnumPublic.PERSONNEL;
-                }
-                break;
-
-            case ENTREPRISE :
-            case TUTEUR :
-                res = EnumPublic.EXTERIEUR;
-                break;
-
-            case NON_PROF_COL_LOCAL :
-                if (isRegion) {
-                    res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.CVDL;
                     break;
-                }
-            case NON_PROF_ETAB :
-                if (ds != null) {
-                    switch (ds) {
-                        case AC :
-                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
-                            break;
-                        case LA :
-                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
-                            break;
-                        case CFA :
-                        case GIP :
-                        case COLL :
-                        default :
-                            res = EnumPublic.PERSONNEL;
-                    }
-                } else {
-                    res = EnumPublic.PERSONNEL;
-                }
-                break;
 
-            case NON_PROF_ACAD :
-                if (ds != null) {
-                    switch (ds) {
-                        case AC :
-                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
-                            break;
-                        case LA :
-                            res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
-                            break;
-                        // $CASES-OMITTED$
-                        default :
-                            res = EnumPublic.AUTRE;
+                case PROF :
+                    if (ds != null) {
+                        switch (ds) {
+                            case AC :
+                                res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                                break;
+                            case LA :
+                                res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                                break;
+                            case CFA :
+                            case GIP :
+                            case COLL :
+                            default :
+                                res = EnumPublic.PERSONNEL;
+                        }
+                    } else {
+                        res = EnumPublic.PERSONNEL;
                     }
-                } else {
-                    res = EnumPublic.AUTRE;
-                }
-                break;
-            case AUTRE :
-                res = EnumPublic.AUTRE;
-                break;
-        }
+                    break;
+
+                case ENTREPRISE :
+                case TUTEUR :
+                    res = EnumPublic.EXTERIEUR;
+                    break;
+
+                case NON_PROF_COL_LOCAL :
+                    if (isRegion) {
+                        res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.CVDL;
+                        break;
+                    }
+                case NON_PROF_ETAB :
+                    if (ds != null) {
+                        switch (ds) {
+                            case AC :
+                                res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                                break;
+                            case LA :
+                                res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                                break;
+                            case CFA :
+                            case GIP :
+                            case COLL :
+                            default :
+                                res = EnumPublic.PERSONNEL;
+                        }
+                    } else {
+                        res = EnumPublic.PERSONNEL;
+                    }
+                    break;
+
+                case NON_PROF_ACAD :
+                    if (ds != null) {
+                        switch (ds) {
+                            case AC :
+                                res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                                break;
+                            case LA :
+                                res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                                break;
+                            // $CASES-OMITTED$
+                            default :
+                                res = EnumPublic.AUTRE;
+                        }
+                    } else {
+                        res = EnumPublic.AUTRE;
+                    }
+                    break;
+            }
 
         personne.setEnumPublic(res);
 
@@ -415,8 +415,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         if (pub == null) {
             return false;
         }
+        if (pub.isEduconnect()) {
+            return false;
+        }
         String acMailPattern = mailProperties.getAcMailPattern();
-        if (acMailPattern == null) acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
+        if (acMailPattern == null)
+            acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null
                 && model.getMailFixe().matches(acMailPattern)) {
             return model.isNtPass();
@@ -429,7 +433,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             return false;
         }
         String acMailPattern = mailProperties.getAcMailPattern();
-        if (acMailPattern == null) acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
+        if (acMailPattern == null)
+            acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
                 || !model.getMailFixe().matches(acMailPattern)) {
             return pub.isEduconnect();

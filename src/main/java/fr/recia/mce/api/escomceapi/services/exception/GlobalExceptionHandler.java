@@ -89,6 +89,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("CHARTE_REQUIRED", ex.getMessage()));
     }
 
+    @ExceptionHandler(ContactAdminException.class)
+    public ResponseEntity<ErrorResponse> handleContactAdmin(ContactAdminException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

@@ -87,8 +87,7 @@ public class CerbereConfirmation {
     }
 
     /**
-     * Type dérivé du préfixe du code hashé (VERIFY: ou RESET:).
-     * Pas de colonne en base — le type est déterminé dynamiquement depuis {@code code}.
+     * Type dérivé du préfixe du code hashé (VERIFY: ou RESET:). Pas de colonne en base — le type est déterminé dynamiquement depuis {@code code}.
      */
     @Transient
     public ConfirmationType getType() {

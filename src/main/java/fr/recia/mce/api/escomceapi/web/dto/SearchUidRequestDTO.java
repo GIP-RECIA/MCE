@@ -28,14 +28,17 @@ public class SearchUidRequestDTO {
     @NotBlank(message = "Le prénom est obligatoire")
     private String prenom;
 
-    @NotBlank(message = "L'email est obligatoire")
     private String email;
 
+    @NotBlank(message = "Le profil est obligatoire")
     private String profil;
 
+    @NotBlank(message = "Le type d'établissement est obligatoire")
     private String typeEtablissement;
 
+    @NotBlank(message = "La ville est obligatoire")
     private String ville;
 
+    @NotBlank(message = "L'établissement est obligatoire")
     private String etablissement;
 }

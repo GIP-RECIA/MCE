@@ -20,12 +20,15 @@ import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
+import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
+import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
@@ -58,16 +61,14 @@ public class EmailVerificationService {
     private static final String VALID_ACCOUNT_STATE = "Valide";
 
     /**
-     * Durée de conservation d'une entrée de compteur de tentatives : doit dépasser
-     * la durée de vie d'un code (expiryHours) pour ne pas purger un compteur encore
-     * pertinent, tout en libérant la mémoire des comptes abandonnés en cours de route.
+     * Durée de conservation d'une entrée de compteur de tentatives : doit dépasser la durée de vie d'un code (expiryHours) pour ne pas purger un compteur
+     * encore pertinent, tout en libérant la mémoire des comptes abandonnés en cours de route.
      */
     private static final long ATTEMPT_ENTRY_TTL_MS = 2 * 3_600_000L;
 
     /**
-     * Compteur de tentatives horodaté : le champ {@code lastTouchMs} est rafraîchi à
-     * chaque accès (bon ou mauvais code), ce qui permet à {@link #purgeStaleAttemptEntries()}
-     * de supprimer les entrées des utilisateurs partis sans conclure.
+     * Compteur de tentatives horodaté : le champ {@code lastTouchMs} est rafraîchi à chaque accès (bon ou mauvais code), ce qui permet à
+     * {@link #purgeStaleAttemptEntries()} de supprimer les entrées des utilisateurs partis sans conclure.
      */
     static final class AttemptEntry {
         final AtomicInteger count = new AtomicInteger(0);
@@ -219,15 +220,37 @@ public class EmailVerificationService {
         }
 
         if (profil != null && !profil.isBlank()) {
+            EnumCategorie requested = EnumCategorie.fromProfile(profil);
             String dbCategorie = person.getCategorie();
-            if (dbCategorie == null || !profil.equalsIgnoreCase(dbCategorie)) {
+            if (requested == null || dbCategorie == null || !requested.getDbname().equalsIgnoreCase(dbCategorie)) {
                 log.warn("[RESET_PASSWORD] Profil incohérent : front='{}' vs DB='{}' uid={}", profil, dbCategorie, uid);
                 throw new InvalidCodeException("Profil incohérent avec votre compte");
             }
         }
 
-        // L'email fourni doit appartenir au compte : sans ce contrôle, quiconque
-        // connaît un uid recevrait le code sur sa propre adresse.
+        // Collecte de tous les emails associés au compte (LDAP + personnel + confirmés)
+        List<String> accountEmails = collectAccountEmails(person);
+
+        // L'email est obligatoire pour réinitialiser : si le compte ne porte aucun email,
+        // impossible d'envoyer un code — l'utilisateur doit contacter un administrateur
+        // de son établissement (même si un email a été fourni dans la requête).
+        if (accountEmails.isEmpty()) {
+            log.warn("[RESET_PASSWORD] Aucun email sur le compte uid={}", uid);
+            throw new ContactAdminException(
+                    "Aucune adresse email n'est associée à votre compte. Veuillez contacter un administrateur de votre établissement.");
+        }
+
+        if (email == null || email.isBlank()) {
+            if (accountEmails.size() == 1) {
+                email = accountEmails.get(0);
+                log.info("[RESET_PASSWORD] Email auto-assigné (seul email du compte) uid={}, email={}", uid, email);
+            } else {
+                log.warn("[RESET_PASSWORD] Email non fourni pour un compte avec {} emails uid={}", accountEmails.size(), uid);
+                throw new InvalidCodeException(
+                        "Veuillez renseigner votre adresse email pour réinitialiser votre mot de passe.");
+            }
+        }
+
         if (!isEmailAssociatedWithAccount(person, email)) {
             log.warn("[RESET_PASSWORD] Email non associé à ce compte : uid={}", uid);
             throw new InvalidCodeException("Cette adresse email n'est pas associée à votre compte");
@@ -259,24 +282,7 @@ public class EmailVerificationService {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
 
-        EnumPublic pub = personneDTO.getEnumPublic();
-        if (pub == null) {
-            log.warn("[RESET_PASSWORD] Profil non défini pour uid={}, utilisation du profil par défaut AUTRE", uid);
-            pub = EnumPublic.AUTRE;
-        }
-
-        // Comptes sans mot de passe local réinitialisable :
-        // - EduConnect (parents/élèves éduc nat) : le mot de passe se gère sur le portail EduConnect ;
-        // - sans connectOk ni ntPass, aucun mode d'authentification local n'existe
-        //   (même règle que UserDTOFactoryImpl.computePassEditable).
-        if (pub.isEduconnect()) {
-            log.warn("[RESET_PASSWORD] Refus : compte EduConnect uid={}", uid);
-            throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
-        }
-        if (!pub.isConnectOk() && !personneDTO.isNtPass()) {
-            log.warn("[RESET_PASSWORD] Refus : ni connectOk ni ntPass uid={}", uid);
-            throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
-        }
+        assertPasswordResetAllowed(personneDTO, uid);
 
         // Génération du code
         String code = generateVerificationCode();
@@ -289,29 +295,18 @@ public class EmailVerificationService {
         // Réutilisation ou création
         List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
         CerbereConfirmation confirmation;
-        if (!existing.isEmpty()) {
-            CerbereConfirmation lastExisting = existing.get(0);
-            if (lastExisting.getConfirmation() != null) {
-                log.info("[RESET_PASSWORD] RESET id={} déjà consommé, création d'une nouvelle confirmation", lastExisting.getId());
-                confirmation = new CerbereConfirmation();
-                confirmation.setAPersonne(person);
-                confirmation.setEditor(person);
-            } else {
-                confirmation = lastExisting;
-            }
-            confirmation.setCode(hashedCode);
-            confirmation.setMail(email);
-            confirmation.setLimite(limite);
-            confirmation.setConfirmation(null);
+        if (!existing.isEmpty() && existing.get(0).getConfirmation() == null) {
+            confirmation = existing.get(0);
+            log.info("[RESET_PASSWORD] Réutilisation de la confirmation existante id={}", confirmation.getId());
         } else {
             confirmation = new CerbereConfirmation();
             confirmation.setAPersonne(person);
-            confirmation.setCode(hashedCode);
-            confirmation.setMail(email);
-            confirmation.setLimite(limite);
-            confirmation.setConfirmation(null);
             confirmation.setEditor(person);
         }
+        confirmation.setCode(hashedCode);
+        confirmation.setMail(email);
+        confirmation.setLimite(limite);
+        confirmation.setConfirmation(null);
         cerbereConfirmationRepository.save(confirmation);
 
         // Nouvelle demande de code : le compteur de tentatives repart de zéro.
@@ -323,9 +318,8 @@ public class EmailVerificationService {
     }
 
     /**
-     * Diffère l'envoi SMTP au commit de la transaction : un rollback ne doit pas laisser
-     * partir un code inexistant, et le SMTP lent ne doit pas retenir la connexion DB.
-     * Hors transaction (contexte sans synchronisation), l'envoi est immédiat.
+     * Diffère l'envoi SMTP au commit de la transaction : un rollback ne doit pas laisser partir un code inexistant, et le SMTP lent ne doit pas retenir la
+     * connexion DB. Hors transaction (contexte sans synchronisation), l'envoi est immédiat.
      */
     private void sendAfterCommit(Runnable emailAction) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -341,8 +335,9 @@ public class EmailVerificationService {
     }
 
     /**
-     * L'email fourni doit correspondre (insensible à la casse) à l'email du compte,
-     * à l'email personnel, ou à un email confirmé via Cerbère.
+     * L'email fourni doit correspondre (insensible à la casse) à l'email du compte, à l'email personnel, à un email confirmé via Cerbère, ou à l'email LDAP.
+     *
+     * @return true si l'email fourni est associé au compte (via une source connue)
      */
     private boolean isEmailAssociatedWithAccount(APersonne person, String providedEmail) {
         if (providedEmail == null || providedEmail.isBlank()) {
@@ -352,12 +347,51 @@ public class EmailVerificationService {
         if (sameEmail(candidate, person.getEmail()) || sameEmail(candidate, person.getEmailPersonnel())) {
             return true;
         }
-        return cerbereConfirmationRepository.findConfirmedByPersonId(person.getId()).stream()
-                .anyMatch(c -> sameEmail(candidate, c.getMail()));
+        if (cerbereConfirmationRepository.findConfirmedByPersonId(person.getId()).stream()
+                .anyMatch(c -> sameEmail(candidate, c.getMail()))) {
+            return true;
+        }
+        // Source LDAP : l'email principal de l'annuaire peut différer de celui stocké en base.
+        return sameEmail(candidate, ldapEmail(person));
     }
 
     private boolean sameEmail(String a, String b) {
         return a != null && b != null && a.equalsIgnoreCase(b.trim());
+    }
+
+    /**
+     * Récupère l'email principal de l'utilisateur depuis l'annuaire LDAP. Retourne {@code null} si la personne est absente de l'annuaire ou sans email.
+     */
+    private String ldapEmail(APersonne person) {
+        try {
+            IExternalUser ldapUser = personneService.retrievePersonLdap(person.getUid());
+            if (ldapUser != null && ldapUser.getEmail() != null && !ldapUser.getEmail().isBlank()) {
+                return ldapUser.getEmail().trim();
+            }
+        } catch (Exception e) {
+            log.warn("[RESET_PASSWORD] Impossible de récupérer l'email LDAP pour uid={}", person.getUid(), e);
+        }
+        return null;
+    }
+
+    private List<String> collectAccountEmails(APersonne person) {
+        java.util.Set<String> emails = new java.util.LinkedHashSet<>();
+        if (person.getEmail() != null && !person.getEmail().isBlank()) {
+            emails.add(person.getEmail().trim().toLowerCase());
+        }
+        if (person.getEmailPersonnel() != null && !person.getEmailPersonnel().isBlank()) {
+            emails.add(person.getEmailPersonnel().trim().toLowerCase());
+        }
+        for (CerbereConfirmation c : cerbereConfirmationRepository.findConfirmedByPersonId(person.getId())) {
+            if (c.getMail() != null && !c.getMail().isBlank()) {
+                emails.add(c.getMail().trim().toLowerCase());
+            }
+        }
+        String ldapMail = ldapEmail(person);
+        if (ldapMail != null) {
+            emails.add(ldapMail.trim().toLowerCase());
+        }
+        return new java.util.ArrayList<>(emails);
     }
 
     private void sendResetEmail(String to, String code) {
@@ -461,7 +495,8 @@ public class EmailVerificationService {
         }
 
         String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
-        Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(person.getId(), hashedCode);
+        Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(person.getId(),
+                hashedCode);
 
         // Seuls les codes incorrects consomment une tentative : les échecs bénins
         // (charte non acceptée, mot de passe faible…) ne doivent pas pénaliser l'utilisateur.
@@ -495,6 +530,8 @@ public class EmailVerificationService {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
 
+        assertPasswordResetAllowed(personneDTO, uid);
+
         if (!personneDTO.isCharteValide()) {
             if (!charteAccepted) {
                 throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de changer votre mot de passe");
@@ -514,6 +551,35 @@ public class EmailVerificationService {
         personneService.clearUserCaches(uid);
 
         log.info("[PROCESS_RESET_PASSWORD] Succès uid={}", uid);
+    }
+
+    /**
+     * Vérifie que le compte dispose d'un mode d'authentification local permettant de réinitialiser son mot de passe. La règle est partagée entre la demande de
+     * code et son utilisation.
+     *
+     * <p>
+     * Comptes sans mot de passe local réinitialisable :
+     * </p>
+     * <ul>
+     * <li>EduConnect (parents/élèves éduc nat) : le mot de passe se gère sur le portail EduConnect ;</li>
+     * <li>sans connectOk ni ntPass, aucun mode d'authentification local n'existe (même règle que UserDTOFactoryImpl.computePassEditable).</li>
+     * </ul>
+     */
+    private void assertPasswordResetAllowed(PersonneDTO personneDTO, String uid) {
+        EnumPublic pub = personneDTO.getEnumPublic();
+        if (pub == null) {
+            log.warn("[PASSWORD_RESET] Profil non défini pour uid={}, utilisation du profil par défaut AUTRE", uid);
+            pub = EnumPublic.AUTRE;
+        }
+
+        if (pub.isEduconnect()) {
+            log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}", uid);
+            throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
+        }
+        if (!pub.isConnectOk() && !personneDTO.isNtPass()) {
+            log.warn("[PASSWORD_RESET] Refus : ni connectOk ni ntPass uid={}", uid);
+            throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
+        }
     }
 
 }

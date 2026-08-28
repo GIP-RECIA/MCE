@@ -25,6 +25,7 @@ import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
+import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
@@ -200,6 +201,10 @@ public class PersonneRestController {
 
         try {
             emailVerificationService.sendPasswordResetCode(uid, email, profil);
+        } catch (ContactAdminException e) {
+            log.warn("[FORGOT_PASSWORD] CONTACT_ADMIN uid={} : {}", uid, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", e.getMessage()));
         } catch (IllegalArgumentException e) {
             log.warn("[FORGOT_PASSWORD] ÉCHEC uid={} : {}", uid, e.getMessage());
             return ResponseEntity.badRequest()
@@ -217,7 +222,7 @@ public class PersonneRestController {
 
     @PostMapping("/search-uid")
     public ResponseEntity<?> searchUid(
-            @RequestBody SearchUidRequestDTO request) {
+            @Valid @RequestBody SearchUidRequestDTO request) {
 
         String nom = request.getNom();
         String prenom = request.getPrenom();
@@ -230,31 +235,9 @@ public class PersonneRestController {
         log.info("[SEARCH_UID] Demande nom={}, prenom={}, email={}, profil={}, type={}, ville={}, etab={}",
                 nom, prenom, email, profil, typeEtablissement, ville, etablissement);
 
-        if (nom == null || nom.isBlank()) {
-            throw new ChampsObligatoiresException("Le nom est obligatoire");
-        }
-        if (prenom == null || prenom.isBlank()) {
-            throw new ChampsObligatoiresException("Le prénom est obligatoire");
-        }
-        if (email == null || email.isBlank()) {
-            throw new ChampsObligatoiresException("L'email est obligatoire");
-        }
-        if (profil == null || profil.isBlank()) {
-            throw new ChampsObligatoiresException("Le profil est obligatoire");
-        }
-        if (typeEtablissement == null || typeEtablissement.isBlank()) {
-            throw new ChampsObligatoiresException("Le type d'établissement est obligatoire");
-        }
-        if (ville == null || ville.isBlank()) {
-            throw new ChampsObligatoiresException("La ville est obligatoire");
-        }
-        if (etablissement == null || etablissement.isBlank()) {
-            throw new ChampsObligatoiresException("L'établissement est obligatoire");
-        }
-
-        List<Object[]> results;
         Collection<String> sirens = resolveSirens(typeEtablissement, ville, etablissement);
         log.info("[SEARCH_UID] Filtre structures : {} SIREN(s) pour profil={}", sirens.size(), profil);
+        List<Object[]> results;
         if (sirens.isEmpty()) {
             // Garde-fou : un IN () vide est rejeté par le driver SQL — aucun établissement
             // ne peut de toute façon correspondre à un filtre vide.
@@ -266,9 +249,31 @@ public class PersonneRestController {
         results = aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(nom, prenom, profil, sirens);
         log.info("[SEARCH_UID] {} résultat(s) DB pour nom={}, prenom={}", results.size(), nom, prenom);
 
-        if (!results.isEmpty()) {
+        // Debug : affiche tous les emails associés à chaque personne trouvée
+        // (email principal, email personnel + emails confirmés Cerbère + email LDAP).
+        for (Object[] row : results) {
+            String rowUid = (String) row[0];
+            Long personId = (Long) row[2];
+            String emailA = (String) row[3];
+            String emailPersonnel = (String) row[4];
+            String ldapMail = null;
+            try {
+                IExternalUser ldapUser = personneService.retrievePersonLdap(rowUid);
+                ldapMail = ldapUser != null ? ldapUser.getEmail() : null;
+            } catch (Exception e) {
+                ldapMail = null;
+            }
+            List<String> confirmedEmails = cerbereConfirmationRepository.findConfirmedByPersonId(personId).stream()
+                    .map(CerbereConfirmation::getMail)
+                    .collect(Collectors.toList());
+            log.debug("[SEARCH_UID] DEBUG emails pour uid={} : email={}, emailPersonnel={}, confirmesCerbere={}, ldap={}",
+                    rowUid, emailA, emailPersonnel, confirmedEmails, ldapMail);
+        }
+
+        if (!results.isEmpty() && email != null && !email.isBlank()) {
             results = results.stream()
                     .filter(row -> {
+                        String rowUid = (String) row[0];
                         String emailA = (String) row[3];
                         String emailPersonnel = (String) row[4];
                         if (email.equalsIgnoreCase(emailA) || email.equalsIgnoreCase(emailPersonnel)) {
@@ -276,7 +281,17 @@ public class PersonneRestController {
                         }
                         Long personId = (Long) row[2];
                         List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(personId);
-                        return confirmed.stream().anyMatch(c -> email.equalsIgnoreCase(c.getMail()));
+                        if (confirmed.stream().anyMatch(c -> email.equalsIgnoreCase(c.getMail()))) {
+                            return true;
+                        }
+                        // L'email saisi peut aussi être l'email principal de l'annuaire LDAP.
+                        try {
+                            IExternalUser ldapUser = personneService.retrievePersonLdap(rowUid);
+                            return ldapUser != null && ldapUser.getEmail() != null
+                                    && email.equalsIgnoreCase(ldapUser.getEmail());
+                        } catch (Exception e) {
+                            return false;
+                        }
                     })
                     .collect(Collectors.toList());
             log.info("[SEARCH_UID] {} résultat(s) après filtrage email", results.size());
@@ -285,6 +300,13 @@ public class PersonneRestController {
         if (results.isEmpty()) {
             return ResponseEntity.ok(new ErrorResponse("SEARCH_NO_RESULT",
                     "Aucun utilisateur trouvé avec ces informations"));
+        }
+
+        if (results.size() > 1) {
+            log.warn("[SEARCH_UID] {} homonymes trouvés pour nom={}, prenom={}, email={}", results.size(), nom, prenom, email);
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("SEARCH_MULTIPLE_RESULTS",
+                            "Plusieurs comptes correspondent à ces informations. Veuillez contacter votre administrateur."));
         }
 
         List<SearchUidResponseDTO> uids = results.stream()
@@ -351,9 +373,7 @@ public class PersonneRestController {
     @GetMapping("/structures/profils")
     public ResponseEntity<List<String>> getProfils() {
         log.info("[STRUCTURES] GET /structures/profils");
-        List<String> profils = java.util.Arrays.stream(fr.recia.mce.api.escomceapi.db.enums.EnumCategorie.values())
-                .map(fr.recia.mce.api.escomceapi.db.enums.EnumCategorie::name)
-                .collect(Collectors.toList());
+        List<String> profils = aPersonneRepository.findDistinctCategories();
         log.info("[STRUCTURES] {} profil(s) trouvé(s)", profils.size());
         return ResponseEntity.ok(profils);
     }
