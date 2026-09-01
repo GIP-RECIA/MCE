@@ -121,6 +121,10 @@ class PersonneRestControllerTest {
 
     @MockBean
     @SuppressWarnings("unused")
+    private fr.recia.mce.api.escomceapi.services.CharteUrlResolver charteUrlResolver;
+
+    @MockBean
+    @SuppressWarnings("unused")
     private fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository aPersonneRepository;
 
     @MockBean
@@ -1227,9 +1231,9 @@ class PersonneRestControllerTest {
         @DisplayName("Charte requise → charteSignee=false")
         void shouldReportCharteRequired() throws Exception {
             when(charteService.isCharteRequired("dupontj")).thenReturn(true);
-            when(charteService.getCharteUrl("dupontj")).thenReturn("https://charte.example.fr/ac");
+            when(charteUrlResolver.resolve("charte.example.fr")).thenReturn("https://charte.example.fr/ac");
 
-            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj"))
+            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj").header("Host", "charte.example.fr"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.charteRequired").value(true))
                     .andExpect(jsonPath("$.charteUrl").value("https://charte.example.fr/ac"))
@@ -1240,12 +1244,23 @@ class PersonneRestControllerTest {
         @DisplayName("Charte déjà signée → charteSignee=true")
         void shouldReportCharteSigned() throws Exception {
             when(charteService.isCharteRequired("dupontj")).thenReturn(false);
-            when(charteService.getCharteUrl("dupontj")).thenReturn("https://charte.example.fr/ac");
+            when(charteUrlResolver.resolve("charte.example.fr")).thenReturn("https://charte.example.fr/ac");
 
-            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj"))
+            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj").header("Host", "charte.example.fr"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.charteRequired").value(false))
                     .andExpect(jsonPath("$.charteSignee").value(true));
+        }
+
+        @Test
+        @DisplayName("Charte-status sans Host → URL par défaut")
+        void shouldFallbackToDefaultUrlWithoutHost() throws Exception {
+            when(charteService.isCharteRequired("dupontj")).thenReturn(true);
+            when(charteUrlResolver.resolve(null)).thenReturn("https://lycees.netocentre.fr/files/textes/droits_usage.html");
+
+            mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.charteUrl").value("https://lycees.netocentre.fr/files/textes/droits_usage.html"));
         }
     }
 }

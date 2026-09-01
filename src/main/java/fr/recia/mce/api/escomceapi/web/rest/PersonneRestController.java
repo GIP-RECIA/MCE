@@ -21,6 +21,7 @@ import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.CharteService;
+import fr.recia.mce.api.escomceapi.services.CharteUrlResolver;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
@@ -72,6 +73,7 @@ public class PersonneRestController {
     private final EmailVerificationService emailVerificationService;
     private final PasswordService passwordService;
     private final CharteService charteService;
+    private final CharteUrlResolver charteUrlResolver;
     private final APersonneRepository aPersonneRepository;
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final IStructureService structureService;
@@ -81,6 +83,7 @@ public class PersonneRestController {
     public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory,
             SoffitHolder soffitHolder, EmailVerificationService emailVerificationService,
             PasswordService passwordService, CharteService charteService,
+            CharteUrlResolver charteUrlResolver,
             APersonneRepository aPersonneRepository,
             CerbereConfirmationRepository cerbereConfirmationRepository,
             IStructureService structureService) {
@@ -90,6 +93,7 @@ public class PersonneRestController {
         this.emailVerificationService = emailVerificationService;
         this.passwordService = passwordService;
         this.charteService = charteService;
+        this.charteUrlResolver = charteUrlResolver;
         this.aPersonneRepository = aPersonneRepository;
         this.cerbereConfirmationRepository = cerbereConfirmationRepository;
         this.structureService = structureService;
@@ -348,10 +352,14 @@ public class PersonneRestController {
     }
 
     @GetMapping("/charte-status")
-    public ResponseEntity<CharteStatusResponse> getCharteStatus(@RequestParam String uid) {
+    public ResponseEntity<CharteStatusResponse> getCharteStatus(
+            @RequestParam String uid,
+            @RequestHeader(value = "Host", required = false) String host) {
         boolean charteRequired = charteService.isCharteRequired(uid);
-        String charteUrl = charteService.getCharteUrl(uid);
+        String charteUrl = charteUrlResolver.resolve(host);
         boolean charteSignee = !charteRequired;
+        log.info("[CHARTE_STATUS] uid={}, host={}, charteRequired={}, charteSignee={}, charteUrl={}",
+                uid, host, charteRequired, charteSignee, charteUrl);
         return ResponseEntity.ok(new CharteStatusResponse(charteRequired, charteUrl, charteSignee));
     }
 
