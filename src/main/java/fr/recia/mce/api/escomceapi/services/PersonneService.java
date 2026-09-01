@@ -372,6 +372,30 @@ public class PersonneService {
         log.info("[signCharte] FIN uid={}", uid);
     }
 
+    /**
+     * Active un compte initialement {@code Invalide} en posant l'état {@code Valide}. Seule à produire la transition d'activation dans l'API.
+     */
+    @Transactional
+    public void valideCompte(String uid) {
+        log.info("[valideCompte] DEBUT uid={}", uid);
+        APersonne entity = aPersonneRepository.findByUid(uid);
+        if (entity == null) {
+            throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
+        }
+        if ("Delete".equals(entity.getEtat())) {
+            throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
+        }
+        if (!"Valide".equals(entity.getEtat())) {
+            entity.setEtat("Valide");
+            entity.setDateModification(new Date());
+            aPersonneRepository.save(entity);
+            clearUserCaches(uid);
+            log.info("[valideCompte] FIN uid={} -> Valide", uid);
+        } else {
+            log.info("[valideCompte] FIN uid={} déjà Valide", uid);
+        }
+    }
+
     public void clearUserCaches(String uid) {
         log.info("[clearUserCaches] DEBUT uid={}", uid);
         Cache dbCache = cacheManager.getCache(DB_CACHE_NAME);

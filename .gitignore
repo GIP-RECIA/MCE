@@ -45,6 +45,16 @@ build/
 *.rar
 
 src/main/resources/config/*
+
+# Config chargée de secrets (profils dev/test/prod)
+**/application*.yml
+
+# Documentation
+/docs/
+
+# Configuration logback locale
+**/logback-spring.xml
+
 # Artefacts d'exécution
 /data/
 /src/logs/

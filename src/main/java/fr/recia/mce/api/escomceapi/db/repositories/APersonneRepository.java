@@ -34,6 +34,15 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     APersonne findByUid(final String uid);
 
     /**
+     * Résout une personne à partir d'un identifiant de connexion : l'uid, le login (table {@code login}) ou un alias, insensible à la casse. Utilisé par
+     * l'activation de compte (le mot de passe temporaire n'est vérifié qu'en base).
+     */
+    @Query("SELECT a FROM APersonne a WHERE LOWER(a.uid) = LOWER(:login) " +
+            "OR a IN (SELECT l.aPersonneByAPersonneLogin FROM Login l WHERE LOWER(l.nom) = LOWER(:login)) " +
+            "OR a IN (SELECT l.aPersonneByAPersonneAlias FROM Login l WHERE LOWER(l.nom) = LOWER(:login))")
+    APersonne findByLogin(@Param("login") final String login);
+
+    /**
      * Charge la personne avec un verrou pessimiste : sérialise les demandes concurrentes (ex. deux POST forgot-password simultanés pour le même uid) afin
      * d'éviter la création de plusieurs codes valides en parallèle. À appeler dans une transaction.
      */

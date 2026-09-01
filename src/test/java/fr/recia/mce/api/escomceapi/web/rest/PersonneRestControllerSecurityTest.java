@@ -21,6 +21,7 @@ import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.CharteService;
+import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
@@ -86,6 +87,9 @@ class PersonneRestControllerSecurityTest {
 
     @MockBean
     private CharteService charteService;
+
+    @MockBean
+    private ActivationService activationService;
 
     @MockBean
     private APersonneRepository aPersonneRepository;

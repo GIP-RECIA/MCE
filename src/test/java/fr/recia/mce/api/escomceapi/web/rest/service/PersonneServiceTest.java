@@ -498,6 +498,95 @@ public class PersonneServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("Tests de l'activation (signCharte / valideCompte)")
+    class ActivationTransitionTests {
+
+        private APersonne entityInvalide() {
+            APersonne entity = new APersonne();
+            entity.setUid(uid);
+            entity.setEtat("Invalide");
+            return entity;
+        }
+
+        @Test
+        @DisplayName("signCharte pose la date de validation et sauvegarde")
+        void signCharte_positionsCharteAndSaves() {
+            APersonne entity = entityInvalide();
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+
+            personneService.signCharte(uid);
+
+            assertThat(entity.getValidationCharte()).isNotNull();
+            verify(aPersonneRepository).save(entity);
+            verify(cacheManager, atLeastOnce()).getCache(anyString());
+        }
+
+        @Test
+        @DisplayName("signCharte sur uid inconnu → IllegalArgumentException")
+        void signCharte_unknownUidThrows() {
+            when(aPersonneRepository.findByUid(uid)).thenReturn(null);
+
+            assertThatThrownBy(() -> personneService.signCharte(uid))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Utilisateur introuvable");
+
+            verify(aPersonneRepository, never()).save(any(APersonne.class));
+        }
+
+        @Test
+        @DisplayName("valideCompte passe un compte Invalide à l'état Valide")
+        void valideCompte_activatesInvalideAccount() {
+            APersonne entity = entityInvalide();
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+
+            personneService.valideCompte(uid);
+
+            assertThat(entity.getEtat()).isEqualTo("Valide");
+            assertThat(entity.getDateModification()).isNotNull();
+            verify(aPersonneRepository).save(entity);
+        }
+
+        @Test
+        @DisplayName("valideCompte est sans effet sur un compte déjà Valide (pas de sauvegarde)")
+        void valideCompte_noOpWhenAlreadyValide() {
+            APersonne entity = entityInvalide();
+            entity.setEtat("Valide");
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+
+            personneService.valideCompte(uid);
+
+            assertThat(entity.getEtat()).isEqualTo("Valide");
+            verify(aPersonneRepository, never()).save(any(APersonne.class));
+        }
+
+        @Test
+        @DisplayName("valideCompte refuse les comptes supprimés")
+        void valideCompte_refusesDeletedAccount() {
+            APersonne entity = entityInvalide();
+            entity.setEtat("Delete");
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+
+            assertThatThrownBy(() -> personneService.valideCompte(uid))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("supprimé");
+
+            verify(aPersonneRepository, never()).save(any(APersonne.class));
+        }
+
+        @Test
+        @DisplayName("valideCompte sur uid inconnu → IllegalArgumentException")
+        void valideCompte_unknownUidThrows() {
+            when(aPersonneRepository.findByUid(uid)).thenReturn(null);
+
+            assertThatThrownBy(() -> personneService.valideCompte(uid))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Utilisateur introuvable");
+
+            verify(aPersonneRepository, never()).save(any(APersonne.class));
+        }
+    }
+
     private static void cleanupTempDir(Path tempDir) {
         if (tempDir != null) {
             try (var stream = Files.walk(tempDir)) {

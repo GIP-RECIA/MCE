@@ -19,6 +19,7 @@ import javax.validation.constraints.NotNull;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
@@ -27,6 +28,12 @@ import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 public interface IUserDTOFactory {
 
     APersonne from(@NotNull final UserDTO dtObject);
+
+    /**
+     * Évalue le profil public ({@link EnumPublic}) d'une personne à partir des données en base (catégorie, structure, source). Utilisé notamment par
+     * l'activation de compte pour déterminer le parcours (email / mot de passe / fin) applicable au compte.
+     */
+    EnumPublic evalPublic(PersonneDTO personne);
 
     UserDTO from(final IExternalUser extModel, final boolean withInternal);
 

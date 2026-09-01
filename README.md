@@ -8,7 +8,6 @@
 - **Maven** 3.8+
 - **MariaDB** 10.x
 - **LDAP** (OpenLDAP ou équivalent)
-- **Tomcat** 9+ (déploiement WAR)
 
 ## Build
 
@@ -18,6 +17,16 @@
 
 # Compiler avec tests
 ./mvnw clean package
+
+# Dev
+./mvnw clean spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Test
+./mvnw clean spring-boot:run -Dspring-boot.run.profiles=test
+
+# Prod
+./mvnw clean spring-boot:run -Dspring-boot.run.profiles=prod
+
 ```
 
 ## Configuration
@@ -34,7 +43,7 @@ cp src/main/resources/application.example.yml src/main/resources/application.yml
 ./mvnw clean spring-boot:run
 ```
 
-L'API est accessible sur `https://lycees.test.recia.dev/xxxxxx/ui` (port et context-path configurables dans `application.yml`). Documentation Swagger sur `/ismail/swagger-ui.html`.
+L'API est accessible sur `https://lycees.test.recia.dev` (port et context-path configurables dans `application.yml`). Documentation Swagger sur `/swagger-ui.html`.
 
 ## Tests
 
@@ -60,7 +69,33 @@ L'API est accessible sur `https://lycees.test.recia.dev/xxxxxx/ui` (port et cont
 | `src/main/java` | Code source |
 | `src/main/resources` | Configuration |
 | `src/test/java` | Tests unitaires |
+| `docs/` | Documentation des flux métiers |
 | `etc/` | Config formateur Eclipse, templates licence |
+
+## Endpoints principaux
+
+### Authentifiés
+
+| Méthode | URL | Description |
+|---------|-----|-------------|
+| `GET` | `/api/personne/mce/` | Profil complet de l'utilisateur connecté |
+| `GET` | `/api/personne/mce/{id}` | Profil d'un enfant par son identifiant |
+| `GET` | `/api/personne/mce/getuser` | Informations complètes (`PersonneDTO`) |
+| `GET` | `/api/personne/mce/ldap` | Données LDAP brutes |
+| `POST` | `/api/personne/mce/{uid}/change-password` | Changement de mot de passe |
+| `PUT` | `/api/personne/mce/{uid}/update-email` | Demande de vérification email |
+| `POST` | `/api/personne/mce/{uid}/avatar` | Upload d'avatar |
+| `GET` | `/api/personne/mce/{uid}/avatar` | Récupération d'avatar |
+| `GET` | `/health-check` | Health check (public) |
+
+### Publics (sans authentification)
+
+| Méthode | URL | Description |
+|---------|-----|-------------|
+| `POST` | `/api/personne/mce/verify-email` | Vérification d'email par code |
+| `POST` | `/api/personne/mce/forgot-password` | Demande de réinitialisation de mot de passe |
+| `POST` | `/api/personne/mce/reset-password` | Réinitialisation de mot de passe |
+| `POST` | `/api/personne/mce/search-uid` | Recherche d'UID par nom/prénom/email |
 
 ## Journalisation
 

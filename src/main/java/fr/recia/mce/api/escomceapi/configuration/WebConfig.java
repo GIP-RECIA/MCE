@@ -34,6 +34,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/personne/mce/search-uid",
                         "/api/personne/mce/forgot-password",
                         "/api/personne/mce/reset-password",
-                        "/api/personne/mce/verify-email");
+                        "/api/personne/mce/verify-email",
+                        "/api/personne/mce/activation/connexion",
+                        "/api/personne/mce/activation/password");
     }
 }

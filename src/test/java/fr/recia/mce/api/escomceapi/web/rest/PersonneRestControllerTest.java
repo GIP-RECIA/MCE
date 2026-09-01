@@ -27,6 +27,7 @@ import fr.recia.mce.api.escomceapi.db.entities.Login;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.services.CharteService;
+import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
@@ -44,6 +45,9 @@ import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import org.springframework.security.access.AccessDeniedException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
@@ -65,6 +69,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
+import static org.assertj.core.api.Assertions.assertThat;
 import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -118,6 +124,10 @@ class PersonneRestControllerTest {
     @MockBean
     @SuppressWarnings("unused")
     private CharteService charteService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private ActivationService activationService;
 
     @MockBean
     @SuppressWarnings("unused")
@@ -1035,6 +1045,109 @@ class PersonneRestControllerTest {
                     .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
             verifyNoInteractions(emailVerificationService);
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests du point d'accès /activation")
+    class ActivationEndpointTests {
+
+        private static final String CONNEXION_URL = BASE_URL + "activation/connexion";
+        private static final String STATUS_URL = BASE_URL + "activation/status";
+        private static final String ACTIVATE_URL = BASE_URL + "activation/password";
+
+        @Test
+        @DisplayName("Connexion (login + mdp temporaire) réussie → 200 avec l'uid")
+        void connexionShouldReturnUid() throws Exception {
+            when(activationService.connexion("dupontj", "TempPass1!")).thenReturn("dupontj");
+
+            mockMvc.perform(post(CONNEXION_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"login\":\"dupontj\",\"password\":\"TempPass1!\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uid").value("dupontj"));
+
+            verify(activationService).connexion("dupontj", "TempPass1!");
+        }
+
+        @Test
+        @DisplayName("Identifiants invalides → 400 BAD_REQUEST")
+        void connexionShouldRejectInvalidCredentials() throws Exception {
+            when(activationService.connexion(anyString(), anyString()))
+                    .thenThrow(new IllegalArgumentException("Identifiants incorrects"));
+
+            mockMvc.perform(post(CONNEXION_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"login\":\"dupontj\",\"password\":\"Mauvais\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+        }
+
+        @Test
+        @DisplayName("Login manquant → 400 VALIDATION_ERROR")
+        void connexionShouldValidateMissingLogin() throws Exception {
+            mockMvc.perform(post(CONNEXION_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"password\":\"TempPass1!\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(activationService);
+        }
+
+        @Test
+        @DisplayName("Statut d'activation → 200 avec le parcours")
+        void statusShouldReturnParcours() throws Exception {
+            ActivationStatusResponseDTO status = ActivationStatusResponseDTO.builder()
+                    .uid("dupontj")
+                    .etat("Invalide")
+                    .charteRequise(true)
+                    .charteSignee(false)
+                    .emailRequise(true)
+                    .passwordRequise(true)
+                    .etapeSuivante("CHARTE")
+                    .build();
+            when(activationService.getActivationStatus("dupontj")).thenReturn(status);
+
+            mockMvc.perform(get(STATUS_URL).param("uid", "dupontj"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uid").value("dupontj"))
+                    .andExpect(jsonPath("$.charteRequise").value(true))
+                    .andExpect(jsonPath("$.etapeSuivante").value("CHARTE"));
+
+            verify(activationService).getActivationStatus("dupontj");
+        }
+
+        @Test
+        @DisplayName("Activation (charte + mot de passe) réussie → 200, compte Valide")
+        void activateShouldSucceed() throws Exception {
+            ActivationResultDTO result = new ActivationResultDTO("dupontj", "Valide", false);
+            when(activationService.activate(any())).thenReturn(result);
+
+            mockMvc.perform(post(ACTIVATE_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"uid\":\"dupontj\",\"charteAccepted\":true,"
+                                    + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uid").value("dupontj"))
+                    .andExpect(jsonPath("$.etat").value("Valide"));
+
+            ArgumentCaptor<ActivationRequestDTO> captor = ArgumentCaptor.forClass(ActivationRequestDTO.class);
+            verify(activationService).activate(captor.capture());
+            assertThat(captor.getValue().getUid()).isEqualTo("dupontj");
+            assertThat(captor.getValue().isCharteAccepted()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Activation sans uid → 400 VALIDATION_ERROR")
+        void activateShouldValidateMissingUid() throws Exception {
+            mockMvc.perform(post(ACTIVATE_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"charteAccepted\":true}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+            verifyNoInteractions(activationService);
         }
     }
 

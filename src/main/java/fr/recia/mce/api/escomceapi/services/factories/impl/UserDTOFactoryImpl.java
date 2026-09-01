@@ -172,7 +172,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return from(model, extModel);
     }
 
-    private EnumPublic evalPublic(final PersonneDTO personne) {
+    public EnumPublic evalPublic(final PersonneDTO personne) {
 
         EnumPublic res = null;
 

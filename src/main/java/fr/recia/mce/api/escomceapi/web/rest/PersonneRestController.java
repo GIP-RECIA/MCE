@@ -20,6 +20,7 @@ import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.CharteUrlResolver;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
@@ -35,7 +36,12 @@ import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.CharteStatusResponse;
+import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ForgotPasswordRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
@@ -74,6 +80,7 @@ public class PersonneRestController {
     private final PasswordService passwordService;
     private final CharteService charteService;
     private final CharteUrlResolver charteUrlResolver;
+    private final ActivationService activationService;
     private final APersonneRepository aPersonneRepository;
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final IStructureService structureService;
@@ -83,7 +90,7 @@ public class PersonneRestController {
     public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory,
             SoffitHolder soffitHolder, EmailVerificationService emailVerificationService,
             PasswordService passwordService, CharteService charteService,
-            CharteUrlResolver charteUrlResolver,
+            CharteUrlResolver charteUrlResolver, ActivationService activationService,
             APersonneRepository aPersonneRepository,
             CerbereConfirmationRepository cerbereConfirmationRepository,
             IStructureService structureService) {
@@ -94,6 +101,7 @@ public class PersonneRestController {
         this.passwordService = passwordService;
         this.charteService = charteService;
         this.charteUrlResolver = charteUrlResolver;
+        this.activationService = activationService;
         this.aPersonneRepository = aPersonneRepository;
         this.cerbereConfirmationRepository = cerbereConfirmationRepository;
         this.structureService = structureService;
@@ -361,6 +369,43 @@ public class PersonneRestController {
         log.info("[CHARTE_STATUS] uid={}, host={}, charteRequired={}, charteSignee={}, charteUrl={}",
                 uid, host, charteRequired, charteSignee, charteUrl);
         return ResponseEntity.ok(new CharteStatusResponse(charteRequired, charteUrl, charteSignee));
+    }
+
+    /**
+     * Point d'entrée CONNEXION du parcours d'activation de compte : login + mot de passe temporaire. Public, le compte étant encore inactif.
+     */
+    @PostMapping("/activation/connexion")
+    public ResponseEntity<ConnexionActivationResponseDTO> connexionActivation(
+            @Valid @RequestBody ConnexionActivationRequestDTO request) {
+
+        log.info("[ACTIVATION][CONNEXION] Demande pour login={}", request.getLogin());
+        String uid = activationService.connexion(request.getLogin(), request.getPassword());
+        log.info("[ACTIVATION][CONNEXION] Succès uid={}", uid);
+        return ResponseEntity.ok(new ConnexionActivationResponseDTO(uid));
+    }
+
+    /**
+     * Détermine le parcours d'activation du compte (CHARTE → COURRIEL → PASSWORD → FIN) selon le profil.
+     */
+    @GetMapping("/activation/status")
+    public ResponseEntity<ActivationStatusResponseDTO> activationStatus(@RequestParam String uid) {
+        log.info("[ACTIVATION][STATUS] Demande uid={}", uid);
+        ActivationStatusResponseDTO status = activationService.getActivationStatus(uid);
+        log.info("[ACTIVATION][STATUS] Succès uid={} etape={}", uid, status.getEtapeSuivante());
+        return ResponseEntity.ok(status);
+    }
+
+    /**
+     * Point d'entrée PASSWORD du parcours d'activation : charte + mot de passe (et éventuellement email) puis activation du compte.
+     */
+    @PostMapping("/activation/password")
+    public ResponseEntity<ActivationResultDTO> activerCompte(
+            @Valid @RequestBody ActivationRequestDTO request) {
+
+        log.info("[ACTIVATION][PASSWORD] Demande uid={}, charteAccepted={}", request.getUid(), request.isCharteAccepted());
+        ActivationResultDTO result = activationService.activate(request);
+        log.info("[ACTIVATION][PASSWORD] Succès uid={} etat={}", result.getUid(), result.getEtat());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{uid}/avatar")
