@@ -1157,7 +1157,21 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("NON_PROF_COL_LOCAL + !isRegion → fallthrough NON_PROF_ETAB ds=null → PERSONNEL")
+        @DisplayName("NON_PROF_COL_LOCAL + COLL-CD28 + isLocalUser → PERSONNEL")
+        void nonProfColLocalCd28LocalUser() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "SarapisUi-COLL-CD28", null)))
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + COLL-CD28 + !isLocalUser → CVDL (pas de mdp local)")
+        void nonProfColLocalCd28NonLocalUser() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CD28", null)))
+                    .isEqualTo(EnumPublic.CVDL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + !isCollectivite → fallthrough NON_PROF_ETAB ds=null → PERSONNEL")
         void nonProfColLocalNonRegion() {
             PersonneDTO p = modelWithDomSource("Non_enseignant_collectivite_locale", null, null);
             assertThat(eval(p)).isEqualTo(EnumPublic.PERSONNEL);

@@ -179,7 +179,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         DomSource ds = null;
         StructureDTO structure = personne.getStructureDto();
         boolean isLocalUser = false;
-        boolean isRegion = false;
+        boolean isCollectivite = false;
         String source = personne.getSource();
 
         if (structure != null) {
@@ -193,7 +193,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         if (source != null) {
             isLocalUser = source.startsWith("SarapisUi");
-            isRegion = source.endsWith("COLL-CVDL");
+            isCollectivite = source.endsWith("COLL-CVDL") || source.endsWith("COLL-CD28");
         }
 
         EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
@@ -264,7 +264,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     break;
 
                 case NON_PROF_COL_LOCAL :
-                    if (isRegion) {
+                    if (isCollectivite) {
                         res = isLocalUser ? EnumPublic.PERSONNEL : EnumPublic.CVDL;
                         break;
                     }
