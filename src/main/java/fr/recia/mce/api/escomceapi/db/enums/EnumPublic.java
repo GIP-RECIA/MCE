@@ -47,9 +47,17 @@ public enum EnumPublic {
      */
     ELEVE_EDUC,
     /**
-     * les eleves agri non cfa
+     * les eleves
      */
     ELEVE,
+    /**
+     * les eleves de l'enseignement agricole (non cfa).
+     */
+    ELEVE_AGRI,
+    /**
+     * Les parents de l'enseignement agricole.
+     */
+    PARENT_AGRI,
     /**
      * les eleves cfa
      */
@@ -73,6 +81,8 @@ public enum EnumPublic {
             case CVDL :
             case ELEVE_EDUC :
             case PARENT_EDUC :
+            case ELEVE_AGRI :
+            case PARENT_AGRI :
                 return false;
             // $CASES-OMITTED$
             default :
@@ -84,6 +94,7 @@ public enum EnumPublic {
         switch (this) {
             case ELEVE_EDUC :
             case ELEVE :
+            case ELEVE_AGRI :
             case APPRENANT :
                 return true;
             default :
@@ -92,10 +103,21 @@ public enum EnumPublic {
 
     }
 
+    /**
+     * Indique si le profil représente un parent (local, educonnect ou agricole).
+     * <p>
+     * Actuellement inutilisée : la distinction entre parents est déjà portée par
+     * la valeur de l'enum ({@code PARENT}/{@code PARENT_EDUC}/{@code PARENT_AGRI})
+     * et par {@link #isConnectOk()} / {@link #isEduconnect()}. Ménagée pour de
+     * futures règles « est parent » (perimètre, mots de passe, relations).
+     *
+     * @return {@code true} si le profil est {@code PARENT}, {@code PARENT_EDUC} ou {@code PARENT_AGRI}
+     */
     public boolean isParent() {
         switch (this) {
             case PARENT :
             case PARENT_EDUC :
+            case PARENT_AGRI :
                 return true;
             default :
                 return false;
@@ -125,6 +147,7 @@ public enum EnumPublic {
             case ELEVE_EDUC :
             case APPRENANT :
             case ELEVE :
+            case ELEVE_AGRI :
                 return true;
             default :
                 return false;

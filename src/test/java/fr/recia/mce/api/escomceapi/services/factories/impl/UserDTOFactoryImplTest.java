@@ -173,6 +173,8 @@ class UserDTOFactoryImplTest {
                 Arguments.of(EnumPublic.CVDL, "user@region.fr", false),
                 Arguments.of(EnumPublic.ELEVE_EDUC, "eleve@ac-orleans-tours.fr", false),
                 Arguments.of(EnumPublic.PARENT_EDUC, "parent@ac-orleans-tours.fr", false),
+                Arguments.of(EnumPublic.ELEVE_AGRI, "eleve@educagri.fr", false),
+                Arguments.of(EnumPublic.PARENT_AGRI, "parent@educagri.fr", false),
                 Arguments.of(EnumPublic.PERSONNEL, "user@ac-orleans-tours.fr", true),
                 Arguments.of(EnumPublic.PARENT, "parent@test.fr", true),
                 Arguments.of(EnumPublic.ELEVE, "eleve@test.fr", true),
@@ -196,7 +198,9 @@ class UserDTOFactoryImplTest {
                 Arguments.of(EnumPublic.AGRI, "user@educagri.fr"),
                 Arguments.of(EnumPublic.CVDL, "user@region.fr"),
                 Arguments.of(EnumPublic.ELEVE_EDUC, "eleve@test.fr"),
-                Arguments.of(EnumPublic.PARENT_EDUC, "parent@test.fr"));
+                Arguments.of(EnumPublic.PARENT_EDUC, "parent@test.fr"),
+                Arguments.of(EnumPublic.ELEVE_AGRI, "eleve@test.fr"),
+                Arguments.of(EnumPublic.PARENT_AGRI, "parent@test.fr"));
     }
 
     static Stream<Arguments> allowedProfilesForPasswordChange() {
@@ -1064,6 +1068,12 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
+        @DisplayName("ELEVE + LA → ELEVE_AGRI")
+        void eleveLa() {
+            assertThat(eval(modelWithDomSource("Eleve", "ENT-Agri", DomSource.LA))).isEqualTo(EnumPublic.ELEVE_AGRI);
+        }
+
+        @Test
         @DisplayName("PARENT + AC + isLocalUser → PARENT")
         void parentAcLocal() {
             assertThat(eval(modelWithDomSource("Personne_relation_eleve", "SarapisUi-Tours", DomSource.AC)))
@@ -1075,6 +1085,13 @@ class UserDTOFactoryImplTest {
         void parentAcNonLocal() {
             assertThat(eval(modelWithDomSource("Personne_relation_eleve", "ENT-Externe", DomSource.AC)))
                     .isEqualTo(EnumPublic.PARENT_EDUC);
+        }
+
+        @Test
+        @DisplayName("PARENT + LA → PARENT_AGRI")
+        void parentLa() {
+            assertThat(eval(modelWithDomSource("Personne_relation_eleve", "ENT-Agri", DomSource.LA)))
+                    .isEqualTo(EnumPublic.PARENT_AGRI);
         }
 
         @Test

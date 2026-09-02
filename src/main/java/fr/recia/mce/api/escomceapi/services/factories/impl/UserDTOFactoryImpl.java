@@ -211,8 +211,10 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                             case AC :
                                 res = isLocalUser ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
                                 break;
-                            case GIP :
                             case LA :
+                                res = EnumPublic.ELEVE_AGRI;
+                                break;
+                            case GIP :
                             case COLL :
                             default :
                                 res = EnumPublic.ELEVE;
@@ -226,6 +228,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                     if (ds != null) {
                         if (ds == DomSource.AC) {
                             res = isLocalUser ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
+                        } else if (ds == DomSource.LA) {
+                            res = EnumPublic.PARENT_AGRI;
                         } else {
                             res = EnumPublic.PARENT;
                         }

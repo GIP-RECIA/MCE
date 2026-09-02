@@ -26,7 +26,7 @@ class EnumPublicTest {
 
     @ParameterizedTest(name = "{0} → isConnectOk=false (mdp interdit)")
     @EnumSource(value = EnumPublic.class, names = {
-            "EDUCATION", "AGRI", "CVDL", "ELEVE_EDUC", "PARENT_EDUC"
+            "EDUCATION", "AGRI", "CVDL", "ELEVE_EDUC", "PARENT_EDUC", "ELEVE_AGRI", "PARENT_AGRI"
     })
     @DisplayName("Profils sans droit de changement de mot de passe local")
     void profilesWithoutLocalPasswordChange(EnumPublic profile) {
@@ -51,7 +51,7 @@ class EnumPublicTest {
 
     @ParameterizedTest(name = "{0} → isEduconnect=false")
     @EnumSource(value = EnumPublic.class, names = {
-            "EDUCATION", "AGRI", "CVDL", "PERSONNEL", "PARENT", "ELEVE", "APPRENANT", "EXTERIEUR", "AUTRE"
+            "EDUCATION", "AGRI", "CVDL", "PERSONNEL", "PARENT", "ELEVE", "ELEVE_AGRI", "PARENT_AGRI", "APPRENANT", "EXTERIEUR", "AUTRE"
     })
     @DisplayName("Profils non EduConnect")
     void nonEduConnectProfiles(EnumPublic profile) {
@@ -60,7 +60,7 @@ class EnumPublicTest {
 
     @ParameterizedTest(name = "{0} → isPassEtab=true")
     @EnumSource(value = EnumPublic.class, names = {
-            "EDUCATION", "AGRI", "CVDL", "PERSONNEL", "ELEVE_EDUC", "APPRENANT", "ELEVE"
+            "EDUCATION", "AGRI", "CVDL", "PERSONNEL", "ELEVE_EDUC", "APPRENANT", "ELEVE", "ELEVE_AGRI"
     })
     @DisplayName("Profils avec changement de mot de passe établissement")
     void profilesWithPassEtab(EnumPublic profile) {
@@ -69,7 +69,7 @@ class EnumPublicTest {
 
     @ParameterizedTest(name = "{0} → isPassEtab=false")
     @EnumSource(value = EnumPublic.class, names = {
-            "PARENT", "PARENT_EDUC", "EXTERIEUR", "AUTRE"
+            "PARENT", "PARENT_EDUC", "PARENT_AGRI", "EXTERIEUR", "AUTRE"
     })
     @DisplayName("Profils sans changement de mot de passe établissement")
     void profilesWithoutPassEtab(EnumPublic profile) {

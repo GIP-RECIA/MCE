@@ -31,11 +31,15 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
-                .addPathPatterns("/api/personne/mce/search-uid",
+                .addPathPatterns(
+                        "/api/personne/mce/search-uid",
                         "/api/personne/mce/forgot-password",
                         "/api/personne/mce/reset-password",
                         "/api/personne/mce/verify-email",
                         "/api/personne/mce/activation/connexion",
-                        "/api/personne/mce/activation/password");
+                        "/api/personne/mce/activation/password",
+                        "/api/personne/mce/*/change-password",
+                        "/api/personne/mce/*/update-email",
+                        "/api/personne/mce/*/avatar");
     }
 }
