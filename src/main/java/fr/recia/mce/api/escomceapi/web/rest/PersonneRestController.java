@@ -24,6 +24,8 @@ import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.CharteUrlResolver;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
+import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -55,6 +57,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -75,6 +78,7 @@ public class PersonneRestController {
     private final ActivationService activationService;
     private final APersonneRepository aPersonneRepository;
     private final IStructureService structureService;
+    private final IRelationEleveService relationEleveService;
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
@@ -83,7 +87,8 @@ public class PersonneRestController {
             CharteService charteService,
             CharteUrlResolver charteUrlResolver, ActivationService activationService,
             APersonneRepository aPersonneRepository,
-            IStructureService structureService) {
+            IStructureService structureService,
+            IRelationEleveService relationEleveService) {
         this.personneService = personneService;
         this.userDTOFactory = userDTOFactory;
         this.soffitHolder = soffitHolder;
@@ -93,6 +98,7 @@ public class PersonneRestController {
         this.activationService = activationService;
         this.aPersonneRepository = aPersonneRepository;
         this.structureService = structureService;
+        this.relationEleveService = relationEleveService;
     }
 
     @GetMapping("/debug-id")
@@ -138,6 +144,11 @@ public class PersonneRestController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String id) {
+        String currentUid = getCurrentUid();
+        if (!canAccessRelationProfile(currentUid, id)) {
+            specialLog.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", id, currentUid);
+            throw new AccessDeniedException("Vous ne pouvez consulter que votre profil ou celui des personnes en relation avec vous");
+        }
         UserDTO enfant = userDTOFactory.from(id);
 
         if (enfant == null) {
@@ -386,6 +397,9 @@ public class PersonneRestController {
 
     @GetMapping("/{uid}/avatar{suffix:.*}")
     public ResponseEntity<byte[]> getAvatar(@PathVariable String uid, @PathVariable(required = false) String suffix) {
+        // Note : le paramètre {uid} de l'URL d'avatar est un HASH opaque (getHashFromUid), PAS l'uid réel.
+        // C'est ce hash qui sert d'accès (non énumérable) au fichier : pas de garde currentUid.equals(uid).
+        // Le POST /{uid}/avatar (upload) reste protégé par la vérification de propriété sur l'uid réel.
         byte[] image = personneService.getAvatar(uid);
         if (image == null) {
             throw new PersonneNotFoundException("Avatar non trouvé pour l'uid : " + uid);
@@ -401,5 +415,31 @@ public class PersonneRestController {
             throw new AccessDeniedException("Utilisateur non authentifié");
         }
         return sub;
+    }
+
+    private boolean canAccessRelationProfile(String currentUid, String id) {
+        if (currentUid.equals(id)) {
+            return true;
+        }
+        try {
+            Collection<RelationEleveContact> relations = relationEleveService.allRelationEleves(currentUid);
+            if (relations != null
+                    && relations.stream().map(RelationEleveContact::getUidRelation)
+                            .anyMatch(uid -> uid != null && uid.equals(id))) {
+                return true;
+            }
+
+            PersonneDTO current = personneService.retrievePersonnebyUid(currentUid);
+            if (current != null && current.getAPersonneBase() != null) {
+                Long parentId = current.getAPersonneBase().getId();
+                return relationEleveService.allEleveEnRelation(parentId).stream()
+                        .map(RelationEleveContact::getUidRelation)
+                        .anyMatch(uid -> uid != null && uid.equals(id));
+            }
+            return false;
+        } catch (Exception e) {
+            log.warn("Erreur lors du contrôle d'accès au profil relation {} par {} : {}", id, currentUid, e.getMessage());
+            return false;
+        }
     }
 }

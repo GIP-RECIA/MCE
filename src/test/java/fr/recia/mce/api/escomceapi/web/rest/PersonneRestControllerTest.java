@@ -469,6 +469,7 @@ class PersonneRestControllerTest {
             String enfantId = "enfant.user";
             UserDTO enfant = new UserDTO();
             when(userDTOFactory.from(enfantId)).thenReturn(enfant);
+            when(relationEleveServiceImpl.allRelationEleves(anyString())).thenReturn(relationsOf(enfantId));
 
             mockMvc.perform(get(BASE_URL + enfantId))
                     .andExpect(status().isOk());
@@ -479,9 +480,38 @@ class PersonneRestControllerTest {
         void shouldReturnNotFoundWhenEnfantIsNull() throws Exception {
             String enfantId = "enfant.user";
             when(userDTOFactory.from(enfantId)).thenReturn(null);
+            when(relationEleveServiceImpl.allRelationEleves(anyString())).thenReturn(relationsOf(enfantId));
 
             mockMvc.perform(get(BASE_URL + enfantId))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("Interdiction de consulter le profil d'un utilisateur sans lien")
+        void shouldReturnForbiddenWhenAccessingUnrelatedProfile() throws Exception {
+            String otherId = "autre.user";
+            when(userDTOFactory.from(otherId)).thenReturn(new UserDTO());
+            when(relationEleveServiceImpl.allRelationEleves(anyString())).thenReturn(relationsOf("enfant.user"));
+
+            mockMvc.perform(get(BASE_URL + otherId))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("Autorisation de consulter son propre profil via /{id}")
+        void shouldGetOwnDetail() throws Exception {
+            UserDTO self = new UserDTO();
+            when(userDTOFactory.from(USER)).thenReturn(self);
+
+            mockMvc.perform(get(BASE_URL + USER))
+                    .andExpect(status().isOk());
+        }
+
+        private List<RelationEleveContact> relationsOf(String uidRelation) {
+            RelationEleveContact rel = new RelationEleveContact(RelationEleveContact.SensRel.CONTACT2ELEVE);
+            rel.setUidRelation(uidRelation);
+            rel.setDisplayNameRelation("Sara VAR");
+            return List.of(rel);
         }
 
         private RelationEleveContact buildParentRelation(String enfantId) {
@@ -522,6 +552,7 @@ class PersonneRestControllerTest {
             enfant.setParentEleve(List.of(rel));
 
             when(userDTOFactory.from(enfantId)).thenReturn(enfant);
+            when(relationEleveServiceImpl.allRelationEleves(anyString())).thenReturn(relationsOf(enfantId));
 
             mockMvc.perform(get(BASE_URL + enfantId))
                     .andExpect(status().isOk())
