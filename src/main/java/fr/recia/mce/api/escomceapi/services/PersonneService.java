@@ -43,6 +43,7 @@ import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -296,8 +297,11 @@ public class PersonneService {
         clearUserCaches(uid);
     }
 
-    public void validateEmailForUpdate(String uid, String newEmail) {
-        PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
+    public List<String> getDistinctCategories() {
+        return aPersonneRepository.findDistinctCategories();
+    }
+
+    public void validateEmailForUpdate(String uid, String newEmail) {        PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
         if (personneDTO == null) {
             log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
             throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);

@@ -31,7 +31,6 @@ import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
-import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
@@ -76,7 +75,6 @@ public class PersonneRestController {
     private final CharteService charteService;
     private final CharteUrlResolver charteUrlResolver;
     private final ActivationService activationService;
-    private final APersonneRepository aPersonneRepository;
     private final IStructureService structureService;
     private final IRelationEleveService relationEleveService;
 
@@ -86,7 +84,6 @@ public class PersonneRestController {
             SoffitHolder soffitHolder, EmailVerificationService emailVerificationService,
             CharteService charteService,
             CharteUrlResolver charteUrlResolver, ActivationService activationService,
-            APersonneRepository aPersonneRepository,
             IStructureService structureService,
             IRelationEleveService relationEleveService) {
         this.personneService = personneService;
@@ -96,7 +93,6 @@ public class PersonneRestController {
         this.charteService = charteService;
         this.charteUrlResolver = charteUrlResolver;
         this.activationService = activationService;
-        this.aPersonneRepository = aPersonneRepository;
         this.structureService = structureService;
         this.relationEleveService = relationEleveService;
     }
@@ -347,7 +343,7 @@ public class PersonneRestController {
     @GetMapping("/structures/profils")
     public ResponseEntity<List<String>> getProfils() {
         log.info("[STRUCTURES] GET /structures/profils");
-        List<String> profils = aPersonneRepository.findDistinctCategories();
+        List<String> profils = personneService.getDistinctCategories();
         log.info("[STRUCTURES] {} profil(s) trouvé(s)", profils.size());
         return ResponseEntity.ok(profils);
     }
