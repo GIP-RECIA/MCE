@@ -168,6 +168,21 @@ public class EmailVerificationService {
             throw new InactiveAccountException("Aucun compte associé à cet identifiant");
         }
 
+        // Anti-double-clic
+        List<CerbereConfirmation> pending = cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId());
+        if (!pending.isEmpty()) {
+            CerbereConfirmation last = pending.get(0);
+            if (last.getLimite() != null) {
+                long expiryHours = mailProperties.getVerification().getExpiryHours();
+                long estimatedCreation = last.getLimite().getTime() - (expiryHours * 3_600_000L);
+                long elapsed = System.currentTimeMillis() - estimatedCreation;
+                if (elapsed < mceProperties.getSecurity().getResetPolicy().getResendCooldownMs()) {
+                    log.warn("[VERIFY_EMAIL] Anti-double-clic : dernière demande il y a {} ms pour uid={}", elapsed, uid);
+                    return;
+                }
+            }
+        }
+
         String code = generateVerificationCode();
         String hashedCode = hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
 
