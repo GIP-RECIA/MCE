@@ -54,6 +54,12 @@ public class FonctionService {
         return foncts;
     }
 
+    public Long getPersonIdOfFonction(Long fonctionId) {
+        return aFonctionRepository.findById(fonctionId)
+                .map(aFonction -> aFonction.getAPersonne() == null ? null : aFonction.getAPersonne().getId())
+                .orElse(null);
+    }
+
     public void updateDateFin(Long id, boolean active) {
         log.debug("Mise à jour de l'état de la fonction (active={}) pour l'ID : {}", active, id);
         AFonction aFonction = aFonctionRepository.findById(id)
