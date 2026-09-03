@@ -93,9 +93,9 @@ L'API est accessible sur `https://lycees.test.recia.dev` (port et context-path c
 | Méthode | URL | Description |
 |---------|-----|-------------|
 | `POST` | `/api/personne/mce/verify-email` | Vérification d'email par code |
-| `POST` | `/api/personne/mce/forgot-password` | Demande de réinitialisation de mot de passe |
+| `POST` | `/api/personne/mce/forgot-password` | Envoi d'un code de réinitialisation après saisi de l'uid et de l'email |
+| `POST` | `/api/personne/mce/recover-uid` | Récupération du mot de passe sans uid (identité complète requise, réponse générique, aucun uid renvoyé) |
 | `POST` | `/api/personne/mce/reset-password` | Réinitialisation de mot de passe |
-| `POST` | `/api/personne/mce/search-uid` | Recherche d'UID par nom/prénom/email |
 
 ## Journalisation
 

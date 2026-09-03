@@ -17,10 +17,11 @@ package fr.recia.mce.api.escomceapi.web.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 
 @Data
-public class SearchUidRequestDTO {
+public class RecoverUidRequestDTO {
 
     @NotBlank(message = "Le nom est obligatoire")
     private String nom;
@@ -28,6 +29,8 @@ public class SearchUidRequestDTO {
     @NotBlank(message = "Le prénom est obligatoire")
     private String prenom;
 
+    @NotBlank(message = "L'adresse email est obligatoire")
+    @Email(message = "Le format de l'adresse email est invalide")
     private String email;
 
     @NotBlank(message = "Le profil est obligatoire")

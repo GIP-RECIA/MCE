@@ -25,7 +25,6 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
@@ -49,6 +48,7 @@ import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 
@@ -831,7 +831,7 @@ class PersonneRestControllerTest {
 
     private static final String FORGOT_URL = BASE_URL + "forgot-password";
     private static final String RESET_URL = BASE_URL + "reset-password";
-    private static final String SEARCH_UID_URL = BASE_URL + "search-uid";
+    private static final String RECOVER_UID_URL = BASE_URL + "recover-uid";
 
     @Nested
     @DisplayName("Tests du point d'accès /forgot-password")
@@ -1152,187 +1152,89 @@ class PersonneRestControllerTest {
     }
 
     @Nested
-    @DisplayName("Tests du point d'accès /search-uid")
-    class SearchUidEndpointTests {
+    @DisplayName("Tests du point d'accès /recover-uid")
+    class RecoverUidEndpointTests {
 
-        private final String validBody = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\","
-                + "\"profil\":\"ELEVE\",\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+        private final String validBody = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\","
+                + "\"email\":\"jean.dupont@ac-orleans-tours.fr\",\"profil\":\"ELEVE\","
+                + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
                 + "\"etablissement\":\"19450023200014\"}";
 
-        private IExternalStructure structure(String id, String type, String ville) {
-            IExternalStructure s = mock(IExternalStructure.class);
-            when(s.getId()).thenReturn(id);
-            when(s.getType()).thenReturn(type);
-            when(s.getVille()).thenReturn(ville);
-            return s;
-        }
-
         @Test
-        @DisplayName("Résultats trouvés → 200 avec la liste uid/displayName")
-        void shouldReturnMatchingUids() throws Exception {
-            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
-            when(structureService.getAllStructures()).thenReturn(List.of(etab));
-            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
-                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
-                    .thenReturn(List.<Object[]>of(new Object[]{
-                            "dupontj", "DUPONT Jean", 7L, "jean.dupont@ac-orleans-tours.fr", null}));
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+        @DisplayName("Réponse générique RECOVER_CODE_SENT et aucune fuite d'uid dans le corps")
+        void shouldReturnGenericResponseWithoutUid() throws Exception {
+            mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].uid").value("dupontj"))
-                    .andExpect(jsonPath("$[0].displayName").value("DUPONT Jean"));
+                    .andExpect(jsonPath("$.code").value("RECOVER_CODE_SENT"));
+
+            ArgumentCaptor<RecoverUidRequestDTO> captor = ArgumentCaptor.forClass(RecoverUidRequestDTO.class);
+            verify(emailVerificationService).recoverUid(captor.capture());
+            assertThat(captor.getValue().getEmail()).isEqualTo("jean.dupont@ac-orleans-tours.fr");
+            assertThat(captor.getValue().getProfil()).isEqualTo("ELEVE");
+            assertThat(captor.getValue().getEtablissement()).isEqualTo("19450023200014");
         }
 
         @Test
-        @DisplayName("Filtrage email : une ligne dont l'email ne correspond pas est exclue")
-        void shouldFilterRowsByEmail() throws Exception {
-            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
-            when(structureService.getAllStructures()).thenReturn(List.of(etab));
-            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(any(), any(), any(), any()))
-                    .thenReturn(List.<Object[]>of(new Object[]{
-                            "autreuid", "AUTRE User", 8L, "autre@example.fr", null}));
+        @DisplayName("Aucun résultat → quand même 200 RECOVER_CODE_SENT (pas d'énumération)")
+        void shouldReturnGenericResponseEvenWithoutAccount() throws Exception {
+            doNothing().when(emailVerificationService).recoverUid(any(RecoverUidRequestDTO.class));
 
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+            mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value("SEARCH_NO_RESULT"));
+                    .andExpect(jsonPath("$.code").value("RECOVER_CODE_SENT"));
         }
 
         @Test
-        @DisplayName("Aucun résultat en base → 200 SEARCH_NO_RESULT")
-        void shouldReturnSearchNoResult() throws Exception {
-            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
-            when(structureService.getAllStructures()).thenReturn(List.of(etab));
-            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(any(), any(), any(), any()))
-                    .thenReturn(List.of());
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+        @DisplayName("Réponse générique : jamais de champ uid/displayName")
+        void shouldNeverExposeUid() throws Exception {
+            mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value("SEARCH_NO_RESULT"));
+                    .andExpect(jsonPath("$[0]").doesNotExist())
+                    .andExpect(jsonPath("$.uid").doesNotExist())
+                    .andExpect(jsonPath("$.displayName").doesNotExist());
         }
 
         @Test
-        @DisplayName("Aucun SIREN résolu → SEARCH_NO_RESULT sans interroger la base (IN () vide)")
-        void emptySirenFilterShortCircuitsWithoutDbCall() throws Exception {
-            when(structureService.getAllStructures()).thenReturn(List.of());
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value("SEARCH_NO_RESULT"));
-
-            verify(aPersonneRepository, never()).searchByNomPrenomAndCategorieAndSirens(
-                    any(), any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("Champ obligatoire manquant → 400 VALIDATION_ERROR")
-        void shouldValidateRequiredFields() throws Exception {
-            String body = "{\"nom\":\"\",\"prenom\":\"Jean\",\"email\":\"j@x.fr\",\"profil\":\"ELEVE\","
-                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}";
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-        }
-
-        @Test
-        @DisplayName("Chaque champ obligatoire manquant → 400 VALIDATION_ERROR, base jamais interrogée")
-        void shouldRejectMissingFieldForEachRequiredField() throws Exception {
-            String base = "\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"";
+        @DisplayName("Champ identité manquant/vide → 400 VALIDATION_ERROR, service jamais appelé")
+        void shouldRejectMissingIdentityField() throws Exception {
             String[] bodies = {
-                    // nom manquant (clé absente)
-                    "{\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
-                    // nom null
-                    "{\"nom\":null," + base + "}",
-                    // nom vide
-                    "{\"nom\":\"\"," + base + "}",
-                    // prenom manquant
-                    "{\"nom\":\"DUPONT\",\"profil\":\"ELEVE\","
-                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
+                    // email invalide
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"pas-un-email\","
+                            + "\"profil\":\"ELEVE\",\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+                            + "\"etablissement\":\"19450023200014\"}",
+                    // nom manquant
+                    "{\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+                            + "\"etablissement\":\"19450023200014\"}",
+                    // prénom manquant
+                    "{\"nom\":\"DUPONT\",\"email\":\"jean.dupont@ac-orleans-tours.fr\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+                            + "\"etablissement\":\"19450023200014\"}",
+                    // email manquant
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+                            + "\"etablissement\":\"19450023200014\"}",
                     // profil manquant
-                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\","
-                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
-                    // typeEtablissement vide
-                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                            + "\"typeEtablissement\":\"\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}",
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\","
+                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\","
+                            + "\"etablissement\":\"19450023200014\"}",
+                    // typeEtablissement manquant
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\","
+                            + "\"profil\":\"ELEVE\",\"ville\":\"ORLEANS\",\"etablissement\":\"19450023200014\"}",
                     // ville manquante
-                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                            + "\"typeEtablissement\":\"COLLEGE\",\"etablissement\":\"1\"}",
-                    // etablissement null
-                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                            + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":null}"
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\","
+                            + "\"profil\":\"ELEVE\",\"typeEtablissement\":\"COLLEGE\","
+                            + "\"etablissement\":\"19450023200014\"}",
+                    // etablissement manquant
+                    "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"jean.dupont@ac-orleans-tours.fr\","
+                            + "\"profil\":\"ELEVE\",\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\"}"
             };
-
             for (String body : bodies) {
-                mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
                         .andExpect(status().isBadRequest())
                         .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
             }
-
-            verify(aPersonneRepository, never()).searchByNomPrenomAndCategorieAndSirens(
-                    any(), any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("Type d'établissement inconnu → 400 VALIDATION_ERROR")
-        void shouldRejectUnknownSurType() throws Exception {
-            String body = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"email\":\"j@x.fr\",\"profil\":\"ELEVE\","
-                    + "\"typeEtablissement\":\"PRIMAIRE\",\"ville\":\"ORLEANS\",\"etablissement\":\"1\"}";
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-        }
-
-        @Test
-        @DisplayName("Plusieurs homonymes → 400 SEARCH_MULTIPLE_RESULTS")
-        void shouldReturnSearchMultipleResults() throws Exception {
-            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
-            when(structureService.getAllStructures()).thenReturn(List.of(etab));
-            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
-                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
-                    .thenReturn(List.<Object[]>of(
-                            new Object[]{"dupontj", "DUPONT Jean", 7L, "jean.dupont@ac-orleans-tours.fr", null},
-                            new Object[]{"dupontj2", "DUPONT Jean", 8L, "jean.dupont@ac-orleans-tours.fr", null}));
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("SEARCH_MULTIPLE_RESULTS"));
-        }
-
-        @Test
-        @DisplayName("Email optionnel : search-uid sans email → fonctionne normalement")
-        void shouldWorkWithoutEmail() throws Exception {
-            String body = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"19450023200014\"}";
-            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
-            when(structureService.getAllStructures()).thenReturn(List.of(etab));
-            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
-                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
-                    .thenReturn(List.<Object[]>of(new Object[]{
-                            "dupontj", "DUPONT Jean", 7L, "jean.dupont@ac-orleans-tours.fr", null}));
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].uid").value("dupontj"));
-        }
-
-        @Test
-        @DisplayName("Email optionnel : search-uid sans email → ne filtre pas par email")
-        void shouldNotFilterByEmailWhenEmailIsBlank() throws Exception {
-            String body = "{\"nom\":\"DUPONT\",\"prenom\":\"Jean\",\"profil\":\"ELEVE\","
-                    + "\"typeEtablissement\":\"COLLEGE\",\"ville\":\"ORLEANS\",\"etablissement\":\"19450023200014\"}";
-            IExternalStructure etab = structure("19450023200014", "COLLEGE", "ORLEANS");
-            when(structureService.getAllStructures()).thenReturn(List.of(etab));
-            when(aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
-                    eq("DUPONT"), eq("Jean"), eq("ELEVE"), any()))
-                    .thenReturn(List.<Object[]>of(new Object[]{
-                            "dupontj", "DUPONT Jean", 7L, "autre@autre.fr", null}));
-
-            mockMvc.perform(post(SEARCH_UID_URL).contentType(MediaType.APPLICATION_JSON).content(body))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].uid").value("dupontj"));
+            verify(emailVerificationService, never()).recoverUid(any(RecoverUidRequestDTO.class));
         }
     }
 

@@ -18,23 +18,18 @@ package fr.recia.mce.api.escomceapi.web.rest;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.SurType;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.CharteUrlResolver;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
-import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
-import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
-import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
-import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
@@ -46,8 +41,7 @@ import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ForgotPasswordRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ResetPasswordRequestDTO;
-import fr.recia.mce.api.escomceapi.web.dto.SearchUidRequestDTO;
-import fr.recia.mce.api.escomceapi.web.dto.SearchUidResponseDTO;
+import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.StructureResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
@@ -61,7 +55,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -77,33 +70,28 @@ public class PersonneRestController {
     private final IUserDTOFactory userDTOFactory;
     private final SoffitHolder soffitHolder;
     private final EmailVerificationService emailVerificationService;
-    private final PasswordService passwordService;
     private final CharteService charteService;
     private final CharteUrlResolver charteUrlResolver;
     private final ActivationService activationService;
     private final APersonneRepository aPersonneRepository;
-    private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final IStructureService structureService;
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory,
             SoffitHolder soffitHolder, EmailVerificationService emailVerificationService,
-            PasswordService passwordService, CharteService charteService,
+            CharteService charteService,
             CharteUrlResolver charteUrlResolver, ActivationService activationService,
             APersonneRepository aPersonneRepository,
-            CerbereConfirmationRepository cerbereConfirmationRepository,
             IStructureService structureService) {
         this.personneService = personneService;
         this.userDTOFactory = userDTOFactory;
         this.soffitHolder = soffitHolder;
         this.emailVerificationService = emailVerificationService;
-        this.passwordService = passwordService;
         this.charteService = charteService;
         this.charteUrlResolver = charteUrlResolver;
         this.activationService = activationService;
         this.aPersonneRepository = aPersonneRepository;
-        this.cerbereConfirmationRepository = cerbereConfirmationRepository;
         this.structureService = structureService;
     }
 
@@ -232,101 +220,23 @@ public class PersonneRestController {
                 "Un code de réinitialisation a été envoyé à votre adresse email"));
     }
 
-    @PostMapping("/search-uid")
-    public ResponseEntity<?> searchUid(
-            @Valid @RequestBody SearchUidRequestDTO request) {
+    @PostMapping("/recover-uid")
+    public ResponseEntity<?> recoverUid(
+            @Valid @RequestBody RecoverUidRequestDTO request) {
 
-        String nom = request.getNom();
-        String prenom = request.getPrenom();
-        String email = request.getEmail();
-        String profil = request.getProfil();
-        String typeEtablissement = request.getTypeEtablissement();
-        String ville = request.getVille();
-        String etablissement = request.getEtablissement();
+        log.info("[RECOVER_UID] Demande nom={}, prenom={}, email={}, profil={}, type={}, ville={}, etab={}",
+                request.getNom(), request.getPrenom(), request.getEmail(), request.getProfil(),
+                request.getTypeEtablissement(), request.getVille(), request.getEtablissement());
 
-        log.info("[SEARCH_UID] Demande nom={}, prenom={}, email={}, profil={}, type={}, ville={}, etab={}",
-                nom, prenom, email, profil, typeEtablissement, ville, etablissement);
+        // Résolution précise par identité + établissement + email, puis envoi du code si la cible
+        // est unique. Réponse volontairement générique : aucun détail ne distingue un email inexistant,
+        // un compte sans mot de passe local, une cible ambiguë, etc. → pas d'énumération d'utilisateurs,
+        // pas de fuite d'uid. (see EmailVerificationService.recoverUid)
+        emailVerificationService.recoverUid(request);
 
-        Collection<String> sirens = resolveSirens(typeEtablissement, ville, etablissement);
-        log.info("[SEARCH_UID] Filtre structures : {} SIREN(s) pour profil={}", sirens.size(), profil);
-        List<Object[]> results;
-        if (sirens.isEmpty()) {
-            // Garde-fou : un IN () vide est rejeté par le driver SQL — aucun établissement
-            // ne peut de toute façon correspondre à un filtre vide.
-            log.warn("[SEARCH_UID] Aucun SIREN résolu pour type={}, ville={} → SEARCH_NO_RESULT",
-                    typeEtablissement, ville);
-            return ResponseEntity.ok(new ErrorResponse("SEARCH_NO_RESULT",
-                    "Aucun utilisateur trouvé avec ces informations"));
-        }
-        results = aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(nom, prenom, profil, sirens);
-        log.info("[SEARCH_UID] {} résultat(s) DB pour nom={}, prenom={}", results.size(), nom, prenom);
-
-        // Debug : affiche tous les emails associés à chaque personne trouvée
-        // (email principal, email personnel + emails confirmés Cerbère + email LDAP).
-        for (Object[] row : results) {
-            String rowUid = (String) row[0];
-            Long personId = (Long) row[2];
-            String emailA = (String) row[3];
-            String emailPersonnel = (String) row[4];
-            String ldapMail = null;
-            try {
-                IExternalUser ldapUser = personneService.retrievePersonLdap(rowUid);
-                ldapMail = ldapUser != null ? ldapUser.getEmail() : null;
-            } catch (Exception e) {
-                ldapMail = null;
-            }
-            List<String> confirmedEmails = cerbereConfirmationRepository.findConfirmedByPersonId(personId).stream()
-                    .map(CerbereConfirmation::getMail)
-                    .collect(Collectors.toList());
-            log.debug("[SEARCH_UID] DEBUG emails pour uid={} : email={}, emailPersonnel={}, confirmesCerbere={}, ldap={}",
-                    rowUid, emailA, emailPersonnel, confirmedEmails, ldapMail);
-        }
-
-        if (!results.isEmpty() && email != null && !email.isBlank()) {
-            results = results.stream()
-                    .filter(row -> {
-                        String rowUid = (String) row[0];
-                        String emailA = (String) row[3];
-                        String emailPersonnel = (String) row[4];
-                        if (email.equalsIgnoreCase(emailA) || email.equalsIgnoreCase(emailPersonnel)) {
-                            return true;
-                        }
-                        Long personId = (Long) row[2];
-                        List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(personId);
-                        if (confirmed.stream().anyMatch(c -> email.equalsIgnoreCase(c.getMail()))) {
-                            return true;
-                        }
-                        // L'email saisi peut aussi être l'email principal de l'annuaire LDAP.
-                        try {
-                            IExternalUser ldapUser = personneService.retrievePersonLdap(rowUid);
-                            return ldapUser != null && ldapUser.getEmail() != null
-                                    && email.equalsIgnoreCase(ldapUser.getEmail());
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
-                    .collect(Collectors.toList());
-            log.info("[SEARCH_UID] {} résultat(s) après filtrage email", results.size());
-        }
-
-        if (results.isEmpty()) {
-            return ResponseEntity.ok(new ErrorResponse("SEARCH_NO_RESULT",
-                    "Aucun utilisateur trouvé avec ces informations"));
-        }
-
-        if (results.size() > 1) {
-            log.warn("[SEARCH_UID] {} homonymes trouvés pour nom={}, prenom={}, email={}", results.size(), nom, prenom, email);
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("SEARCH_MULTIPLE_RESULTS",
-                            "Plusieurs comptes correspondent à ces informations. Veuillez contacter votre administrateur."));
-        }
-
-        List<SearchUidResponseDTO> uids = results.stream()
-                .map(row -> new SearchUidResponseDTO((String) row[0], (String) row[1]))
-                .collect(Collectors.toList());
-
-        log.info("[SEARCH_UID] {} résultat(s) trouvé(s) pour nom={}, prenom={}", uids.size(), nom, prenom);
-        return ResponseEntity.ok(uids);
+        log.info("[RECOVER_UID] Réponse générique envoyée pour email={}", request.getEmail());
+        return ResponseEntity.ok(new ErrorResponse("RECOVER_CODE_SENT",
+                "Si un compte correspond à ces informations et permet de réinitialiser son mot de passe, un code vous a été envoyé."));
     }
 
     @PostMapping("/reset-password")
@@ -483,23 +393,6 @@ public class PersonneRestController {
         return ResponseEntity.ok()
                 .header("Content-Type", "image/jpeg")
                 .body(image);
-    }
-
-    private Collection<String> resolveSirens(String typeEtablissement, String ville, String etablissement) {
-        SurType surType;
-        try {
-            surType = SurType.valueOf(typeEtablissement.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ChampsObligatoiresException("Type inconnu : " + typeEtablissement
-                    + ". Valeurs acceptees : " + SurType.acceptedValues());
-        }
-        return structureService.getAllStructures().stream()
-                .filter(s -> surType.matches(s.getType()))
-                .filter(s -> ville.equalsIgnoreCase(s.getVille()))
-                .filter(s -> etablissement.equals(s.getId()))
-                .map(IExternalStructure::getId)
-                .filter(s -> s != null && !s.isBlank())
-                .collect(Collectors.toSet());
     }
 
     private String getCurrentUid() {

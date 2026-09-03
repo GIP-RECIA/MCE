@@ -22,16 +22,21 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
+import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
+import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
+import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
+import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
@@ -48,9 +53,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -116,6 +123,9 @@ public class EmailVerificationService {
 
     @Autowired
     private PersonneService personneService;
+
+    @Autowired
+    private IStructureService structureService;
 
     @Autowired
     private PasswordService passwordService;
@@ -315,6 +325,135 @@ public class EmailVerificationService {
         final String recipient = email;
         sendAfterCommit(() -> sendResetEmail(recipient, code));
         log.info("[RESET_PASSWORD] Code généré pour uid={} (envoi programmé après commit)", uid);
+    }
+
+    /**
+     * Parcours « mot de passe oublié sans uid » : résout le compte de façon <b>précise</b> à partir de
+     * l'identité (nom, prénom, profil), de l'établissement (type × ville × établissement) et de l'email
+     * fournis, puis envoie le code de réinitialisation si la cible est <b>unique</b>.
+     *
+     * <p>
+     * Demander autant d'informations que l'ancien {@code search-uid} permet d'éviter les <b>doublons</b>
+     * (plusieurs comptes sur le même email) et le <b>vol</b> (déclencher une réinitialisation en ne
+     * connaissant que l'email), tout en conservant une réponse <b>générique</b> : qu'il existe un compte
+     * ou non, le front reçoit la même réponse. Aucun uid n'est renvoyé → pas d'énumération.
+     * </p>
+     *
+     * @param request identité et critères fournis par l'utilisateur
+     */
+    @Transactional
+    public void recoverUid(RecoverUidRequestDTO request) {
+        validateRecoverRequest(request);
+        String email = request.getEmail().trim();
+        EnumCategorie categorie = EnumCategorie.fromProfile(request.getProfil());
+        Collection<String> sirens = resolveSirens(request.getTypeEtablissement().trim(), request.getVille().trim(),
+                request.getEtablissement().trim());
+        if (sirens.isEmpty()) {
+            log.warn("[RECOVER_UID] Établissement invalide : type={}, ville={}, etab={}",
+                    request.getTypeEtablissement(), request.getVille(), request.getEtablissement());
+            throw new ChampsObligatoiresException(
+                    "Le type, la ville ou l'établissement ne correspond pas aux informations disponibles");
+        }
+        List<APersonne> matches = aPersonneRepository.searchByIdentityAndEmail(
+                request.getNom().trim(), request.getPrenom().trim(), categorie.getDbname(), sirens, email);
+        log.info("[RECOVER_UID] {} compte(s) après filtrage de tous les champs", matches.size());
+
+        if (matches.isEmpty() && !aPersonneRepository.searchByIdentityAndEmailWithoutCategory(
+                request.getNom().trim(), request.getPrenom().trim(), sirens, email).isEmpty()) {
+            log.warn("[RECOVER_UID] Profil incohérent pour email={} : profil demandé={}", email, request.getProfil());
+            throw new ChampsObligatoiresException("Le profil ne correspond pas aux informations du compte");
+        }
+
+        // L'annuaire peut contenir un email absent des colonnes email de la base.
+        // Ce cas reste soumis aux mêmes contrôles d'identité, profil et établissement.
+        if (matches.isEmpty()) {
+            List<Object[]> candidates = aPersonneRepository.searchByNomPrenomAndCategorieAndSirens(
+                    request.getNom().trim(), request.getPrenom().trim(), categorie.getDbname(), sirens);
+            for (Object[] candidate : candidates) {
+                String uid = (String) candidate[0];
+                if (sameEmail(email, ldapEmailByUid(uid))) {
+                    APersonne person = aPersonneRepository.findByUid(uid);
+                    if (person != null) {
+                        matches.add(person);
+                    }
+                }
+            }
+        }
+
+        if (matches.size() != 1) {
+            log.warn("[RECOVER_UID] Informations de récupération incohérentes ou ambiguës : {} cible(s)", matches.size());
+            throw new ChampsObligatoiresException(
+                    "Les informations fournies ne correspondent pas à un compte unique");
+        }
+
+        APersonne target = matches.get(0);
+        try {
+            sendPasswordResetCode(target.getUid(), email, request.getProfil());
+        } catch (RuntimeException e) {
+            log.warn("[RECOVER_UID] Code non envoyé pour uid={} : {}", target.getUid(), e.getMessage());
+        }
+    }
+
+    private void validateRecoverRequest(RecoverUidRequestDTO request) {
+        if (request == null) {
+            throw new ChampsObligatoiresException("Le corps de la requête est obligatoire");
+        }
+        requireRecoverField(request.getNom(), "Le nom est obligatoire");
+        requireRecoverField(request.getPrenom(), "Le prénom est obligatoire");
+        requireRecoverField(request.getEmail(), "L'adresse email est obligatoire");
+        requireRecoverField(request.getProfil(), "Le profil est obligatoire");
+        requireRecoverField(request.getTypeEtablissement(), "Le type d'établissement est obligatoire");
+        requireRecoverField(request.getVille(), "La ville est obligatoire");
+        requireRecoverField(request.getEtablissement(), "L'établissement est obligatoire");
+        if (!request.getEmail().trim().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new ChampsObligatoiresException("Le format de l'adresse email est invalide");
+        }
+        if (EnumCategorie.fromProfile(request.getProfil()) == null) {
+            throw new ChampsObligatoiresException("Profil inconnu : " + request.getProfil());
+        }
+    }
+
+    private void requireRecoverField(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new ChampsObligatoiresException(message);
+        }
+    }
+
+    /**
+     * Résout l'ensemble des SIREN d'établissements LDAP qui correspondent au filtre type × ville ×
+     * établissement. Vide si aucune structure ne correspond (aucun compte ne pourra être ciblé).
+     */
+    private Collection<String> resolveSirens(String typeEtablissement, String ville, String etablissement) {
+        SurType surType;
+        try {
+            surType = SurType.valueOf(typeEtablissement.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ChampsObligatoiresException("Type inconnu : " + typeEtablissement
+                    + ". Valeurs acceptees : " + SurType.acceptedValues());
+        }
+        Set<String> sirens = new java.util.LinkedHashSet<>();
+        for (IExternalStructure s : structureService.getAllStructures()) {
+            if (surType.matches(s.getType()) && ville.equalsIgnoreCase(s.getVille())
+                    && etablissement.equalsIgnoreCase(s.getId())) {
+                String id = s.getId();
+                if (id != null && !id.isBlank()) {
+                    sirens.add(id);
+                }
+            }
+        }
+        return sirens;
+    }
+
+    private String ldapEmailByUid(String uid) {
+        try {
+            IExternalUser ldapUser = personneService.retrievePersonLdap(uid);
+            if (ldapUser != null && ldapUser.getEmail() != null && !ldapUser.getEmail().isBlank()) {
+                return ldapUser.getEmail().trim();
+            }
+        } catch (Exception e) {
+            log.warn("[RECOVER_UID] Impossible de récupérer l'email LDAP pour uid={}", uid);
+        }
+        return null;
     }
 
     /**
