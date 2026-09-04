@@ -1,0 +1,75 @@
+body {
+    font-family: sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+}
+
+.mdp-container {
+    max-width: 520px;
+    margin: 40px auto;
+    padding: 24px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.mdp-container h1 {
+    margin-top: 0;
+    font-size: 1.4em;
+}
+
+.step h2 {
+    font-size: 1.1em;
+}
+
+label {
+    display: block;
+    margin: 12px 0;
+}
+
+label input,
+label select {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    margin-top: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    padding: 10px 16px;
+    background: #005ea2;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #004b82;
+}
+
+footer {
+    margin-top: 20px;
+    font-size: 0.9em;
+}
+
+.message {
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.message-error {
+    background: #fdecea;
+    color: #b00020;
+    border: 1px solid #f5c6cb;
+}
+
+.message-success {
+    background: #e6f4ea;
+    color: #1e7e34;
+    border: 1px solid #c3e6cb;
+}

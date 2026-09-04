@@ -629,47 +629,65 @@ public class EmailVerificationService {
     public void processResetPassword(String uid, String code, String newPassword, String confirmPassword, boolean charteAccepted) {
         log.info("[PROCESS_RESET_PASSWORD] Début uid={}", uid);
 
-        APersonne person = aPersonneRepository.findByUid(uid);
-        if (person == null) {
-            throw new InvalidCodeException("Aucun compte associé à cet identifiant");
-        }
-
-        AttemptEntry attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AttemptEntry());
-        attempts.touch();
-        int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
-
-        // Compteur saturé par des mauvais codes : le code en attente est détruit,
-        // même si celui soumis cette fois est le bon.
-        if (attempts.count.get() >= maxAttempts) {
-            log.warn("[PROCESS_RESET_PASSWORD] Compteur saturé ({}/{}) uid={} : suppression du code",
-                    attempts.count.get(), maxAttempts, uid);
-            cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
-            resetAttempts.remove(person.getId());
-            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
-        }
+        APersonne person;
+        CerbereConfirmation confirmation;
 
         String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
-        Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(person.getId(),
-                hashedCode);
 
-        // Seuls les codes incorrects consomment une tentative : les échecs bénins
-        // (charte non acceptée, mot de passe faible…) ne doivent pas pénaliser l'utilisateur.
-        if (optConfirmation.isEmpty()) {
-            int currentAttempt = attempts.count.incrementAndGet();
-            log.info("[PROCESS_RESET_PASSWORD] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
-            if (currentAttempt > maxAttempts) {
-                log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression du code", uid);
+        if (uid != null && !uid.isBlank()) {
+            // Cas UID connu : résolution par uid + code
+            person = aPersonneRepository.findByUid(uid);
+            if (person == null) {
+                throw new InvalidCodeException("Aucun compte associé à cet identifiant");
+            }
+
+            AttemptEntry attempts = resetAttempts.computeIfAbsent(person.getId(), k -> new AttemptEntry());
+            attempts.touch();
+            int maxAttempts = mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
+
+            if (attempts.count.get() >= maxAttempts) {
+                log.warn("[PROCESS_RESET_PASSWORD] Compteur saturé ({}/{}) uid={}", attempts.count.get(), maxAttempts, uid);
                 cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
                 resetAttempts.remove(person.getId());
                 throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
             }
-            throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
+
+            Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(
+                    person.getId(), hashedCode);
+
+            if (optConfirmation.isEmpty()) {
+                int currentAttempt = attempts.count.incrementAndGet();
+                log.info("[PROCESS_RESET_PASSWORD] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
+                if (currentAttempt > maxAttempts) {
+                    log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression du code", uid);
+                    cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
+                    resetAttempts.remove(person.getId());
+                    throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
+                }
+                throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
+            }
+
+            confirmation = optConfirmation.get();
+        } else {
+            // Cas UID inconnu (recover-uid) : résolution par code seul
+            Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByCodeWithLock(hashedCode);
+
+            if (optConfirmation.isEmpty()) {
+                throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
+            }
+
+            confirmation = optConfirmation.get();
+            person = confirmation.getAPersonne();
+            if (person == null) {
+                throw new InvalidCodeException("Aucun compte associé à ce code de réinitialisation");
+            }
+
+            // Initialiser le compteur de tentatives pour cette personne
+            resetAttempts.computeIfAbsent(person.getId(), k -> new AttemptEntry()).touch();
         }
 
-        CerbereConfirmation confirmation = optConfirmation.get();
-
         if (confirmation.getLimite().before(new Date())) {
-            log.warn("[PROCESS_RESET_PASSWORD] Code expiré uid={}", uid);
+            log.warn("[PROCESS_RESET_PASSWORD] Code expiré uid={}", person.getUid());
             cerbereConfirmationRepository.delete(confirmation);
             resetAttempts.remove(person.getId());
             throw new CodeExpiredException("Le code de réinitialisation a expiré. Veuillez demander un nouveau code.");
@@ -679,18 +697,18 @@ public class EmailVerificationService {
             throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
         }
 
-        PersonneDTO personneDTO = personneService.getUserByUid(uid);
+        PersonneDTO personneDTO = personneService.getUserByUid(person.getUid());
         if (personneDTO == null) {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
 
-        assertPasswordResetAllowed(personneDTO, uid);
+        assertPasswordResetAllowed(personneDTO, person.getUid());
 
         if (!personneDTO.isCharteValide()) {
             if (!charteAccepted) {
                 throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de changer votre mot de passe");
             }
-            personneService.signCharte(uid);
+            personneService.signCharte(person.getUid());
         }
 
         passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
@@ -702,9 +720,9 @@ public class EmailVerificationService {
 
         resetAttempts.remove(person.getId());
 
-        personneService.clearUserCaches(uid);
+        personneService.clearUserCaches(person.getUid());
 
-        log.info("[PROCESS_RESET_PASSWORD] Succès uid={}", uid);
+        log.info("[PROCESS_RESET_PASSWORD] Succès uid={}", person.getUid());
     }
 
     /**

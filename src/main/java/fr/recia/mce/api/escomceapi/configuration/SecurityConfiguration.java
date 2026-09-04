@@ -57,6 +57,13 @@ public class SecurityConfiguration {
             "/api/personne/fonction/**"
     };
 
+    private static final String[] PUBLIC_PAGES = {
+            "/mot-de-passe-oublie",
+            "/activation",
+            "/css/**",
+            "/js/**"
+    };
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
@@ -68,6 +75,7 @@ public class SecurityConfiguration {
                 .antMatchers(SWAGGER_WHITELIST).permitAll()
                 .antMatchers("/health-check").permitAll()
                 .antMatchers(PUBLIC_ENDPOINTS).permitAll()
+                .antMatchers(PUBLIC_PAGES).permitAll()
                 .antMatchers("/api/**").authenticated()
                 .anyRequest().denyAll());
         http.sessionManagement(session -> session.sessionFixation().newSession());

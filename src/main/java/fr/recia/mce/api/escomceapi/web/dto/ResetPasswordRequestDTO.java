@@ -23,7 +23,6 @@ import javax.validation.constraints.Pattern;
 @Data
 public class ResetPasswordRequestDTO {
 
-    @NotBlank(message = "L'identifiant est obligatoire")
     private String uid;
 
     @NotBlank(message = "Le code de verification est obligatoire")

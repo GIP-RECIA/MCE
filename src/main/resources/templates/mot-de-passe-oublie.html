@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mot de passe oublié</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        window.MCE_BASE = /*[[@{/}]]*/ '/';
+        /*]]>*/
+    </script>
+</head>
+<body>
+<main class="mdp-container">
+    <h1>Mot de passe oublié</h1>
+
+    <div id="message" class="message" role="alert" tabindex="-1" hidden></div>
+
+    <!-- Étape 0 : choix -->
+    <section id="step-choice" class="step">
+        <h2>Retrouver l'accès à votre compte</h2>
+        <p>Choisissez une option pour réinitialiser votre mot de passe.</p>
+        <button type="button" id="btn-known">Je connais mon identifiant</button>
+        <button type="button" id="btn-recover">Je ne connais pas mon identifiant</button>
+    </section>
+
+    <!-- Étape 1A : uid connu -->
+    <section id="step-known" class="step" hidden>
+        <h2>Je connais mon identifiant</h2>
+        <form id="form-known">
+            <label>Identifiant (UID)
+                <input type="text" id="known-uid" autocomplete="username" required>
+            </label>
+            <label>Adresse email
+                <input type="email" id="known-email" autocomplete="email" required>
+            </label>
+            <label>Profil
+                <select id="known-profil" required></select>
+            </label>
+            <div class="action-row">
+                <button type="button" class="btn-back" data-back-choice>Retour</button>
+                <button type="submit">Envoyer un code</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Étape 1B : recherche uid -->
+    <section id="step-recover" class="step" hidden>
+        <h2>Je ne connais pas mon identifiant</h2>
+        <form id="form-recover">
+            <label>Nom
+                <input type="text" id="recover-nom" autocomplete="family-name" required>
+            </label>
+            <label>Prénom
+                <input type="text" id="recover-prenom" autocomplete="given-name" required>
+            </label>
+            <label>Adresse email
+                <input type="email" id="recover-email" autocomplete="email" required>
+            </label>
+            <label>Profil
+                <select id="recover-profil" required></select>
+            </label>
+            <label>Type d'établissement
+                <select id="recover-type" required></select>
+            </label>
+            <label>Ville
+                <select id="recover-ville" required disabled></select>
+            </label>
+            <label>Établissement
+                <select id="recover-etab" required disabled></select>
+            </label>
+            <div class="action-row">
+                <button type="button" class="btn-back" data-back-choice>Retour</button>
+                <button type="submit">Envoyer un code</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Étape 2 : reset -->
+    <section id="step-reset" class="step" hidden>
+        <h2>Réinitialiser mon mot de passe</h2>
+        <form id="form-reset">
+            <div id="reset-uid-field">
+                <label>Identifiant (UID)
+                    <input type="text" id="reset-uid" autocomplete="username">
+                </label>
+            </div>
+            <label>Code reçu par email (6 chiffres)
+                <input type="text" id="reset-code" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" required>
+            </label>
+            <label>Nouveau mot de passe
+                <input type="password" id="reset-newpass" autocomplete="new-password" required>
+            </label>
+            <label>Confirmation du mot de passe
+                <input type="password" id="reset-confirm" autocomplete="new-password" required>
+            </label>
+            <div id="charte-block" hidden>
+                <input type="checkbox" id="reset-charte">
+                <label for="reset-charte">J'accepte la <a id="charte-link" href="#" target="_blank" rel="noopener">charte d'utilisation</a></label>
+            </div>
+            <div class="action-row">
+                <button type="button" class="btn-back" data-back-uid>Retour</button>
+                <button type="submit">Réinitialiser mon mot de passe</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Étape 3 : succès -->
+    <section id="step-success" class="step" hidden>
+        <h2>Mot de passe réinitialisé</h2>
+        <p>Votre mot de passe a été réinitialisé avec succès. Vous pouvez vous connecter.</p>
+    </section>
+</main>
+
+<script th:src="@{/js/mot-de-passe-oublie.js}"></script>
+</body>
+</html>

@@ -78,6 +78,17 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
         return findLatestByPersonIdAndType(personId, ConfirmationType.PASSWORD_RESET.getLikePattern());
     }
 
+    // ── Pending par type + code (sans personId) ──
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("FROM CerbereConfirmation cc WHERE cc.code = :code AND cc.confirmation IS NULL AND cc.code LIKE :likePattern")
+    Optional<CerbereConfirmation> findPendingByCodeAndTypeWithLock(@Param("code") String code,
+            @Param("likePattern") String likePattern);
+
+    default Optional<CerbereConfirmation> findPendingPasswordResetByCodeWithLock(String code) {
+        return findPendingByCodeAndTypeWithLock(code, ConfirmationType.PASSWORD_RESET.getLikePattern());
+    }
+
     // ── Suppression ──
 
     @Modifying

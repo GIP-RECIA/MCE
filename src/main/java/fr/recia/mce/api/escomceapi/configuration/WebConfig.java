@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.configuration;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
@@ -41,5 +42,14 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/personne/mce/*/change-password",
                         "/api/personne/mce/*/update-email",
                         "/api/personne/mce/*/avatar");
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // Réactive le service des ressources statiques (spécifiquement pour les pages
+        // publiques servies par Thymeleaf) alors que spring.web.resources.add-mappings=false.
+        // Elles restent protégées par la liste blanche PUBLIC_PAGES (voir SecurityConfiguration).
+        registry.addResourceHandler("/css/**", "/js/**")
+                .addResourceLocations("classpath:/static/css/", "classpath:/static/js/");
     }
 }
