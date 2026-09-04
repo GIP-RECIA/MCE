@@ -30,6 +30,7 @@ import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
+import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -90,6 +91,12 @@ class EmailVerificationServiceTest {
     @Mock
     private PasswordService passwordService;
 
+    @Mock
+    private CharteService charteService;
+
+    @Mock
+    private IUserDTOFactory userDTOFactory;
+
     @InjectMocks
     private EmailVerificationService service;
 
@@ -128,6 +135,11 @@ class EmailVerificationServiceTest {
 
         SecurityProperties security = new SecurityProperties();
         lenient().when(mceProperties.getSecurity()).thenReturn(security);
+        lenient().when(userDTOFactory.isPasswordEditable(any(PersonneDTO.class))).thenAnswer(invocation -> {
+            PersonneDTO dto = invocation.getArgument(0);
+            EnumPublic pub = dto.getEnumPublic();
+            return pub != null && !pub.isEduconnect() && (pub.isConnectOk() || dto.isNtPass());
+        });
     }
 
     private String sha256(String code) {
@@ -437,6 +449,16 @@ class EmailVerificationServiceTest {
     }
 
     /**
+     * DTO avec un profil « connectOk » (ex. PERSONNEL) : utilisé par les tests heureux qui ne
+     * ciblent pas la règle de profil, pour passer {@code assertPasswordResetAllowed} proprement.
+     */
+    private PersonneDTO connectOkDto() {
+        PersonneDTO dto = mock(PersonneDTO.class);
+        lenient().when(dto.getEnumPublic()).thenReturn(EnumPublic.PERSONNEL);
+        return dto;
+    }
+
+    /**
      * Confirmation en attente dont la création estimée (limite - expiryHours) date de {@code ageMs} millisecondes dans le passé.
      */
     private CerbereConfirmation pendingReset(long personId, long ageMs) {
@@ -461,7 +483,8 @@ class EmailVerificationServiceTest {
 
         private void stubHappyPath(APersonne p) {
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         }
 
@@ -472,7 +495,8 @@ class EmailVerificationServiceTest {
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(101L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(101L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
@@ -505,7 +529,8 @@ class EmailVerificationServiceTest {
                     .thenReturn(List.of(existing));
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(102L))
                     .thenReturn(List.of(existing));
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
@@ -529,7 +554,8 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(103L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(103L))
                     .thenReturn(List.of(consumed));
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
@@ -562,7 +588,8 @@ class EmailVerificationServiceTest {
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(110L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(110L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
@@ -582,7 +609,8 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(111L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(111L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findConfirmedByPersonId(111L)).thenReturn(List.of(confirmed));
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
@@ -597,7 +625,8 @@ class EmailVerificationServiceTest {
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(112L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(112L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), "  TEST@EXAMPLE.COM ", null);
@@ -746,7 +775,8 @@ class EmailVerificationServiceTest {
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(105L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(105L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, "eleve");
@@ -777,7 +807,8 @@ class EmailVerificationServiceTest {
                     .thenReturn(List.of(pendingReset(107L, COOLDOWN_MS + 300_000)));
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(107L))
                     .thenReturn(List.of(pendingReset(107L, COOLDOWN_MS + 300_000)));
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
@@ -796,7 +827,8 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findConfirmedByPersonId(200L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(200L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(200L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), "", null);
@@ -817,7 +849,8 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findConfirmedByPersonId(201L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(201L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(201L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), "", null);
@@ -839,7 +872,8 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findConfirmedByPersonId(202L)).thenReturn(List.of(confirmed));
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(202L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(202L)).thenReturn(List.of());
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), "", null);
@@ -989,6 +1023,7 @@ class EmailVerificationServiceTest {
         private CerbereConfirmation stubPending(String uidValue, long personId, boolean charteValide) {
             APersonne p = validPerson(personId);
             p.setUid(uidValue);
+            p.setValidationCharte(charteValide ? new Date() : null);
             when(aPersonneRepository.findByUid(uidValue)).thenReturn(p);
 
             String hashed = "RESET:" + sha256("123456");
@@ -999,7 +1034,7 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(eq(personId), anyString()))
                     .thenAnswer(inv -> inv.getArgument(1).equals(hashed) ? Optional.of(confirmation) : Optional.empty());
 
-            dto = mock(PersonneDTO.class);
+            dto = connectOkDto();
             lenient().when(dto.isCharteValide()).thenReturn(charteValide);
             lenient().when(personneService.getUserByUid(uidValue)).thenReturn(dto);
             return confirmation;
@@ -1183,6 +1218,44 @@ class EmailVerificationServiceTest {
         }
 
         @Test
+        @DisplayName("Sans UID : les mauvais codes déclenchent le verrouillage")
+        void uidlessLockoutBlocksFurtherAttempts() {
+            mceProperties.getSecurity().getResetPolicy().setMaxAttempts(2);
+
+            APersonne p = validPerson(214L);
+            p.setUid("uidless");
+            CerbereConfirmation confirmation = new CerbereConfirmation();
+            confirmation.setAPersonne(p);
+            String expectedHash = "RESET:" + sha256("123456");
+            confirmation.setCode(expectedHash);
+            confirmation.setLimite(Date.from(Instant.now().plus(30, ChronoUnit.MINUTES)));
+
+            @SuppressWarnings("unchecked")
+            Map<String, EmailVerificationService.ResetChallenge> challenges =
+                    (Map<String, EmailVerificationService.ResetChallenge>) ReflectionTestUtils.getField(service, "resetChallenges");
+            challenges.put("token", new EmailVerificationService.ResetChallenge("uidless",
+                    System.currentTimeMillis() + 30 * 60_000L));
+            when(aPersonneRepository.findByUid("uidless")).thenReturn(p);
+            when(cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(eq(214L), anyString()))
+                    .thenAnswer(invocation -> expectedHash.equals(invocation.getArgument(1))
+                            ? Optional.of(confirmation)
+                            : Optional.empty());
+
+            assertThatThrownBy(() -> service.processResetPassword(null, "token", "000000",
+                    "N3wPassw0rd!X", "N3wPassw0rd!X", false))
+                    .isInstanceOf(InvalidCodeException.class);
+            assertThatThrownBy(() -> service.processResetPassword(null, "token", "999999",
+                    "N3wPassw0rd!X", "N3wPassw0rd!X", false))
+                    .isInstanceOf(InvalidCodeException.class);
+            assertThatThrownBy(() -> service.processResetPassword(null, "token", "123456",
+                    "N3wPassw0rd!X", "N3wPassw0rd!X", false))
+                    .isInstanceOf(MaxAttemptsExceededException.class);
+
+            verify(passwordService, never()).resetPassword(any(), anyString(), anyString());
+            assertThat(confirmation.getConfirmation()).isNull();
+        }
+
+        @Test
         @DisplayName("Les échecs bénins (charte refusée) ne consomment pas de tentatives")
         void charteRefusalDoesNotConsumeAttempts() {
             mceProperties.getSecurity().getResetPolicy().setMaxAttempts(2);
@@ -1212,14 +1285,53 @@ class EmailVerificationServiceTest {
             attempts.put(213L, entryWithCount(99));
 
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
-            when(personneService.getUserByUid(p.getUid())).thenReturn(mock(PersonneDTO.class));
+            PersonneDTO dto = connectOkDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(213L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(213L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendPasswordResetCode(p.getUid(), email, null);
 
-            assertThat(attempts).doesNotContainKey(213L);
+            verify(mailSender).send(any(SimpleMailMessage.class));
+        }
+
+        @Test
+        @DisplayName("Profil non défini (enumPublic null) : refus, aucun mode d'authentification local reconnu")
+        void nullProfileRejected() {
+            APersonne p = validPerson(117L);
+            PersonneDTO dto = mock(PersonneDTO.class);
+            when(dto.getEnumPublic()).thenReturn(null);
+            lenient().when(dto.isNtPass()).thenReturn(true);
+
+            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
+
+            assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
+                    .isInstanceOf(InvalidCodeException.class)
+                    .hasMessageContaining("profil non reconnu");
+
+            verify(cerbereConfirmationRepository, never()).save(any());
+            verifyNoInteractions(mailSender);
+        }
+
+        @Test
+        @DisplayName("Profil à évaluer : un compte EduConnect reste refusé")
+        void evaluatedEduConnectProfileRejected() {
+            APersonne p = validPerson(118L);
+            PersonneDTO dto = mock(PersonneDTO.class);
+            when(dto.getEnumPublic()).thenReturn(null);
+            when(userDTOFactory.evalPublic(dto)).thenReturn(EnumPublic.PARENT_EDUC);
+
+            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
+
+            assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
+                    .isInstanceOf(InvalidCodeException.class)
+                    .hasMessageContaining("EduConnect");
+
+            verify(cerbereConfirmationRepository, never()).save(any());
+            verifyNoInteractions(mailSender);
         }
 
         @Test

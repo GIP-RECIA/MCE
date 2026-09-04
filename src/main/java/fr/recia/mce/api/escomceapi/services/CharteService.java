@@ -16,7 +16,7 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CharteProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,35 +32,45 @@ public class CharteService {
     @Autowired
     private APersonneRepository aPersonneRepository;
 
-    @Autowired
-    private PersonneService personneService;
-
+    /**
+     * Résout l'URL de la charte propre au domaine (source) de l'utilisateur, lue directement en base.
+     * Retourne l'URL par défaut si la source est absente ou inconnue.
+     */
     public String getCharteUrl(String uid) {
+        log.info("[CHARTE][URL] getCharteUrl(uid={}) — defaultUrl={}", uid, charteProperties.getDefaultUrl());
         if (uid == null || uid.isBlank()) {
+            log.warn("[CHARTE][URL] uid null ou vide → defaultUrl");
             return charteProperties.getDefaultUrl();
         }
 
         try {
-            PersonneDTO personne = personneService.getUserByUid(uid);
-            if (personne == null || personne.getStructureDto() == null) {
+            APersonne person = aPersonneRepository.findByUid(uid);
+            if (person == null) {
+                log.warn("[CHARTE][URL] personne introuvable pour uid={} → defaultUrl", uid);
                 return charteProperties.getDefaultUrl();
             }
 
-            String source = personne.getSource();
-            if (source == null) {
+            String source = person.getSource();
+            log.info("[CHARTE][URL] uid={} → source='{}' (urls dispo={})", uid, source, charteProperties.getUrls().keySet());
+            if (source == null || source.isBlank()) {
+                log.warn("[CHARTE][URL] source absente/vide pour uid={} → defaultUrl", uid);
                 return charteProperties.getDefaultUrl();
             }
 
             String charteUrl = charteProperties.getUrls().get(source);
             if (charteUrl != null) {
+                log.info("[CHARTE][URL] uid={} → source exacte '{}' → {}", uid, source, charteUrl);
                 return charteUrl;
             }
 
             String prefix = source.contains("-") ? source.substring(0, source.indexOf('-')) : source;
+            log.info("[CHARTE][URL] uid={} → pas de match exact pour '{}', essai du préfixe '{}'", uid, source, prefix);
             charteUrl = charteProperties.getUrls().get(prefix);
             if (charteUrl != null) {
+                log.info("[CHARTE][URL] uid={} → préfixe '{}' → {}", uid, prefix, charteUrl);
                 return charteUrl;
             }
+            log.warn("[CHARTE][URL] uid={} → aucun match pour source='{}' ni préfixe='{}' → defaultUrl", uid, source, prefix);
         } catch (Exception e) {
             log.warn("Impossible de résoudre l'URL de la charte pour l'uid [{}] : {}", uid, e.getMessage());
         }
@@ -68,14 +78,28 @@ public class CharteService {
         return charteProperties.getDefaultUrl();
     }
 
+    /**
+     * La charte est requise tant qu'aucune date de signature n'est enregistrée en base
+     * (colonne {@code validationCharte} de {@code aPersonne}).
+     */
     public boolean isCharteRequired(String uid) {
-        if (uid == null || uid.isBlank())
+        log.info("[CHARTE][REQUIRED] isCharteRequired(uid={})", uid);
+        if (uid == null || uid.isBlank()) {
+            log.warn("[CHARTE][REQUIRED] uid null ou vide → charte requise");
             return true;
+        }
 
         try {
-            PersonneDTO personne = personneService.getUserByUid(uid);
-            return personne == null || !personne.isCharteValide();
+            APersonne person = aPersonneRepository.findByUid(uid);
+            if (person == null) {
+                log.warn("[CHARTE][REQUIRED] personne introuvable pour uid={} → charte requise", uid);
+                return true;
+            }
+            log.info("[CHARTE][REQUIRED] uid={} → validationCharte={} → charte requise ? {}",
+                    uid, person.getValidationCharte(), person.getValidationCharte() == null);
+            return person.getValidationCharte() == null;
         } catch (Exception e) {
+            log.warn("Impossible de vérifier l'état de la charte pour l'uid [{}] : {}", uid, e.getMessage());
             return true;
         }
     }

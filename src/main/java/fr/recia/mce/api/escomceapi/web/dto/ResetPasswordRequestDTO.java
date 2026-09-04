@@ -25,6 +25,8 @@ public class ResetPasswordRequestDTO {
 
     private String uid;
 
+    private String resetToken;
+
     @NotBlank(message = "Le code de verification est obligatoire")
     @Pattern(regexp = "\\d{6}", message = "Le code doit comporter 6 chiffres")
     private String code;

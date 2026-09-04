@@ -16,8 +16,8 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CharteProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
-import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
+import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,12 +26,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,7 +42,7 @@ class CharteServiceTest {
     private CharteProperties charteProperties;
 
     @Mock
-    private PersonneService personneService;
+    private APersonneRepository aPersonneRepository;
 
     @InjectMocks
     private CharteService service;
@@ -58,11 +58,10 @@ class CharteServiceTest {
         lenient().when(charteProperties.getDefaultUrl()).thenReturn("https://charte/default");
     }
 
-    private PersonneDTO mockPersonne(String source) {
-        PersonneDTO dto = mock(PersonneDTO.class);
-        lenient().when(dto.getStructureDto()).thenReturn(new StructureDTO(null));
-        lenient().when(dto.getSource()).thenReturn(source);
-        return dto;
+    private APersonne mockPersonne(String source) {
+        APersonne p = new APersonne();
+        p.setSource(source);
+        return p;
     }
 
     // ── isCharteRequired ────────────────────────────────────────────────
@@ -78,25 +77,34 @@ class CharteServiceTest {
     @Test
     @DisplayName("isCharteRequired : personne introuvable → requis")
     void unknownPersonRequiresCharte() {
-        when(personneService.getUserByUid("ghost")).thenReturn(null);
+        when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
 
         assertThat(service.isCharteRequired("ghost")).isTrue();
     }
 
     @Test
-    @DisplayName("isCharteRequired : charte déjà signée → non requise")
+    @DisplayName("isCharteRequired : charte déjà signée (date en base) → non requise")
     void signedCharteNotRequired() {
-        PersonneDTO dto = mock(PersonneDTO.class);
-        when(personneService.getUserByUid("alice")).thenReturn(dto);
-        when(dto.isCharteValide()).thenReturn(true);
+        APersonne p = mockPersonne("AC-ORLEANS-TOURS");
+        p.setValidationCharte(new Date());
+        when(aPersonneRepository.findByUid("alice")).thenReturn(p);
 
         assertThat(service.isCharteRequired("alice")).isFalse();
     }
 
     @Test
+    @DisplayName("isCharteRequired : aucune date de signature en base → requise")
+    void unsignedCharteRequired() {
+        APersonne p = mockPersonne("AC-ORLEANS-TOURS");
+        when(aPersonneRepository.findByUid("bob")).thenReturn(p);
+
+        assertThat(service.isCharteRequired("bob")).isTrue();
+    }
+
+    @Test
     @DisplayName("isCharteRequired : erreur de chargement → requis par précaution")
     void loadErrorRequiresCharte() {
-        when(personneService.getUserByUid("broken")).thenThrow(new RuntimeException("LDAP down"));
+        when(aPersonneRepository.findByUid("broken")).thenThrow(new RuntimeException("DB down"));
 
         assertThat(service.isCharteRequired("broken")).isTrue();
     }
@@ -113,8 +121,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("getCharteUrl : source exacte trouvée dans la map")
     void resolvesExactSource() {
-        PersonneDTO dto = mockPersonne("AC-ORLEANS-TOURS");
-        when(personneService.getUserByUid("bob")).thenReturn(dto);
+        APersonne p = mockPersonne("AC-ORLEANS-TOURS");
+        when(aPersonneRepository.findByUid("bob")).thenReturn(p);
 
         assertThat(service.getCharteUrl("bob")).isEqualTo("https://charte/ac-orleans-tours");
     }
@@ -124,8 +132,8 @@ class CharteServiceTest {
     void resolvesSourcePrefix() {
         urls.remove("AC-ORLEANS-TOURS");
         urls.put("AC", "https://charte/ac");
-        PersonneDTO dto = mockPersonne("AC-ORLEANS-TOURS");
-        when(personneService.getUserByUid("carol")).thenReturn(dto);
+        APersonne p = mockPersonne("AC-ORLEANS-TOURS");
+        when(aPersonneRepository.findByUid("carol")).thenReturn(p);
 
         assertThat(service.getCharteUrl("carol")).isEqualTo("https://charte/ac");
     }
@@ -133,8 +141,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("getCharteUrl : source inconnue → URL par défaut")
     void unknownSourceReturnsDefaultUrl() {
-        PersonneDTO dto = mockPersonne("INCONNU");
-        when(personneService.getUserByUid("dave")).thenReturn(dto);
+        APersonne p = mockPersonne("INCONNU");
+        when(aPersonneRepository.findByUid("dave")).thenReturn(p);
 
         assertThat(service.getCharteUrl("dave")).isEqualTo("https://charte/default");
     }
@@ -142,16 +150,24 @@ class CharteServiceTest {
     @Test
     @DisplayName("getCharteUrl : source null → URL par défaut")
     void nullSourceReturnsDefaultUrl() {
-        PersonneDTO dto = mockPersonne(null);
-        when(personneService.getUserByUid("eve")).thenReturn(dto);
+        APersonne p = mockPersonne(null);
+        when(aPersonneRepository.findByUid("eve")).thenReturn(p);
 
         assertThat(service.getCharteUrl("eve")).isEqualTo("https://charte/default");
     }
 
     @Test
+    @DisplayName("getCharteUrl : personne introuvable → URL par défaut")
+    void unknownPersonReturnsDefaultUrl() {
+        when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
+
+        assertThat(service.getCharteUrl("ghost")).isEqualTo("https://charte/default");
+    }
+
+    @Test
     @DisplayName("getCharteUrl : erreur de chargement → URL par défaut")
     void loadErrorReturnsDefaultUrl() {
-        when(personneService.getUserByUid("broken")).thenThrow(new RuntimeException("boom"));
+        when(aPersonneRepository.findByUid("broken")).thenThrow(new RuntimeException("boom"));
 
         assertThat(service.getCharteUrl("broken")).isEqualTo("https://charte/default");
     }

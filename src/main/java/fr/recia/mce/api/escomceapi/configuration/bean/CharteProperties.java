@@ -29,6 +29,5 @@ public class CharteProperties {
 
     private String defaultUrl;
     private Map<String, String> urls = new HashMap<>();
-    private Map<String, String> serverMapping = new HashMap<>();
 
 }

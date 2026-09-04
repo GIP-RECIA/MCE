@@ -131,10 +131,6 @@ class PersonneRestControllerTest {
 
     @MockBean
     @SuppressWarnings("unused")
-    private fr.recia.mce.api.escomceapi.services.CharteUrlResolver charteUrlResolver;
-
-    @MockBean
-    @SuppressWarnings("unused")
     private fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository aPersonneRepository;
 
     @MockBean
@@ -975,21 +971,21 @@ class PersonneRestControllerTest {
 
         private void serviceThrows(RuntimeException ex) {
             doThrow(ex).when(emailVerificationService).processResetPassword(
-                    eq("dupontj"), eq("123456"), anyString(), anyString(), eq(true));
+                    eq("dupontj"), any(), eq("123456"), anyString(), anyString(), eq(true));
         }
 
         @Test
         @DisplayName("Succès → 200 PASSWORD_RESET_SUCCESS")
         void shouldReturnPasswordResetSuccess() throws Exception {
             doNothing().when(emailVerificationService).processResetPassword(
-                    anyString(), anyString(), anyString(), anyString(), anyBoolean());
+                    anyString(), any(), anyString(), anyString(), anyString(), anyBoolean());
 
             mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value("PASSWORD_RESET_SUCCESS"));
 
             verify(emailVerificationService).processResetPassword(
-                    "dupontj", "123456", "N3wPassw0rd!X", "N3wPassw0rd!X", true);
+                    "dupontj", null, "123456", "N3wPassw0rd!X", "N3wPassw0rd!X", true);
         }
 
         @Test
@@ -1208,11 +1204,38 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Aucun résultat → quand même 200 RECOVER_CODE_SENT (pas d'énumération)")
         void shouldReturnGenericResponseEvenWithoutAccount() throws Exception {
-            doNothing().when(emailVerificationService).recoverUid(any(RecoverUidRequestDTO.class));
+            when(emailVerificationService.recoverUid(any(RecoverUidRequestDTO.class))).thenReturn(null);
 
             mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value("RECOVER_CODE_SENT"));
+        }
+
+        @Test
+        @DisplayName("Charte requise → RECOVER_CODE_SENT avec charteRequired + charteUrl, sans uid")
+        void shouldReturnCharteInfoWhenRequired() throws Exception {
+            when(emailVerificationService.recoverUid(any(RecoverUidRequestDTO.class)))
+                    .thenReturn(new EmailVerificationService.RecoverUidResult(true, "https://example.test/charte"));
+
+            mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("RECOVER_CODE_SENT"))
+                    .andExpect(jsonPath("$.charteRequired").value(true))
+                    .andExpect(jsonPath("$.charteUrl").value("https://example.test/charte"))
+                    .andExpect(jsonPath("$.uid").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("Charte déjà signée → charteRequired=false et charteUrl absent")
+        void shouldReturnCharteNotRequiredWhenSigned() throws Exception {
+            when(emailVerificationService.recoverUid(any(RecoverUidRequestDTO.class)))
+                    .thenReturn(new EmailVerificationService.RecoverUidResult(false, null));
+
+            mockMvc.perform(post(RECOVER_UID_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("RECOVER_CODE_SENT"))
+                    .andExpect(jsonPath("$.charteRequired").value(false))
+                    .andExpect(jsonPath("$.charteUrl").doesNotExist());
         }
 
         @Test
@@ -1277,7 +1300,7 @@ class PersonneRestControllerTest {
         @DisplayName("Charte requise → charteSignee=false")
         void shouldReportCharteRequired() throws Exception {
             when(charteService.isCharteRequired("dupontj")).thenReturn(true);
-            when(charteUrlResolver.resolve("charte.example.fr")).thenReturn("https://charte.example.fr/ac");
+            when(charteService.getCharteUrl("dupontj")).thenReturn("https://charte.example.fr/ac");
 
             mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj").header("Host", "charte.example.fr"))
                     .andExpect(status().isOk())
@@ -1290,19 +1313,20 @@ class PersonneRestControllerTest {
         @DisplayName("Charte déjà signée → charteSignee=true")
         void shouldReportCharteSigned() throws Exception {
             when(charteService.isCharteRequired("dupontj")).thenReturn(false);
-            when(charteUrlResolver.resolve("charte.example.fr")).thenReturn("https://charte.example.fr/ac");
+            when(charteService.getCharteUrl("dupontj")).thenReturn("https://charte.example.fr/ac");
 
             mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj").header("Host", "charte.example.fr"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.charteRequired").value(false))
+                    .andExpect(jsonPath("$.charteUrl").value("https://charte.example.fr/ac"))
                     .andExpect(jsonPath("$.charteSignee").value(true));
         }
 
         @Test
-        @DisplayName("Charte-status sans Host → URL par défaut")
+        @DisplayName("Charte-status : source inconnue → URL par défaut")
         void shouldFallbackToDefaultUrlWithoutHost() throws Exception {
             when(charteService.isCharteRequired("dupontj")).thenReturn(true);
-            when(charteUrlResolver.resolve(null)).thenReturn("https://lycees.netocentre.fr/files/textes/droits_usage.html");
+            when(charteService.getCharteUrl("dupontj")).thenReturn("https://lycees.netocentre.fr/files/textes/droits_usage.html");
 
             mockMvc.perform(get(BASE_URL + "charte-status?uid=dupontj"))
                     .andExpect(status().isOk())

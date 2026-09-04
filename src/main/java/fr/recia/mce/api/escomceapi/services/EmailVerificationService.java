@@ -35,6 +35,7 @@ import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
+import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -92,18 +94,51 @@ public class EmailVerificationService {
 
     private final ConcurrentHashMap<Long, AttemptEntry> resetAttempts = new ConcurrentHashMap<>();
 
+    /**
+     * Compteur utilisé lorsque le boug ne fournit pas d'UID : un mauvais code
+     * ne permet pas encore d'identifier la personne concernée.
+     */
+    private final ConcurrentHashMap<String, ResetChallenge> resetChallenges = new ConcurrentHashMap<>();
+
     private final ConcurrentHashMap<Long, AttemptEntry> verificationAttempts = new ConcurrentHashMap<>();
+
+    static final class ResetChallenge {
+        final String uid;
+        final long expiresAtMs;
+
+        ResetChallenge(String uid, long expiresAtMs) {
+            this.uid = uid;
+            this.expiresAtMs = expiresAtMs;
+        }
+    }
 
     @Scheduled(fixedDelayString = "PT15M")
     public void purgeStaleAttemptEntries() {
         long now = System.currentTimeMillis();
-        int before = resetAttempts.size() + verificationAttempts.size();
+        int before = resetAttempts.size() + resetChallenges.size() + verificationAttempts.size();
         resetAttempts.entrySet().removeIf(e -> e.getValue().isStale(now));
+        resetChallenges.entrySet().removeIf(e -> e.getValue().expiresAtMs <= now);
         verificationAttempts.entrySet().removeIf(e -> e.getValue().isStale(now));
-        int removed = before - resetAttempts.size() - verificationAttempts.size();
+        int removed = before - resetAttempts.size() - resetChallenges.size() - verificationAttempts.size();
         if (removed > 0) {
             log.info("Purge des compteurs de tentatives expirés : {} entrée(s) supprimée(s)", removed);
         }
+    }
+
+    private boolean isResendCooldownActive(List<CerbereConfirmation> pending, String uid, String logPrefix) {
+        if (!pending.isEmpty()) {
+            CerbereConfirmation last = pending.get(0);
+            if (last.getLimite() != null) {
+                long expiryHours = mailProperties.getVerification().getExpiryHours();
+                long estimatedCreation = last.getLimite().getTime() - (expiryHours * 3_600_000L);
+                long elapsed = System.currentTimeMillis() - estimatedCreation;
+                if (elapsed < mceProperties.getSecurity().getResetPolicy().getResendCooldownMs()) {
+                    log.warn("[{}] Anti-double-clic : dernière demande il y a {} ms pour uid={}", logPrefix, elapsed, uid);
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Autowired
@@ -130,10 +165,41 @@ public class EmailVerificationService {
     @Autowired
     private PasswordService passwordService;
 
+    @Autowired
+    private CharteService charteService;
+
+    @Autowired
+    private IUserDTOFactory userDTOFactory;
+
     private final SecureRandom secureRandom = new SecureRandom();
 
     private String hashWithPrefix(String code, ConfirmationType type) {
         return type.getCodePrefix() + sha256(code);
+    }
+
+    private Date calculateExpiryDate() {
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.HOUR_OF_DAY, (int) mailProperties.getVerification().getExpiryHours());
+        return cal.getTime();
+    }
+
+    private void sendEmailWithTemplate(String to, String code, MailProperties.EmailTemplates.Template template, String errorMessage) {
+        String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailProperties.getFromEmail());
+        message.setTo(to);
+        message.setSubject(template.getSubject());
+        message.setText(template.getBody()
+                .replace("{{code}}", code)
+                .replace("{{expiryHours}}", expiryHours));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error(errorMessage, to, e.getMessage(), e);
+            throw new RuntimeException(errorMessage, e);
+        }
     }
 
     private String sha256(String code) {
@@ -186,9 +252,7 @@ public class EmailVerificationService {
         String code = generateVerificationCode();
         String hashedCode = hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
 
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.HOUR_OF_DAY, (int) mailProperties.getVerification().getExpiryHours());
-        Date limite = cal.getTime();
+        Date limite = calculateExpiryDate();
 
         cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
 
@@ -210,23 +274,8 @@ public class EmailVerificationService {
     }
 
     private void sendEmail(String to, String code) {
-        MailProperties.EmailTemplates.Template tpl = mailProperties.getTemplates().getVerification();
-        String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailProperties.getFromEmail());
-        message.setTo(to);
-        message.setSubject(tpl.getSubject());
-        message.setText(tpl.getBody()
-                .replace("{{code}}", code)
-                .replace("{{expiryHours}}", expiryHours));
-
-        try {
-            mailSender.send(message);
-        } catch (MailException e) {
-            log.error("Erreur lors de l'envoi de l'email de vérification à {} : {}", to, e.getMessage());
-            throw new RuntimeException("Erreur lors de l'envoi de l'email de verification", e);
-        }
+        sendEmailWithTemplate(to, code, mailProperties.getTemplates().getVerification(),
+                "Erreur lors de l'envoi de l'email de vérification à {} : {}");
     }
 
     @Transactional
@@ -313,9 +362,7 @@ public class EmailVerificationService {
         String code = generateVerificationCode();
         String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
 
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.HOUR_OF_DAY, (int) mailProperties.getVerification().getExpiryHours());
-        Date limite = cal.getTime();
+        Date limite = calculateExpiryDate();
 
         // Réutilisation ou création
         List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
@@ -354,10 +401,14 @@ public class EmailVerificationService {
      * ou non, le front reçoit la même réponse. Aucun uid n'est renvoyé → pas d'énumération.
      * </p>
      *
+     * <p>Renvoie les informations de charte de la cible résolue (nécessaires au front pour afficher la
+     * case avant la saisie du code) sans exposer l'uid. {@code null} si aucun code n'a été envoyé.</p>
+     *
      * @param request identité et critères fournis par l'utilisateur
+     * @return informations de charte de la cible, ou {@code null} si aucun code envoyé
      */
     @Transactional
-    public void recoverUid(RecoverUidRequestDTO request) {
+    public RecoverUidResult recoverUid(RecoverUidRequestDTO request) {
         validateRecoverRequest(request);
         String email = request.getEmail().trim();
         EnumCategorie categorie = EnumCategorie.fromProfile(request.getProfil());
@@ -404,8 +455,52 @@ public class EmailVerificationService {
         APersonne target = matches.get(0);
         try {
             sendPasswordResetCode(target.getUid(), email, request.getProfil());
+        } catch (InvalidCodeException | InactiveAccountException | ContactAdminException | CharteNotAcceptedException e) {
+            // Propager les exceptions de validation pour affichage au frontend
+            throw e;
         } catch (RuntimeException e) {
             log.warn("[RECOVER_UID] Code non envoyé pour uid={} : {}", target.getUid(), e.getMessage());
+            return null;
+        }
+
+        boolean charteRequired = charteService.isCharteRequired(target.getUid());
+        String charteUrl = charteService.getCharteUrl(target.getUid());  // Toujours récupérer l'URL (même si non requise)
+        log.info("[RECOVER_UID] uid={} charte requise ? {} charteUrl={}", target.getUid(), charteRequired, charteUrl);
+        String resetToken = UUID.randomUUID().toString();
+        resetChallenges.put(resetToken, new ResetChallenge(target.getUid(),
+                System.currentTimeMillis() + mailProperties.getVerification().getExpiryHours() * 3_600_000L));
+        return new RecoverUidResult(charteRequired, charteUrl, resetToken);
+    }
+
+    /**
+     * Informations de charte de la cible résolue par {@link #recoverUid(RecoverUidRequestDTO)}.
+     * Ne contient aucun identifiant (uid) : transmissible au front sans risque d'énumération.
+     */
+    public static class RecoverUidResult {
+        private final boolean charteRequired;
+        private final String charteUrl;
+        private final String resetToken;
+
+        public RecoverUidResult(boolean charteRequired, String charteUrl) {
+            this(charteRequired, charteUrl, null);
+        }
+
+        public RecoverUidResult(boolean charteRequired, String charteUrl, String resetToken) {
+            this.charteRequired = charteRequired;
+            this.charteUrl = charteUrl;
+            this.resetToken = resetToken;
+        }
+
+        public boolean isCharteRequired() {
+            return charteRequired;
+        }
+
+        public String getCharteUrl() {
+            return charteUrl;
+        }
+
+        public String getResetToken() {
+            return resetToken;
         }
     }
 
@@ -466,7 +561,7 @@ public class EmailVerificationService {
                 return ldapUser.getEmail().trim();
             }
         } catch (Exception e) {
-            log.warn("[RECOVER_UID] Impossible de récupérer l'email LDAP pour uid={}", uid);
+            log.warn("[LDAP_EMAIL] Impossible de récupérer l'email LDAP pour uid={}", uid, e);
         }
         return null;
     }
@@ -498,15 +593,8 @@ public class EmailVerificationService {
             return false;
         }
         String candidate = providedEmail.trim();
-        if (sameEmail(candidate, person.getEmail()) || sameEmail(candidate, person.getEmailPersonnel())) {
-            return true;
-        }
-        if (cerbereConfirmationRepository.findConfirmedByPersonId(person.getId()).stream()
-                .anyMatch(c -> sameEmail(candidate, c.getMail()))) {
-            return true;
-        }
-        // Source LDAP : l'email principal de l'annuaire peut différer de celui stocké en base.
-        return sameEmail(candidate, ldapEmail(person));
+        return collectAccountEmails(person).stream()
+                .anyMatch(email -> sameEmail(candidate, email));
     }
 
     private boolean sameEmail(String a, String b) {
@@ -517,15 +605,7 @@ public class EmailVerificationService {
      * Récupère l'email principal de l'utilisateur depuis l'annuaire LDAP. Retourne {@code null} si la personne est absente de l'annuaire ou sans email.
      */
     private String ldapEmail(APersonne person) {
-        try {
-            IExternalUser ldapUser = personneService.retrievePersonLdap(person.getUid());
-            if (ldapUser != null && ldapUser.getEmail() != null && !ldapUser.getEmail().isBlank()) {
-                return ldapUser.getEmail().trim();
-            }
-        } catch (Exception e) {
-            log.warn("[RESET_PASSWORD] Impossible de récupérer l'email LDAP pour uid={}", person.getUid(), e);
-        }
-        return null;
+        return ldapEmailByUid(person.getUid());
     }
 
     private List<String> collectAccountEmails(APersonne person) {
@@ -549,23 +629,8 @@ public class EmailVerificationService {
     }
 
     private void sendResetEmail(String to, String code) {
-        MailProperties.EmailTemplates.Template tpl = mailProperties.getTemplates().getReset();
-        String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailProperties.getFromEmail());
-        message.setTo(to);
-        message.setSubject(tpl.getSubject());
-        message.setText(tpl.getBody()
-                .replace("{{code}}", code)
-                .replace("{{expiryHours}}", expiryHours));
-
-        try {
-            mailSender.send(message);
-        } catch (MailException e) {
-            log.error("Erreur lors de l'envoi du code de réinitialisation à {} : {}", to, e.getMessage(), e);
-            throw new RuntimeException("Erreur lors de l'envoi du code de reinitialisation", e);
-        }
+        sendEmailWithTemplate(to, code, mailProperties.getTemplates().getReset(),
+                "Erreur lors de l'envoi du code de réinitialisation à {} : {}");
     }
 
     @Transactional
@@ -627,12 +692,29 @@ public class EmailVerificationService {
 
     @Transactional
     public void processResetPassword(String uid, String code, String newPassword, String confirmPassword, boolean charteAccepted) {
+        processResetPassword(uid, null, code, newPassword, confirmPassword, charteAccepted);
+    }
+
+    @Transactional
+    public void processResetPassword(String uid, String resetToken, String code, String newPassword,
+            String confirmPassword, boolean charteAccepted) {
         log.info("[PROCESS_RESET_PASSWORD] Début uid={}", uid);
 
-        APersonne person;
-        CerbereConfirmation confirmation;
+        APersonne person = null;
+        CerbereConfirmation confirmation = null;
 
         String hashedCode = hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
+
+        if (uid == null || uid.isBlank()) {
+            ResetChallenge challenge = resetToken == null ? null : resetChallenges.get(resetToken);
+            if (challenge == null || challenge.expiresAtMs <= System.currentTimeMillis()) {
+                if (challenge != null) {
+                    resetChallenges.remove(resetToken);
+                }
+                throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
+            }
+            uid = challenge.uid;
+        }
 
         if (uid != null && !uid.isBlank()) {
             // Cas UID connu : résolution par uid + code
@@ -668,22 +750,6 @@ public class EmailVerificationService {
             }
 
             confirmation = optConfirmation.get();
-        } else {
-            // Cas UID inconnu (recover-uid) : résolution par code seul
-            Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByCodeWithLock(hashedCode);
-
-            if (optConfirmation.isEmpty()) {
-                throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
-            }
-
-            confirmation = optConfirmation.get();
-            person = confirmation.getAPersonne();
-            if (person == null) {
-                throw new InvalidCodeException("Aucun compte associé à ce code de réinitialisation");
-            }
-
-            // Initialiser le compteur de tentatives pour cette personne
-            resetAttempts.computeIfAbsent(person.getId(), k -> new AttemptEntry()).touch();
         }
 
         if (confirmation.getLimite().before(new Date())) {
@@ -704,11 +770,20 @@ public class EmailVerificationService {
 
         assertPasswordResetAllowed(personneDTO, person.getUid());
 
-        if (!personneDTO.isCharteValide()) {
+        log.info("[PROCESS_RESET_PASSWORD] uid={} validationCharte={} charteAccepted={}",
+                person.getUid(), person.getValidationCharte(), charteAccepted);
+        if (person.getValidationCharte() == null) {
             if (!charteAccepted) {
-                throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de changer votre mot de passe");
+                String charteUrl = charteService.getCharteUrl(person.getUid());
+                log.info("[PROCESS_RESET_PASSWORD] uid={} charte requise, charteUrl={}", person.getUid(), charteUrl);
+                throw new CharteNotAcceptedException(
+                        "Vous devez accepter les conditions générales d'utilisation avant de changer votre mot de passe",
+                        charteUrl);
             }
+            log.info("[PROCESS_RESET_PASSWORD] uid={} charte acceptée → signature", person.getUid());
             personneService.signCharte(person.getUid());
+        } else {
+            log.info("[PROCESS_RESET_PASSWORD] uid={} charte déjà signée, skip", person.getUid());
         }
 
         passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
@@ -719,6 +794,9 @@ public class EmailVerificationService {
         cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
 
         resetAttempts.remove(person.getId());
+        if (resetToken != null) {
+            resetChallenges.remove(resetToken);
+        }
 
         personneService.clearUserCaches(person.getUid());
 
@@ -734,24 +812,35 @@ public class EmailVerificationService {
      * </p>
      * <ul>
      * <li>EduConnect (parents/élèves éduc nat) : le mot de passe se gère sur le portail EduConnect ;</li>
+     * <li>profil indéterminé ({@code enumPublic == null}) : aucun mode d'authentification local reconnu
+     * (même règle que UserDTOFactoryImpl.computePassEditable qui renvoie false sur un profil null) ;</li>
      * <li>sans connectOk ni ntPass, aucun mode d'authentification local n'existe (même règle que UserDTOFactoryImpl.computePassEditable).</li>
      * </ul>
      */
     private void assertPasswordResetAllowed(PersonneDTO personneDTO, String uid) {
-        EnumPublic pub = personneDTO.getEnumPublic();
-        if (pub == null) {
-            log.warn("[PASSWORD_RESET] Profil non défini pour uid={}, utilisation du profil par défaut AUTRE", uid);
-            pub = EnumPublic.AUTRE;
-        }
-
-        if (pub.isEduconnect()) {
-            log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}", uid);
-            throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
-        }
-        if (!pub.isConnectOk() && !personneDTO.isNtPass()) {
-            log.warn("[PASSWORD_RESET] Refus : ni connectOk ni ntPass uid={}", uid);
+        if (!userDTOFactory.canResetPassword(personneDTO)) {
+            EnumPublic pub = personneDTO.getEnumPublic();
+            if (pub == null && userDTOFactory != null) {
+                try {
+                    pub = userDTOFactory.evalPublic(personneDTO);
+                    personneDTO.setEnumPublic(pub);
+                } catch (RuntimeException e) {
+                    log.error("[PASSWORD_RESET] Échec de l'évaluation du profil uid={}", uid, e);
+                }
+            }
+            if (pub == null) {
+                log.warn("[PASSWORD_RESET] Profil non défini pour uid={} : réinitialisation refusée", uid);
+                throw new InvalidCodeException("profil non reconnu pour le compte : réinitialisation impossible");
+            }
+            if (pub.isEduconnect()) {
+                log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}, enumPublic={}, ntPass={}", uid, pub, personneDTO.isNtPass());
+                throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
+            }
+            log.warn("[PASSWORD_RESET] Refus : mot de passe local non éditable uid={}, enumPublic={}, ntPass={}",
+                    uid, pub, personneDTO.isNtPass());
             throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
         }
+        log.info("[PASSWORD_RESET] Autorisation uid={} : enumPublic={}, ntPass={}", uid, personneDTO.getEnumPublic(), personneDTO.isNtPass());
     }
 
 }

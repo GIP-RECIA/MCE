@@ -28,7 +28,6 @@ import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.CharteService;
-import fr.recia.mce.api.escomceapi.services.CharteUrlResolver;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
@@ -77,9 +76,6 @@ class SoffitEtape0IntegrationTest {
 
     @MockBean
     private CharteService charteService;
-
-    @MockBean
-    private CharteUrlResolver charteUrlResolver;
 
     @MockBean
     private ActivationService activationService;

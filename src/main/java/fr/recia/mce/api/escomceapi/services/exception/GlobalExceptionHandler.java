@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CharteNotAcceptedException.class)
     public ResponseEntity<ErrorResponse> handleCharteNotAccepted(CharteNotAcceptedException ex) {
         return ResponseEntity.badRequest()
-                .body(new ErrorResponse("CHARTE_REQUIRED", ex.getMessage()));
+                .body(new ErrorResponse("CHARTE_REQUIRED", ex.getMessage(), null, ex.getCharteUrl()));
     }
 
     @ExceptionHandler(ContactAdminException.class)

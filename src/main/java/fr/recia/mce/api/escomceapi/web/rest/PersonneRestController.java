@@ -21,7 +21,6 @@ import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.CharteService;
-import fr.recia.mce.api.escomceapi.services.CharteUrlResolver;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
@@ -57,7 +56,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -73,7 +74,6 @@ public class PersonneRestController {
     private final SoffitHolder soffitHolder;
     private final EmailVerificationService emailVerificationService;
     private final CharteService charteService;
-    private final CharteUrlResolver charteUrlResolver;
     private final ActivationService activationService;
     private final IStructureService structureService;
     private final IRelationEleveService relationEleveService;
@@ -83,7 +83,7 @@ public class PersonneRestController {
     public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory,
             SoffitHolder soffitHolder, EmailVerificationService emailVerificationService,
             CharteService charteService,
-            CharteUrlResolver charteUrlResolver, ActivationService activationService,
+            ActivationService activationService,
             IStructureService structureService,
             IRelationEleveService relationEleveService) {
         this.personneService = personneService;
@@ -91,7 +91,6 @@ public class PersonneRestController {
         this.soffitHolder = soffitHolder;
         this.emailVerificationService = emailVerificationService;
         this.charteService = charteService;
-        this.charteUrlResolver = charteUrlResolver;
         this.activationService = activationService;
         this.structureService = structureService;
         this.relationEleveService = relationEleveService;
@@ -239,11 +238,28 @@ public class PersonneRestController {
         // est unique. Réponse volontairement générique : aucun détail ne distingue un email inexistant,
         // un compte sans mot de passe local, une cible ambiguë, etc. → pas d'énumération d'utilisateurs,
         // pas de fuite d'uid. (see EmailVerificationService.recoverUid)
-        emailVerificationService.recoverUid(request);
+        EmailVerificationService.RecoverUidResult result = emailVerificationService.recoverUid(request);
 
-        log.info("[RECOVER_UID] Réponse générique envoyée pour email={}", request.getEmail());
-        return ResponseEntity.ok(new ErrorResponse("RECOVER_CODE_SENT",
-                "Si un compte correspond à ces informations et permet de réinitialiser son mot de passe, un code vous a été envoyé."));
+        log.info("[RECOVER_UID] Réponse générique envoyée pour email={} (code envoyé ? {})",
+                request.getEmail(), result != null);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("code", "RECOVER_CODE_SENT");
+        body.put("message",
+                "Si un compte correspond à ces informations et permet de réinitialiser son mot de passe, un code vous a été envoyé.");
+        // codeSent distingue pour le front "un code a bien été envoyé" du cas où aucun
+        // code n'a pu l'être (compte non réinitialisable : EduConnect, pas d'email, ...).
+        // Le message reste volontairement générique (anti-énumération) : identique dans
+        // les deux cas. Un compte réellement réinitialisable ne fournit pas plus d'indices.
+        body.put("codeSent", result != null);
+        body.put("charteRequired", result != null && result.isCharteRequired());
+        if (result != null && result.getCharteUrl() != null) {
+            body.put("charteUrl", result.getCharteUrl());
+        }
+        if (result != null && result.getResetToken() != null) {
+            body.put("resetToken", result.getResetToken());
+        }
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping("/reset-password")
@@ -254,7 +270,7 @@ public class PersonneRestController {
         log.info("[RESET_PASSWORD] Demande uid={}, charteAccepted={}", uid, request.isCharteAccepted());
 
         emailVerificationService.processResetPassword(
-                uid, request.getCode(),
+                uid, request.getResetToken(), request.getCode(),
                 request.getNewPassword(), request.getConfirmPassword(),
                 request.isCharteAccepted());
 
@@ -277,14 +293,12 @@ public class PersonneRestController {
     }
 
     @GetMapping("/charte-status")
-    public ResponseEntity<CharteStatusResponse> getCharteStatus(
-            @RequestParam String uid,
-            @RequestHeader(value = "Host", required = false) String host) {
+    public ResponseEntity<CharteStatusResponse> getCharteStatus(@RequestParam String uid) {
         boolean charteRequired = charteService.isCharteRequired(uid);
-        String charteUrl = charteUrlResolver.resolve(host);
+        String charteUrl = charteService.getCharteUrl(uid);
         boolean charteSignee = !charteRequired;
-        log.info("[CHARTE_STATUS] uid={}, host={}, charteRequired={}, charteSignee={}, charteUrl={}",
-                uid, host, charteRequired, charteSignee, charteUrl);
+        log.info("[CHARTE_STATUS] uid={}, charteRequired={}, charteSignee={}, charteUrl={}",
+                uid, charteRequired, charteSignee, charteUrl);
         return ResponseEntity.ok(new CharteStatusResponse(charteRequired, charteUrl, charteSignee));
     }
 

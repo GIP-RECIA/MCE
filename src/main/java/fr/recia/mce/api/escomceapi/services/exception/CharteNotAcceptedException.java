@@ -16,7 +16,19 @@
 package fr.recia.mce.api.escomceapi.services.exception;
 
 public class CharteNotAcceptedException extends RuntimeException {
+
+    private final String charteUrl;
+
     public CharteNotAcceptedException(String message) {
+        this(message, null);
+    }
+
+    public CharteNotAcceptedException(String message, String charteUrl) {
         super(message);
+        this.charteUrl = charteUrl;
+    }
+
+    public String getCharteUrl() {
+        return charteUrl;
     }
 }

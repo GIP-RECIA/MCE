@@ -37,18 +37,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.ldap.core.LdapTemplate;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {PersonneRestController.class, CharteController.class})
+@WebMvcTest(controllers = PersonneRestController.class)
 @AutoConfigureMockMvc
 class PersonneRestControllerSecurityTest {
 
@@ -100,9 +98,6 @@ class PersonneRestControllerSecurityTest {
     @MockBean
     private IStructureService structureService;
 
-    @MockBean
-    private fr.recia.mce.api.escomceapi.services.CharteUrlResolver charteUrlResolver;
-
     @BeforeEach
     void setUp() {
         mceProperties.getSecurity().getRateLimit().setPermitsPerSecond(1_000_000.0);
@@ -122,27 +117,12 @@ class PersonneRestControllerSecurityTest {
     @Test
     void passwordResetRemainsPublicWithoutAuthentication() throws Exception {
         doNothing().when(emailVerificationService)
-                .processResetPassword(anyString(), anyString(), anyString(), anyString(), anyBoolean());
+                .processResetPassword(anyString(), any(), anyString(), anyString(), anyString(), anyBoolean());
 
         mockMvc.perform(post("/api/personne/mce/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"uid\":\"user1\",\"code\":\"123456\",\"charteAccepted\":true,"
                         + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void nonPublicApiEndpointIsRejectedWithoutAuthentication() throws Exception {
-        mockMvc.perform(get("/api/charte/url").header("Host", "localhost"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockUser
-    void authenticatedUserCanAccessNonPublicApiEndpoint() throws Exception {
-        when(charteUrlResolver.resolve("localhost")).thenReturn("https://example.test/charte");
-
-        mockMvc.perform(get("/api/charte/url").header("Host", "localhost"))
                 .andExpect(status().isOk());
     }
 

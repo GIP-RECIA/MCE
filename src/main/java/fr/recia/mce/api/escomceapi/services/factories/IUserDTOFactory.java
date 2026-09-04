@@ -35,6 +35,18 @@ public interface IUserDTOFactory {
      */
     EnumPublic evalPublic(PersonneDTO personne);
 
+    /**
+     * Indique si le compte dispose d'un mode d'authentification local permettant
+     * de modifier ou réinitialiser son mot de passe.
+     */
+    boolean isPasswordEditable(PersonneDTO personne);
+
+    /**
+     * Vérifie si la réinitialisation du mot de passe est autorisée pour ce compte.
+     * Retourne true si le profil est défini, n'est pas EduConnect, et dispose d'un mode d'authentification local éditable.
+     */
+    boolean canResetPassword(PersonneDTO personne);
+
     UserDTO from(final IExternalUser extModel, final boolean withInternal);
 
     UserDTO from(final PersonneDTO model, final IExternalUser extModel);

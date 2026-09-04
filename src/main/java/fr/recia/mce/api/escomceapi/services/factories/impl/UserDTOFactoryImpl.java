@@ -415,6 +415,31 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     private static final String AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT = "[^@]+@ac-orleans-tours.fr";
 
+    @Override
+    public boolean isPasswordEditable(PersonneDTO model) {
+        if (model == null) {
+            return false;
+        }
+        return computePassEditable(model, model.getEnumPublic());
+    }
+
+    @Override
+    public boolean canResetPassword(PersonneDTO personneDTO) {
+        if (personneDTO == null) {
+            return false;
+        }
+        // Toujours évaluer le profil pour s'assurer que source est correcte (isEduconnect dépend de source)
+        EnumPublic pub = evalPublic(personneDTO);
+        personneDTO.setEnumPublic(pub);
+        if (pub == null) {
+            return false;
+        }
+        if (pub.isEduconnect()) {
+            return false;
+        }
+        return isPasswordEditable(personneDTO);
+    }
+
     private boolean computePassEditable(PersonneDTO model, EnumPublic pub) {
         if (pub == null) {
             return false;
@@ -591,16 +616,33 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
 
-        if (user.getEnumPublic() == null) {
+        EnumPublic pub = user.getEnumPublic();
+        log.info("[CHANGE_PASSWORD] Diagnostique uid={} : enumPublic brut={}, isNtPass={}, source={}",
+                uid, pub, user.isNtPass(), user.getSource());
+        if (pub == null) {
             try {
                 evalPublic(user);
+                pub = user.getEnumPublic();
+                log.info("[CHANGE_PASSWORD] Après evalPublic uid={} : enumPublic={}, connectOk={}, educonnect={}, isNtPass={}, source={}",
+                        uid, pub,
+                        pub == null ? "N/A" : pub.isConnectOk(),
+                        pub == null ? "N/A" : pub.isEduconnect(),
+                        user.isNtPass(), user.getSource());
             } catch (Exception e) {
                 log.error("Échec de l'évaluation du profil public pour le changement de mot de passe [uid={}] - Détail : {}",
                         uid, e.getMessage());
             }
         }
 
-        if (!computePassEditable(user, user.getEnumPublic())) {
+        EnumPublic effectivePub = user.getEnumPublic();
+        boolean eduConnect = effectivePub != null && effectivePub.isEduconnect();
+        boolean editable = isPasswordEditable(user);
+        log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})",
+                uid, editable, effectivePub, user.isNtPass(), user.getSource(), eduConnect);
+        if (!editable) {
+            if (eduConnect) {
+                throw new AccessDeniedException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
+            }
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre mot de passe");
         }
 

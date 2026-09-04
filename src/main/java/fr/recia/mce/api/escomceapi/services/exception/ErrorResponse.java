@@ -22,15 +22,21 @@ public class ErrorResponse {
     private final String code;
     private final String message;
     private final List<String> details;
+    private final String charteUrl;
 
     public ErrorResponse(String code, String message, List<String> details) {
-        this.code = code;
-        this.message = message;
-        this.details = details;
+        this(code, message, details, null);
     }
 
     public ErrorResponse(String code, String message) {
-        this(code, message, null);
+        this(code, message, null, null);
+    }
+
+    public ErrorResponse(String code, String message, List<String> details, String charteUrl) {
+        this.code = code;
+        this.message = message;
+        this.details = details;
+        this.charteUrl = charteUrl;
     }
 
     public String getCode() {
@@ -43,5 +49,9 @@ public class ErrorResponse {
 
     public List<String> getDetails() {
         return details;
+    }
+
+    public String getCharteUrl() {
+        return charteUrl;
     }
 }

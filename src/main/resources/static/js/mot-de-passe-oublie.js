@@ -38,6 +38,7 @@
                 if (!resp.ok) {
                     var err = new Error((data && data.message) ? data.message : 'Une erreur est survenue');
                     err.code = data && data.code;
+                    err.charteUrl = data && data.charteUrl;
                     throw err;
                 }
                 return data;
@@ -118,6 +119,18 @@
         });
     });
 
+    document.querySelectorAll('[data-back-uid]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            clearMessage();
+            if (resetOrigin === 'recover') {
+                showStep('recover');
+                recoverLoadTypes();
+            } else {
+                showStep('known');
+            }
+        });
+    });
+
     // ============================================================
     //  Étape 1A — UID connu
     // ============================================================
@@ -146,6 +159,7 @@
         post(api('/forgot-password'), { uid: uid, email: email, profil: profil })
             .then(function () {
                 document.getElementById('reset-uid').value = uid;
+                lastSendContext = { type: 'known', uid: uid, email: email, profil: profil };
                 resetShowStep(uid, true);
             })
             .catch(function (err) {
@@ -258,9 +272,10 @@
         }
 
         post(api('/recover-uid'), payload)
-            .then(function () {
+            .then(function (res) {
                 showMessage('Si un compte correspond à ces informations et permet de réinitialiser son mot de passe, un code vous a été envoyé.', false);
-                resetShowStep('', false);
+                lastSendContext = { type: 'recover', payload: payload, resetToken: res && res.resetToken };
+                resetShowStep('', false, res);
             })
             .catch(function (err) {
                 showMessage(err.message, true);
@@ -273,12 +288,16 @@
 
     var charteBlock = document.getElementById('charte-block');
     var resetUidField = document.getElementById('reset-uid-field');
+    var resetOrigin = 'known';
+    var lastSendContext = null;
+    var resendBtn = document.getElementById('btn-resend-code');
 
     document.getElementById('form-reset').addEventListener('submit', function (e) {
         e.preventDefault();
         clearMessage();
 
         var uid = document.getElementById('reset-uid').value.trim();
+        var resetToken = resetOrigin === 'recover' && lastSendContext ? lastSendContext.resetToken : null;
         var code = document.getElementById('reset-code').value.trim();
         var newPassword = document.getElementById('reset-newpass').value;
         var confirmPassword = document.getElementById('reset-confirm').value;
@@ -311,6 +330,7 @@
 
         post(api('/reset-password'), {
             uid: uid,
+            resetToken: resetToken,
             code: code,
             newPassword: newPassword,
             confirmPassword: confirmPassword,
@@ -320,31 +340,90 @@
                 showStep('success');
             })
             .catch(function (err) {
+                console.log('[CHARTE][FRONT] reset-password error', err);
                 showMessage(err.message, true);
                 if (err.code === 'CHARTE_REQUIRED') {
+                    if (err.charteUrl) {
+                        console.log('[CHARTE][FRONT] err.charteUrl =', err.charteUrl);
+                        document.getElementById('charte-link').href = err.charteUrl;
+                    } else {
+                        console.warn('[CHARTE][FRONT] CHARTE_REQUIRED sans charteUrl ; href reste', document.getElementById('charte-link').href);
+                    }
                     charteBlock.hidden = false;
                 }
             });
     });
 
-    function resetShowStep(uid, showUid) {
+    resendBtn.addEventListener('click', function () {
+        if (!lastSendContext) {
+            showMessage('Demandez d\'abord un code de réinitialisation.', true);
+            return;
+        }
+        clearMessage();
+        resendBtn.disabled = true;
+
+        var onDone = function (res) {
+            resendBtn.disabled = false;
+            if (lastSendContext.type === 'recover') {
+                resetShowStep('', false, res);
+            }
+            showMessage('Un nouveau code vous a été envoyé. Vérifiez votre boîte mail.', false);
+        };
+        var onError = function (err) {
+            resendBtn.disabled = false;
+            showMessage(err.message, true);
+        };
+
+        if (lastSendContext.type === 'known') {
+            post(api('/forgot-password'), {
+                uid: lastSendContext.uid,
+                email: lastSendContext.email,
+                profil: lastSendContext.profil
+            }).then(onDone).catch(onError);
+        } else {
+            post(api('/recover-uid'), lastSendContext.payload).then(onDone).catch(onError);
+        }
+    });
+
+    function resetShowStep(uid, showUid, recoverResult) {
+        resetOrigin = showUid ? 'known' : 'recover';
         resetUidField.style.display = showUid ? '' : 'none';
-        resetLoadCharteStatus(uid);
+        resetLoadCharteStatus(uid, recoverResult);
         showStep('reset');
     }
 
-    function resetLoadCharteStatus(uid) {
+    function resetLoadCharteStatus(uid, recoverResult) {
+        console.log('[CHARTE][FRONT] resetLoadCharteStatus(uid=' + uid + ') — charteBlock caché');
         charteBlock.hidden = true;
+        if (recoverResult && typeof recoverResult.charteRequired === 'boolean') {
+            if (recoverResult.charteRequired) {
+                if (recoverResult.charteUrl) {
+                    document.getElementById('charte-link').href = recoverResult.charteUrl;
+                }
+                console.log('[CHARTE][FRONT] recover-uid charte requise → href=' + document.getElementById('charte-link').href);
+                charteBlock.hidden = false;
+            } else {
+                console.log('[CHARTE][FRONT] recover-uid charte non requise → bloc caché');
+            }
+            return;
+        }
         if (!uid) { return; }
 
         getJson(api('/charte-status?uid=' + encodeURIComponent(uid)))
             .then(function (status) {
+                console.log('[CHARTE][FRONT] réponse /charte-status =', status);
                 if (status && status.charteRequired) {
                     document.getElementById('charte-link').href = status.charteUrl || '#';
+                    console.log('[CHARTE][FRONT] charte requise → href=' + document.getElementById('charte-link').href);
                     charteBlock.hidden = false;
+                } else {
+                    console.log('[CHARTE][FRONT] charte non requise → bloc caché');
                 }
             })
-            .catch(function () { charteBlock.hidden = true; });
+            .catch(function (e) {
+                console.warn('[CHARTE][FRONT] échec /charte-status', e);
+                charteBlock.hidden = true;
+            });
     }
 
     // ============================================================

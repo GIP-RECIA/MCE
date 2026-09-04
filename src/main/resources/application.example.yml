@@ -223,5 +223,3 @@ charte:
     urls:
         # URL par source d'établissement (ex: "COLL-45", "AC-ORLEANS-TOURS" → préfixe avant "-")
         LYCEE: "https://lycees.netocentre.fr/files/textes/droits_usage.html"
-    serverMapping:
-        # correspondance host → source, cf. application.yml
