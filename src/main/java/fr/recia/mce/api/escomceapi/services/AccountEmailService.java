@@ -94,7 +94,7 @@ public class AccountEmailService {
                 return ldapUser.getEmail().trim();
             }
         } catch (Exception e) {
-            log.warn("[LDAP_EMAIL] Impossible de récupérer l'email LDAP pour uid={}", uid, e);
+            log.warn("[LDAP_EMAIL] Impossible de récupérer l'email LDAP pour uid={} : {}", uid, e.getMessage());
         }
         return null;
     }

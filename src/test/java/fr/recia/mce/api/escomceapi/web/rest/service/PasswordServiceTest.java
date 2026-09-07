@@ -35,6 +35,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -1220,6 +1222,10 @@ class PasswordServiceTest {
             when(aPersonneRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
         }
 
+        private void setupCvdlNtPasswordProfile() {
+            personneDTO.setEnumPublic(EnumPublic.CVDL);
+        }
+
         @Nested
         @DisplayName("Tests de requiresSamba")
         class SambaTests {
@@ -1230,6 +1236,7 @@ class PasswordServiceTest {
                 when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=samba-users,ou=groups"));
 
                 setupMockForChangePassword();
+                setupCvdlNtPasswordProfile();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNotNull();
@@ -1242,6 +1249,7 @@ class PasswordServiceTest {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(null);
 
                 setupMockForChangePassword();
+                setupCvdlNtPasswordProfile();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1254,6 +1262,7 @@ class PasswordServiceTest {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
 
                 setupMockForChangePassword();
+                setupCvdlNtPasswordProfile();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1266,6 +1275,7 @@ class PasswordServiceTest {
                 when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=other-group", "cn=standard-users"));
 
                 setupMockForChangePassword();
+                setupCvdlNtPasswordProfile();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1278,6 +1288,7 @@ class PasswordServiceTest {
                 when(extUser.getAttribute("memberOf")).thenReturn(Collections.emptyList());
 
                 setupMockForChangePassword();
+                setupCvdlNtPasswordProfile();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
@@ -1289,9 +1300,92 @@ class PasswordServiceTest {
                 when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn("[invalid(regex");
 
                 setupMockForChangePassword();
+                setupCvdlNtPasswordProfile();
                 passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
 
                 assertThat(aPersonne.getSambaNtpassword()).isNull();
+            }
+
+            @Test
+            @DisplayName("Samba non requis : Profil non éligible (ni CVDL ni GIP)")
+            void shouldNotRequireSambaWhenProfileIsNotEligible() {
+                lenient().when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
+                lenient().when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=samba-users,ou=groups"));
+
+                setupMockForChangePassword();
+                personneDTO.setEnumPublic(EnumPublic.EDUCATION);
+                passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
+
+                assertThat(aPersonne.getSambaNtpassword()).isNull();
+            }
+
+            @Test
+            @DisplayName("Samba requis : Domaine source GIP (même profil non-CVDL)")
+            void shouldRequireSambaWhenDomainSourceIsGip() {
+                when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
+                when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=samba-users,ou=groups"));
+
+                fr.recia.mce.api.escomceapi.db.entities.AStructure structure = new fr.recia.mce.api.escomceapi.db.entities.AStructure();
+                structure.setSource("GIP-REGION");
+                structure.setSiren("123456789");
+                structure.setNom("Structure GIP");
+                aPersonne.setAStructure(structure);
+                personneDTO = new PersonneDTO(aPersonne);
+                personneDTO.setExtUser(extUser);
+                personneDTO.setEnumPublic(EnumPublic.PERSONNEL);
+
+                setupMockForChangePassword();
+                passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
+
+                assertThat(aPersonne.getSambaNtpassword()).isNotNull();
+                assertThat(aPersonne.getSambaLmpassword()).isNotNull();
+            }
+        }
+
+        @Nested
+        @DisplayName("Tableau ntPass par profil (doc FLUX_ACTIVATION)")
+        class NtPasswordProfileTableTests {
+
+            @ParameterizedTest
+            @CsvSource({
+                    "ELEVE_EDUC, AC-Orleans-Tours, NON",
+                    "PARENT_EDUC, AC-Orleans-Tours, NON",
+                    "EDUCATION, AC-Orleans-Tours, NON",
+                    "AGRI, LA-Agri, NON",
+                    "ELEVE_AGRI, LA-Agri, NON",
+                    "PARENT_AGRI, LA-Agri, NON",
+                    "CVDL, COLL-CVDL-37, OUI",
+                    "CVDL, NONE, OUI",
+                    "PERSONNEL, GIP-REGION, OUI",
+                    "EDUCATION, GIP-REGION, OUI",
+                    "ELEVE_EDUC, GIP-REGION, OUI"
+            })
+            void ntPassParProfil(String enumPublicName, String structSource, String expected) throws Exception {
+                String regex = ".*samba.*";
+                lenient().when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(regex);
+                lenient().when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=samba-users,ou=groups"));
+
+                if (!"NONE".equals(structSource)) {
+                    fr.recia.mce.api.escomceapi.db.entities.AStructure structure = new fr.recia.mce.api.escomceapi.db.entities.AStructure();
+                    structure.setSource(structSource);
+                    structure.setSiren("123456789");
+                    structure.setNom("Structure " + structSource);
+                    aPersonne.setAStructure(structure);
+                    personneDTO = new PersonneDTO(aPersonne);
+                    personneDTO.setExtUser(extUser);
+                }
+                personneDTO.setEnumPublic(EnumPublic.valueOf(enumPublicName));
+
+                setupMockForChangePassword();
+                passwordService.changePassword(personneDTO, createRequest(strongPassword, "NewPass123456!", "NewPass123456!"));
+
+                if ("OUI".equals(expected)) {
+                    assertThat(aPersonne.getSambaNtpassword()).as("sambaNTPassword pour %s/%s", enumPublicName, structSource).isNotNull();
+                    assertThat(aPersonne.getSambaLmpassword()).as("sambaLMPassword pour %s/%s", enumPublicName, structSource).isNotNull();
+                } else {
+                    assertThat(aPersonne.getSambaNtpassword()).as("sambaNTPassword pour %s/%s", enumPublicName, structSource).isNull();
+                    assertThat(aPersonne.getSambaLmpassword()).as("sambaLMPassword pour %s/%s", enumPublicName, structSource).isNull();
+                }
             }
         }
     }

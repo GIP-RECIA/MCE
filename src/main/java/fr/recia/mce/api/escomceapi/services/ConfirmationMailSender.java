@@ -63,7 +63,7 @@ public class ConfirmationMailSender {
         try {
             mailSender.send(message);
         } catch (MailException e) {
-            log.error(errorMessage, to, e.getMessage(), e);
+            log.error(errorMessage, to, e.getMessage());
             throw new RuntimeException(errorMessage, e);
         }
     }

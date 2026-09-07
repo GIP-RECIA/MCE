@@ -104,7 +104,7 @@ public class PasswordResetPolicyService {
                     pub = userDTOFactory.evalPublic(personneDTO);
                     personneDTO.setEnumPublic(pub);
                 } catch (RuntimeException e) {
-                    log.error("[PASSWORD_RESET] Échec de l'évaluation du profil uid={}", uid, e);
+                    log.error("[PASSWORD_RESET] Échec de l'évaluation du profil uid={} : {}", uid, e.getMessage());
                 }
             }
             if (pub == null) {

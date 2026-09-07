@@ -220,7 +220,7 @@ public class PersonneRestController {
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("FORGOT_PASSWORD_FAILED", e.getMessage()));
         } catch (RuntimeException e) {
-            log.error("[FORGOT_PASSWORD] ERREUR uid={} : {}", uid, e.getMessage(), e);
+            log.error("[FORGOT_PASSWORD] ERREUR uid={} : {}", uid, e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(new ErrorResponse("INTERNAL_ERROR", "Une erreur interne est survenue"));
         }

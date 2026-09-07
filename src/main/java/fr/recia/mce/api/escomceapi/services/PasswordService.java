@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
@@ -433,6 +434,12 @@ public class PasswordService {
         if (person == null)
             return false;
         String uid = person.getUid() != null ? person.getUid() : "unknown";
+
+        if (!isNtPasswordProfile(person)) {
+            specialLog.info("Audit [REQUIRES_SAMBA] : NON pour l'utilisateur [{}] - Raison : Profil non éligible au ntPass (ni CVDL ni source GIP)", uid);
+            return false;
+        }
+
         String regex = mceProperties.getService()
                 .getCustomParams()
                 .getRegexGroupsWithSambaNt();
@@ -481,6 +488,23 @@ public class PasswordService {
 
         log.debug("vérificationSamba — résultat final pour l'uid={} : withSamba={}", person.getUid(), matched);
         return matched;
+    }
+
+    private boolean isNtPasswordProfile(PersonneDTO person) {
+        EnumPublic res = person.getEnumPublic();
+        boolean isCvdl = EnumPublic.CVDL.equals(res);
+        StructureDTO.DomSource ds = null;
+        if (person.getStructureDto() != null) {
+            try {
+                ds = person.getStructureDto().getDomSource();
+            } catch (Exception e) {
+                log.debug("vérificationSamba — domSource indisponible pour uid={} : {}", person.getUid(), e.getMessage());
+            }
+        }
+        boolean isGip = StructureDTO.DomSource.GIP.equals(ds);
+        log.debug("vérificationSamba — éligibilité profil uid={} : enumPublic={}, domSource={}, ntPass=({} || {})",
+                person.getUid(), res, ds, isCvdl, isGip);
+        return isCvdl || isGip;
     }
 
     // ---------------------------------------------------------------
