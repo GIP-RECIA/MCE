@@ -30,6 +30,11 @@ import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
+import fr.recia.mce.api.escomceapi.services.VerificationCodeService;
+import fr.recia.mce.api.escomceapi.services.ConfirmationMailSender;
+import fr.recia.mce.api.escomceapi.services.AttemptGuardService;
+import fr.recia.mce.api.escomceapi.services.AccountEmailService;
+import fr.recia.mce.api.escomceapi.services.PasswordResetPolicyService;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
@@ -39,6 +44,7 @@ import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceI
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
+import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import org.springframework.security.access.AccessDeniedException;
@@ -120,6 +126,26 @@ class PersonneRestControllerTest {
     @MockBean
     @SuppressWarnings("unused")
     private EmailVerificationService emailVerificationService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private VerificationCodeService verificationCodeService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private ConfirmationMailSender confirmationMailSender;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private AttemptGuardService attemptGuardService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private AccountEmailService accountEmailService;
+
+    @MockBean
+    @SuppressWarnings("unused")
+    private PasswordResetPolicyService passwordResetPolicyService;
 
     @MockBean
     @SuppressWarnings("unused")
@@ -888,6 +914,19 @@ class PersonneRestControllerTest {
             mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("FORGOT_PASSWORD_FAILED"));
+        }
+
+        @Test
+        @DisplayName("Anti-double-clic (cooldown actif) → 429 RESEND_COOLDOWN avec retryAfterSeconds")
+        void shouldReturnResendCooldown() throws Exception {
+            doThrow(new ResendCooldownActiveException("Un code a déjà été envoyé récemment pour ce compte.", 42_000L))
+                    .when(emailVerificationService).sendPasswordResetCode(anyString(), anyString(), anyString());
+
+            mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(validBody))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.code").value("RESEND_COOLDOWN"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("42 seconde(s)")))
+                    .andExpect(jsonPath("$.retryAfterSeconds").value(42));
         }
 
         @Test

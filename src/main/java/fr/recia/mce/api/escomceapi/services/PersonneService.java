@@ -386,11 +386,11 @@ public class PersonneService {
         if (entity == null) {
             throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
         }
-        if ("Delete".equals(entity.getEtat())) {
+        if (AccountState.DELETE.equals(entity.getEtat())) {
             throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
         }
-        if (!"Valide".equals(entity.getEtat())) {
-            entity.setEtat("Valide");
+        if (!AccountState.VALIDE.equals(entity.getEtat())) {
+            entity.setEtat(AccountState.VALIDE);
             entity.setDateModification(new Date());
             aPersonneRepository.save(entity);
             clearUserCaches(uid);

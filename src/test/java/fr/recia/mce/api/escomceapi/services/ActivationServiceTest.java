@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Date;
@@ -63,6 +64,11 @@ class ActivationServiceTest {
 
     @Mock
     private IUserDTOFactory userDTOFactory;
+
+    // Spy : isCharteRequired(APersonne) exécute la vraie règle de domaine
+    // (charte requise tant que validationCharte est null), comme l'ancien contrôle inline.
+    @Spy
+    private CharteService charteService = new CharteService();
 
     @InjectMocks
     private ActivationService activationService;

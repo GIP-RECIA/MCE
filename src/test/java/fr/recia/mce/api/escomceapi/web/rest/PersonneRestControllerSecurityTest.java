@@ -23,6 +23,11 @@ import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
+import fr.recia.mce.api.escomceapi.services.VerificationCodeService;
+import fr.recia.mce.api.escomceapi.services.ConfirmationMailSender;
+import fr.recia.mce.api.escomceapi.services.AttemptGuardService;
+import fr.recia.mce.api.escomceapi.services.AccountEmailService;
+import fr.recia.mce.api.escomceapi.services.PasswordResetPolicyService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
@@ -82,6 +87,21 @@ class PersonneRestControllerSecurityTest {
 
     @MockBean
     private EmailVerificationService emailVerificationService;
+
+    @MockBean
+    private VerificationCodeService verificationCodeService;
+
+    @MockBean
+    private ConfirmationMailSender confirmationMailSender;
+
+    @MockBean
+    private AttemptGuardService attemptGuardService;
+
+    @MockBean
+    private AccountEmailService accountEmailService;
+
+    @MockBean
+    private PasswordResetPolicyService passwordResetPolicyService;
 
     @MockBean
     private CharteService charteService;

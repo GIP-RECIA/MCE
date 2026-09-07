@@ -57,7 +57,7 @@ import java.util.regex.PatternSyntaxException;
 @Slf4j
 public class PasswordService {
 
-    private static final String VALID_ACCOUNT_STATE = "Valide";
+    private static final String VALID_ACCOUNT_STATE = AccountState.VALIDE;
 
     private static final int SALT_LENGTH = 8;
     private static final String PREFIXCODE = "{SSHA}";

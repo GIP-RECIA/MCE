@@ -38,9 +38,6 @@ import java.util.Date;
 @Slf4j
 public class ActivationService {
 
-    private static final String VALID_ACCOUNT_STATE = "Valide";
-    private static final String INVALID_ACCOUNT_STATE = "Invalide";
-
     private static final String STEP_CHARTE = "CHARTE";
     private static final String STEP_COURRIEL = "COURRIEL";
     private static final String STEP_PASSWORD = "PASSWORD";
@@ -54,6 +51,9 @@ public class ActivationService {
 
     @Autowired
     private PasswordService passwordService;
+
+    @Autowired
+    private CharteService charteService;
 
     @Autowired
     private EmailVerificationService emailVerificationService;
@@ -85,7 +85,7 @@ public class ActivationService {
         login = login.trim();
 
         APersonne personne = aPersonneRepository.findByLogin(login);
-        if (personne == null || !INVALID_ACCOUNT_STATE.equals(personne.getEtat())) {
+        if (personne == null || !AccountState.INVALIDE.equals(personne.getEtat())) {
             // Réponse volontairement vague pour ne rien divulguer sur l'existence du compte.
             log.warn("[ACTIVATION][CONNEXION] ÉCHEC pour login={} : compte absent ou état non activable", login);
             throw new IllegalArgumentException("Identifiants incorrects");
@@ -121,7 +121,7 @@ public class ActivationService {
 
         EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
 
-        boolean charteValide = personne.getValidationCharte() != null;
+        boolean charteValide = !charteService.isCharteRequired(personne);
         boolean passwordRequise = pub != null && pub.isConnectOk();
         // Les profils sans mot de passe local (AGRI, CVDL, PARENT_EDUC, EDUCATION, ELEVE_EDUC) n'ont pas d'étape COURRIEL.
         boolean emailRequise = passwordRequise && StringUtils.isBlank(personne.getEmail());
@@ -167,7 +167,7 @@ public class ActivationService {
         if (personne == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
-        if ("Delete".equals(personne.getEtat())) {
+        if (AccountState.DELETE.equals(personne.getEtat())) {
             throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
         }
 
@@ -176,7 +176,7 @@ public class ActivationService {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
 
-        if (!personneDTO.isCharteValide()) {
+        if (charteService.isCharteRequired(personne)) {
             if (!request.isCharteAccepted()) {
                 throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de poursuivre l'activation");
             }
@@ -207,7 +207,7 @@ public class ActivationService {
         personneService.valideCompte(uid);
 
         log.info("[ACTIVATION][PASSWORD] SUCCÈS uid={}, profil={}, password={}, emailRéconfirmé={}", uid, pub, passwordRequise, emailEnAttente);
-        return new ActivationResultDTO(uid, VALID_ACCOUNT_STATE, emailEnAttente);
+        return new ActivationResultDTO(uid, AccountState.VALIDE, emailEnAttente);
     }
 
 }

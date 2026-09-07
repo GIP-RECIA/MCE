@@ -23,6 +23,7 @@ import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,9 @@ class PasswordResetIntegrationTest {
     @MockBean
     private JavaMailSender mailSender;
 
+    @MockBean
+    private IUserDTOFactory userDTOFactory;
+
     private APersonne person;
 
     @BeforeEach
@@ -98,6 +102,7 @@ class PasswordResetIntegrationTest {
         when(dto.isNtPass()).thenReturn(true);
         when(dto.isCharteValide()).thenReturn(true);
         when(personneService.getUserByUid(person.getUid())).thenReturn(dto);
+        when(userDTOFactory.canResetPassword(any(PersonneDTO.class))).thenReturn(true);
     }
 
     @Test

@@ -77,6 +77,15 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("MAX_ATTEMPTS_EXCEEDED", ex.getMessage()));
     }
 
+    @ExceptionHandler(ResendCooldownActiveException.class)
+    public ResponseEntity<ErrorResponse> handleResendCooldown(ResendCooldownActiveException ex) {
+        long seconds = ex.getRetryAfterSeconds();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new ErrorResponse("RESEND_COOLDOWN",
+                        "Un code a déjà été envoyé récemment. Veuillez réessayer dans " + seconds + " seconde(s).",
+                        seconds));
+    }
+
     @ExceptionHandler(InactiveAccountException.class)
     public ResponseEntity<ErrorResponse> handleInactiveAccount(InactiveAccountException ex) {
         return ResponseEntity.badRequest()

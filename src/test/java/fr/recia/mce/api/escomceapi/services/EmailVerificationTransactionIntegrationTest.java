@@ -21,6 +21,7 @@ import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
+import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,6 +64,9 @@ class EmailVerificationTransactionIntegrationTest {
     private PersonneService personneService;
 
     @MockBean
+    private IUserDTOFactory userDTOFactory;
+
+    @MockBean
     private JavaMailSender mailSender;
 
     private APersonne person;
@@ -86,6 +90,7 @@ class EmailVerificationTransactionIntegrationTest {
         when(dto.getEnumPublic()).thenReturn(EnumPublic.PERSONNEL);
         when(dto.isNtPass()).thenReturn(true);
         when(personneService.getUserByUid(person.getUid())).thenReturn(dto);
+        when(userDTOFactory.canResetPassword(any(PersonneDTO.class))).thenReturn(true);
         reset(mailSender);
     }
 

@@ -69,7 +69,7 @@ class CharteServiceTest {
     @Test
     @DisplayName("isCharteRequired : uid null ou vide → requis")
     void blankUidRequiresCharte() {
-        assertThat(service.isCharteRequired(null)).isTrue();
+        assertThat(service.isCharteRequired((String) null)).isTrue();
         assertThat(service.isCharteRequired("")).isTrue();
         assertThat(service.isCharteRequired("   ")).isTrue();
     }

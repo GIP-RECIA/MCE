@@ -23,20 +23,30 @@ public class ErrorResponse {
     private final String message;
     private final List<String> details;
     private final String charteUrl;
+    private final Long retryAfterSeconds;
 
     public ErrorResponse(String code, String message, List<String> details) {
-        this(code, message, details, null);
+        this(code, message, details, null, null);
     }
 
     public ErrorResponse(String code, String message) {
-        this(code, message, null, null);
+        this(code, message, null, null, null);
     }
 
     public ErrorResponse(String code, String message, List<String> details, String charteUrl) {
+        this(code, message, details, charteUrl, null);
+    }
+
+    public ErrorResponse(String code, String message, Long retryAfterSeconds) {
+        this(code, message, null, null, retryAfterSeconds);
+    }
+
+    public ErrorResponse(String code, String message, List<String> details, String charteUrl, Long retryAfterSeconds) {
         this.code = code;
         this.message = message;
         this.details = details;
         this.charteUrl = charteUrl;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 
     public String getCode() {
@@ -53,5 +63,9 @@ public class ErrorResponse {
 
     public String getCharteUrl() {
         return charteUrl;
+    }
+
+    public Long getRetryAfterSeconds() {
+        return retryAfterSeconds;
     }
 }

@@ -79,8 +79,16 @@ public class CharteService {
     }
 
     /**
-     * La charte est requise tant qu'aucune date de signature n'est enregistrée en base
-     * (colonne {@code validationCharte} de {@code aPersonne}).
+     * Règle unique du domaine : la charte est requise tant qu'aucune date de signature n'est enregistrée
+     * (colonne {@code validationCharte} de {@code aPersonne}). Ne touche pas la base : l'entité est déjà chargée.
+     */
+    public boolean isCharteRequired(APersonne person) {
+        return person == null || person.getValidationCharte() == null;
+    }
+
+    /**
+     * Variante par uid : charge la personne puis délègue à la règle commune
+     * {@link #isCharteRequired(APersonne)}.
      */
     public boolean isCharteRequired(String uid) {
         log.info("[CHARTE][REQUIRED] isCharteRequired(uid={})", uid);
@@ -95,9 +103,10 @@ public class CharteService {
                 log.warn("[CHARTE][REQUIRED] personne introuvable pour uid={} → charte requise", uid);
                 return true;
             }
+            boolean required = isCharteRequired(person);
             log.info("[CHARTE][REQUIRED] uid={} → validationCharte={} → charte requise ? {}",
-                    uid, person.getValidationCharte(), person.getValidationCharte() == null);
-            return person.getValidationCharte() == null;
+                    uid, person.getValidationCharte(), required);
+            return required;
         } catch (Exception e) {
             log.warn("Impossible de vérifier l'état de la charte pour l'uid [{}] : {}", uid, e.getMessage());
             return true;

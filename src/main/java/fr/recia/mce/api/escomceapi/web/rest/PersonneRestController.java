@@ -28,6 +28,7 @@ import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
+import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
@@ -207,6 +208,9 @@ public class PersonneRestController {
 
         try {
             emailVerificationService.sendPasswordResetCode(uid, email, profil);
+        } catch (ResendCooldownActiveException e) {
+            // Anti-double-clic : laisser le GlobalExceptionHandler répondre 429 avec le temps restant.
+            throw e;
         } catch (ContactAdminException e) {
             log.warn("[FORGOT_PASSWORD] CONTACT_ADMIN uid={} : {}", uid, e.getMessage());
             return ResponseEntity.badRequest()

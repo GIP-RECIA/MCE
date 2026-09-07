@@ -16,6 +16,7 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.CharteProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.SecurityProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -30,6 +31,7 @@ import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
+import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +43,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -91,11 +94,31 @@ class EmailVerificationServiceTest {
     @Mock
     private PasswordService passwordService;
 
+    // ChartService en spy : isCharteRequired(APersonne) exécute la vraie règle de domaine
+    // (charte requise tant que validationCharte est null), comme l'ancien contrôle inline.
+    @Spy
+    private CharteService charteService = new CharteService();
+
     @Mock
-    private CharteService charteService;
+    private CharteProperties charteProperties;
 
     @Mock
     private IUserDTOFactory userDTOFactory;
+
+    @Spy
+    private AttemptGuardService attemptGuardService = new AttemptGuardService();
+
+    @Spy
+    private VerificationCodeService verificationCodeService = new VerificationCodeService();
+
+    @Spy
+    private ConfirmationMailSender confirmationMailSender = new ConfirmationMailSender();
+
+    @Spy
+    private AccountEmailService accountEmailService = new AccountEmailService();
+
+    @Spy
+    private PasswordResetPolicyService passwordResetPolicyService = new PasswordResetPolicyService();
 
     @InjectMocks
     private EmailVerificationService service;
@@ -135,11 +158,24 @@ class EmailVerificationServiceTest {
 
         SecurityProperties security = new SecurityProperties();
         lenient().when(mceProperties.getSecurity()).thenReturn(security);
-        lenient().when(userDTOFactory.isPasswordEditable(any(PersonneDTO.class))).thenAnswer(invocation -> {
+        lenient().when(userDTOFactory.canResetPassword(any(PersonneDTO.class))).thenAnswer(invocation -> {
             PersonneDTO dto = invocation.getArgument(0);
             EnumPublic pub = dto.getEnumPublic();
             return pub != null && !pub.isEduconnect() && (pub.isConnectOk() || dto.isNtPass());
         });
+
+        ReflectionTestUtils.setField(verificationCodeService, "mailProperties", mailProperties);
+        ReflectionTestUtils.setField(confirmationMailSender, "mailSender", mailSender);
+        ReflectionTestUtils.setField(confirmationMailSender, "mailProperties", mailProperties);
+        ReflectionTestUtils.setField(accountEmailService, "cerbereConfirmationRepository", cerbereConfirmationRepository);
+        ReflectionTestUtils.setField(accountEmailService, "personneService", personneService);
+        ReflectionTestUtils.setField(passwordResetPolicyService, "mailProperties", mailProperties);
+        ReflectionTestUtils.setField(passwordResetPolicyService, "mceProperties", mceProperties);
+        ReflectionTestUtils.setField(passwordResetPolicyService, "userDTOFactory", userDTOFactory);
+
+        lenient().when(charteProperties.getDefaultUrl()).thenReturn("https://charte.example.fr");
+        ReflectionTestUtils.setField(charteService, "aPersonneRepository", aPersonneRepository);
+        ReflectionTestUtils.setField(charteService, "charteProperties", charteProperties);
     }
 
     private String sha256(String code) {
@@ -156,8 +192,8 @@ class EmailVerificationServiceTest {
         }
     }
 
-    private EmailVerificationService.AttemptEntry entryWithCount(int n) {
-        EmailVerificationService.AttemptEntry entry = new EmailVerificationService.AttemptEntry();
+    private AttemptGuardService.AttemptEntry entryWithCount(int n) {
+        AttemptGuardService.AttemptEntry entry = new AttemptGuardService.AttemptEntry();
         entry.count.set(n);
         return entry;
     }
@@ -219,6 +255,22 @@ class EmailVerificationServiceTest {
             assertThat(msg.getSubject()).contains("Verification");
             assertThat(msg.getText()).contains("Votre code de verification est :");
             assertThat(msg.getText()).doesNotContain("http");
+        }
+
+        @Test
+        @DisplayName("Anti-double-clic : demande récente (< cooldown) → ResendCooldownActiveException")
+        void antiDoubleClickBlocksRecentVerification() {
+            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(42L))
+                    .thenReturn(List.of(pendingReset(42L, 1_000)));
+
+            assertThatThrownBy(() -> service.sendVerificationEmail(uid, email))
+                    .isInstanceOf(ResendCooldownActiveException.class)
+                    .satisfies(e -> assertThat(((ResendCooldownActiveException) e).getRetryAfterSeconds()).isPositive());
+
+            verify(cerbereConfirmationRepository, never()).deletePendingEmailVerificationByPersonId(42L);
+            verify(cerbereConfirmationRepository, never()).save(any());
+            verifyNoInteractions(mailSender);
         }
 
         @Test
@@ -370,7 +422,7 @@ class EmailVerificationServiceTest {
         void lockoutBlocksEvenCorrectCode() {
             mceProperties.getSecurity().getResetPolicy().setMaxAttempts(2);
             @SuppressWarnings("unchecked")
-            Map<Long, EmailVerificationService.AttemptEntry> attempts = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service,
+            Map<Long, AttemptGuardService.AttemptEntry> attempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "verificationAttempts");
             attempts.put(42L, entryWithCount(2));
 
@@ -387,7 +439,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Succès ou expiration : le compteur de vérification est purgé")
         void counterClearedOnSuccessAndExpiry() {
             @SuppressWarnings("unchecked")
-            Map<Long, EmailVerificationService.AttemptEntry> attempts = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service,
+            Map<Long, AttemptGuardService.AttemptEntry> attempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "verificationAttempts");
             attempts.put(42L, entryWithCount(1));
 
@@ -423,7 +475,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Un nouveau code de vérification remet le compteur à zéro")
         void newCodeClearsCounter() {
             @SuppressWarnings("unchecked")
-            Map<Long, EmailVerificationService.AttemptEntry> attempts = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service,
+            Map<Long, AttemptGuardService.AttemptEntry> attempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "verificationAttempts");
             attempts.put(42L, entryWithCount(99));
             when(aPersonneRepository.findByUid(uid)).thenReturn(person);
@@ -785,14 +837,16 @@ class EmailVerificationServiceTest {
         }
 
         @Test
-        @DisplayName("Anti-double-clic : demande récente (< cooldown) → aucun nouveau code")
+        @DisplayName("Anti-double-clic : demande récente (< cooldown) → ResendCooldownActiveException avec temps restant")
         void antiDoubleClickBlocksRecentRequest() {
             APersonne p = validPerson(106L);
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(106L))
                     .thenReturn(List.of(pendingReset(106L, 1_000)));
 
-            service.sendPasswordResetCode(p.getUid(), email, null);
+            assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
+                    .isInstanceOf(ResendCooldownActiveException.class)
+                    .satisfies(e -> assertThat(((ResendCooldownActiveException) e).getRemainingMs()).isPositive());
 
             verify(cerbereConfirmationRepository, never()).save(any());
             verifyNoInteractions(mailSender);
@@ -1231,9 +1285,9 @@ class EmailVerificationServiceTest {
             confirmation.setLimite(Date.from(Instant.now().plus(30, ChronoUnit.MINUTES)));
 
             @SuppressWarnings("unchecked")
-            Map<String, EmailVerificationService.ResetChallenge> challenges =
-                    (Map<String, EmailVerificationService.ResetChallenge>) ReflectionTestUtils.getField(service, "resetChallenges");
-            challenges.put("token", new EmailVerificationService.ResetChallenge("uidless",
+            Map<String, AttemptGuardService.ResetChallenge> challenges =
+                    (Map<String, AttemptGuardService.ResetChallenge>) ReflectionTestUtils.getField(attemptGuardService, "resetChallenges");
+            challenges.put("token", new AttemptGuardService.ResetChallenge("uidless",
                     System.currentTimeMillis() + 30 * 60_000L));
             when(aPersonneRepository.findByUid("uidless")).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(eq(214L), anyString()))
@@ -1279,7 +1333,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Une nouvelle demande de code remet le compteur de tentatives à zéro")
         void newPasswordRequestClearsAttemptCounter() {
             @SuppressWarnings("unchecked")
-            Map<Long, EmailVerificationService.AttemptEntry> attempts = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service,
+            Map<Long, AttemptGuardService.AttemptEntry> attempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "resetAttempts");
             APersonne p = validPerson(213L);
             attempts.put(213L, entryWithCount(99));
@@ -1409,14 +1463,14 @@ class EmailVerificationServiceTest {
         @DisplayName("Le compteur est local à une instance : il ne simule pas un partage multi-instance")
         void attemptCounterIsScopedToOneServiceInstance() {
             @SuppressWarnings("unchecked")
-            Map<Long, EmailVerificationService.AttemptEntry> attempts = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service,
+            Map<Long, AttemptGuardService.AttemptEntry> attempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "resetAttempts");
             attempts.put(42L, entryWithCount(1));
 
-            EmailVerificationService anotherInstance = new EmailVerificationService();
+            AttemptGuardService anotherGuard = new AttemptGuardService();
             @SuppressWarnings("unchecked")
-            Map<Long, EmailVerificationService.AttemptEntry> otherAttempts = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(
-                    anotherInstance, "resetAttempts");
+            Map<Long, AttemptGuardService.AttemptEntry> otherAttempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(
+                    anotherGuard, "resetAttempts");
 
             assertThat(attempts).containsKey(42L);
             assertThat(otherAttempts).doesNotContainKey(42L);
@@ -1425,20 +1479,20 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Les entrées inactives depuis plus de 2 h sont supprimées, les récentes conservées")
         void purgeRemovesOnlyStaleEntries() {
-            Map<Long, EmailVerificationService.AttemptEntry> reset = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service,
+            Map<Long, AttemptGuardService.AttemptEntry> reset = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "resetAttempts");
-            Map<Long, EmailVerificationService.AttemptEntry> verification = (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils
-                    .getField(service, "verificationAttempts");
+            Map<Long, AttemptGuardService.AttemptEntry> verification = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils
+                    .getField(attemptGuardService, "verificationAttempts");
 
-            EmailVerificationService.AttemptEntry staleReset = entryWithCount(1);
+            AttemptGuardService.AttemptEntry staleReset = entryWithCount(1);
             staleReset.lastTouchMs = System.currentTimeMillis() - 3 * 3_600_000L;
             reset.put(301L, staleReset);
-            EmailVerificationService.AttemptEntry staleVerification = entryWithCount(3);
+            AttemptGuardService.AttemptEntry staleVerification = entryWithCount(3);
             staleVerification.lastTouchMs = System.currentTimeMillis() - 3 * 3_600_000L;
             verification.put(302L, staleVerification);
-            reset.put(303L, new EmailVerificationService.AttemptEntry());
+            reset.put(303L, new AttemptGuardService.AttemptEntry());
 
-            service.purgeStaleAttemptEntries();
+            attemptGuardService.purgeStaleAttemptEntries();
 
             assertThat(reset).containsOnlyKeys(303L);
             assertThat(verification).isEmpty();
@@ -1454,10 +1508,10 @@ class EmailVerificationServiceTest {
             assertThatThrownBy(() -> service.verifyEmail(uid, "999999"))
                     .isInstanceOf(InvalidCodeException.class);
 
-            service.purgeStaleAttemptEntries();
+            attemptGuardService.purgeStaleAttemptEntries();
 
-            Map<Long, EmailVerificationService.AttemptEntry> verification =
-                    (Map<Long, EmailVerificationService.AttemptEntry>) ReflectionTestUtils.getField(service, "verificationAttempts");
+            Map<Long, AttemptGuardService.AttemptEntry> verification =
+                    (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService, "verificationAttempts");
             assertThat(verification).containsKey(42L);
             assertThat(verification.get(42L).count.get()).isEqualTo(1);
         }
