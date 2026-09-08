@@ -35,6 +35,7 @@ import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
+import fr.recia.mce.api.escomceapi.web.dto.CharteAcceptRequest;
 import fr.recia.mce.api.escomceapi.web.dto.CharteStatusResponse;
 import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationResponseDTO;
@@ -304,6 +305,37 @@ public class PersonneRestController {
         log.info("[CHARTE_STATUS] uid={}, charteRequired={}, charteSignee={}, charteUrl={}",
                 uid, charteRequired, charteSignee, charteUrl);
         return ResponseEntity.ok(new CharteStatusResponse(charteRequired, charteUrl, charteSignee));
+    }
+
+    /**
+     * Fait signer au compte authentifié (uid issu du jeton) la charte de son domaine courant.
+     * Accessible à TOUT utilisateur valide, y compris les profils EduConnect/agri/CVDL
+     * qui n'ont ni activation ni réinitialisation de mot de passe locale (donc aucun autre
+     * point d'entrée pour signer leur charte).
+     * L'uid n'est PAS lu dans le corps de la requête mais depuis le jeton Soffit, afin qu'un
+     * utilisateur ne puisse signer que sa propre charte.
+     */
+    @PostMapping("/charte/accept")
+    public ResponseEntity<CharteStatusResponse> accepterCharte(@Valid @RequestBody CharteAcceptRequest request) {
+        String uid = getCurrentUid();
+
+        if (!request.isCharteAccepted()) {
+            throw new IllegalArgumentException("Vous devez accepter la charte d'utilisation avant de poursuivre");
+        }
+
+        log.info("[CHARTE][ACCEPT] uid={} acceptation de la charte", uid);
+
+        boolean charteRequise = charteService.isCharteRequired(uid);
+        if (charteRequise) {
+            personneService.signCharte(uid);
+            log.info("[CHARTE][ACCEPT] uid={} charte signée", uid);
+        } else {
+            log.info("[CHARTE][ACCEPT] uid={} charte déjà signée, aucune écriture", uid);
+        }
+
+        boolean charteSignee = !charteService.isCharteRequired(uid);
+        String charteUrl = charteService.getCharteUrl(uid);
+        return ResponseEntity.ok(new CharteStatusResponse(!charteSignee, charteUrl, charteSignee));
     }
 
     /**

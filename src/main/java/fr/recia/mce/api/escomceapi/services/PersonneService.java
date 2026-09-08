@@ -370,6 +370,14 @@ public class PersonneService {
         if (entity == null) {
             throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
         }
+        // TODO [CHARTE PAR DOMAINE] : l'écriture de la signature charte est en cours de discussion.
+        //  Une personne peut appartenir à plusieurs domaines (chacun avec sa propre charte).
+        //  On ne doit PAS bloquer l'utilisateur tant que TOUTES ses chartes ne sont pas signées,
+        //  mais vérifier uniquement la charte du DOMAINE COURANT de la requête.
+        //  Actuellement une seule colonne `apersonne.validationCharte` stocke la signature,
+        //  ce qui ne permet pas de tracer la signature par domaine.
+        //  => La structure de stockage devra évoluer (ex : table dédiée par domaine, ou colonne par source).
+        //  En attendant, on conserve le comportement actuel (une seule date de signature).
         entity.setValidationCharte(new Date());
         aPersonneRepository.save(entity);
         clearUserCaches(uid);
