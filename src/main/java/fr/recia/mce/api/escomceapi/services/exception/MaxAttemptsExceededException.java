@@ -15,7 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class MaxAttemptsExceededException extends IllegalArgumentException {
+/**
+ * Levée quand le nombre maximal de tentatives est dépassé (anti brute-force).
+ */
+public class MaxAttemptsExceededException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public MaxAttemptsExceededException(String message) {
         super(message);
     }

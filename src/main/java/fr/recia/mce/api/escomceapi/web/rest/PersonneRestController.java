@@ -25,6 +25,7 @@ import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import fr.recia.mce.api.escomceapi.services.exception.ApiException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -216,7 +217,7 @@ public class PersonneRestController {
             log.warn("[FORGOT_PASSWORD] CONTACT_ADMIN uid={} : {}", uid, e.getMessage());
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", e.getMessage()));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | ApiException e) {
             log.warn("[FORGOT_PASSWORD] ÉCHEC uid={} : {}", uid, e.getMessage());
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("FORGOT_PASSWORD_FAILED", e.getMessage()));

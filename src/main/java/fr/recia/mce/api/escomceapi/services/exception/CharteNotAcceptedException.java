@@ -15,8 +15,17 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class CharteNotAcceptedException extends RuntimeException {
+import lombok.Getter;
 
+/**
+ * Levée quand l'utilisateur doit accepter la charte avant de poursuivre (activation, gestion des données…).
+ */
+@Getter
+public class CharteNotAcceptedException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
+    /** URL de la charte à accepter, éventuellement {@code null}. */
     private final String charteUrl;
 
     public CharteNotAcceptedException(String message) {
@@ -26,9 +35,5 @@ public class CharteNotAcceptedException extends RuntimeException {
     public CharteNotAcceptedException(String message, String charteUrl) {
         super(message);
         this.charteUrl = charteUrl;
-    }
-
-    public String getCharteUrl() {
-        return charteUrl;
     }
 }

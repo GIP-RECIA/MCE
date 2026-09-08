@@ -279,7 +279,7 @@ class EmailVerificationServiceTest {
             when(aPersonneRepository.findByUid(uid)).thenReturn(null);
 
             assertThatThrownBy(() -> service.sendVerificationEmail(uid, email))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InactiveAccountException.class)
                     .hasMessageContaining("Aucun compte associé");
 
             verifyNoInteractions(cerbereConfirmationRepository, mailSender);
@@ -352,7 +352,7 @@ class EmailVerificationServiceTest {
             when(aPersonneRepository.findByUid(uid)).thenReturn(null);
 
             assertThatThrownBy(() -> service.verifyEmail(uid, "code"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCodeException.class)
                     .hasMessageContaining("Aucun compte associé");
 
             verifyNoInteractions(cerbereConfirmationRepository, personneService);
@@ -369,7 +369,7 @@ class EmailVerificationServiceTest {
                     .thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.verifyEmail(uid, badCode))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCodeException.class)
                     .hasMessageContaining("code de vérification est incorrect");
 
             verifyNoInteractions(personneService);
@@ -390,7 +390,7 @@ class EmailVerificationServiceTest {
                     .thenReturn(Optional.of(confirmation));
 
             assertThatThrownBy(() -> service.verifyEmail(uid, code))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(CodeExpiredException.class)
                     .hasMessageContaining("a expiré");
 
             verify(cerbereConfirmationRepository).delete(confirmation);
@@ -981,7 +981,7 @@ class EmailVerificationServiceTest {
             when(cerbereConfirmationRepository.findConfirmedByPersonId(204L)).thenReturn(List.of());
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), "", null))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCodeException.class)
                     .hasMessageContaining("adresse email");
 
             verify(cerbereConfirmationRepository, never()).save(any());
@@ -1208,7 +1208,7 @@ class EmailVerificationServiceTest {
                     "RESET:" + sha256("222222"))).thenReturn(Optional.of(neuve));
 
             assertThatThrownBy(() -> service.processResetPassword(p.getUid(), "222222", "N3wPassw0rd!X", "MauvaiseConfirm!1", false))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(InactiveAccountException.class);
 
             // 2e tentative avec le nouveau code : doit encore être sous maxAttempts=2 (pas de MaxAttempts…)
             assertThatThrownBy(() -> service.processResetPassword(p.getUid(), "222222", "N3wPassw0rd!X", "MauvaiseConfirm!2", false))

@@ -15,7 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class WeakPasswordException extends RuntimeException {
+/**
+ * Levée lors d'une tentative de mot de passe trop faible ou déjà utilisé.
+ */
+public class WeakPasswordException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public WeakPasswordException(String message) {
         super(message);
     }

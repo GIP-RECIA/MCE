@@ -15,7 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class PersonneNotFoundException extends RuntimeException {
+/**
+ * Levée quand une personne (élève, personnel, parent, externe…) est introuvable, en LDAP ou en base.
+ */
+public class PersonneNotFoundException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public PersonneNotFoundException(String message) {
         super(message);
     }

@@ -16,9 +16,12 @@
 package fr.recia.mce.api.escomceapi.services.exception;
 
 /**
- * Exception levée lors d'une validation d'avatar échouée.
+ * Levée lors d'une validation d'avatar échouée (format, type ou taille non autorisés).
  */
-public class InvalidAvatarException extends RuntimeException {
+public class InvalidAvatarException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public InvalidAvatarException(String message) {
         super(message);
     }

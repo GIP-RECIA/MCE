@@ -33,6 +33,7 @@ import javax.servlet.http.HttpServletRequest;
 
 @Slf4j
 @RestControllerAdvice
+@SuppressWarnings("unused")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(PersonneNotFoundException.class)
@@ -140,7 +141,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
+    public ResponseEntity<ErrorResponse> handleMalformedJson() {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("BAD_REQUEST", "JSON invalide"));
     }

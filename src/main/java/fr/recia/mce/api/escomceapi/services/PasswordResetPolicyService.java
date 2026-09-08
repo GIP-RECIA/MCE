@@ -21,7 +21,6 @@ import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
-import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;

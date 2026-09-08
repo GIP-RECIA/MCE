@@ -15,7 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class CodeExpiredException extends IllegalArgumentException {
+/**
+ * Levée quand un code de vérification / de réinitialisation a expiré.
+ */
+public class CodeExpiredException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public CodeExpiredException(String message) {
         super(message);
     }

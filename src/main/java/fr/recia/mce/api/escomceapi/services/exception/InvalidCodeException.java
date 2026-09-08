@@ -15,7 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class InvalidCodeException extends IllegalArgumentException {
+/**
+ * Levée quand un code de vérification / de réinitialisation est incorrect, inconnu ou déjà utilisé.
+ */
+public class InvalidCodeException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public InvalidCodeException(String message) {
         super(message);
     }

@@ -492,7 +492,7 @@ public class PasswordService {
 
     private boolean isNtPasswordProfile(PersonneDTO person) {
         EnumPublic res = person.getEnumPublic();
-        boolean isCvdl = EnumPublic.CVDL.equals(res);
+        boolean isCvdl = res != null && res.isNtProfile();
         StructureDTO.DomSource ds = null;
         if (person.getStructureDto() != null) {
             try {
@@ -773,7 +773,7 @@ public class PasswordService {
         if (!person.isNtPass()) {
             return false;
         }
-        if (person.getEnumPublic() != EnumPublic.CVDL) {
+        if (!person.getEnumPublic().isNtProfile()) {
             return false;
         }
         if (person.getEnumPublic().isConnectOk()) {

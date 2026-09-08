@@ -16,13 +16,21 @@
 package fr.recia.mce.api.escomceapi.services.exception;
 
 /**
- * Levée quand une donnée obligatoire est absente ou invalide dans une requête.
+ * Exception métier de l'API : classe de base commune à toutes les exceptions applicatives.
+ *
+ * <p>
+ * Le message est destiné à être retourné directement dans la réponse {@link ErrorResponse}.
+ * </p>
  */
-public class ChampsObligatoiresException extends ApiException {
+public abstract class ApiException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
-    public ChampsObligatoiresException(String message) {
+    public ApiException(String message) {
         super(message);
+    }
+
+    public ApiException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

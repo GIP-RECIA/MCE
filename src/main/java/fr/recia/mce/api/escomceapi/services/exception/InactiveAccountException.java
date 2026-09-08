@@ -15,7 +15,13 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-public class InactiveAccountException extends IllegalArgumentException {
+/**
+ * Levée quand le compte est inactif et ne peut pas être utilisé pour les auto-services du compte.
+ */
+public class InactiveAccountException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public InactiveAccountException(String message) {
         super(message);
     }

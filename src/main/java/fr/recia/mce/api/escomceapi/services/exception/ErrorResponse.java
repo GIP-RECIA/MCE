@@ -17,6 +17,9 @@ package fr.recia.mce.api.escomceapi.services.exception;
 
 import java.util.List;
 
+import lombok.Getter;
+
+@Getter
 public class ErrorResponse {
 
     private final String code;
@@ -47,25 +50,5 @@ public class ErrorResponse {
         this.details = details;
         this.charteUrl = charteUrl;
         this.retryAfterSeconds = retryAfterSeconds;
-    }
-
-    public String getCode() {
-        return code;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public List<String> getDetails() {
-        return details;
-    }
-
-    public String getCharteUrl() {
-        return charteUrl;
-    }
-
-    public Long getRetryAfterSeconds() {
-        return retryAfterSeconds;
     }
 }

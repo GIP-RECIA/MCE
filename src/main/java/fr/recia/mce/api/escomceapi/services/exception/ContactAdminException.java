@@ -16,10 +16,14 @@
 package fr.recia.mce.api.escomceapi.services.exception;
 
 /**
- * Erreur métier levée lorsque l'utilisateur ne peut pas réinitialiser son mot de passe en autonomie (aucun email associé au compte, aucun mode
- * d'authentification local, etc.) et doit se rapprocher d'un administrateur de son établissement.
+ * Erreur métier levée lorsque l'utilisateur ne peut pas réinitialiser son mot de passe en autonomie (aucun
+ * email associé au compte, aucun mode d'authentification local, etc.) et doit se rapprocher d'un administrateur
+ * de son établissement.
  */
-public class ContactAdminException extends IllegalArgumentException {
+public class ContactAdminException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
     public ContactAdminException(String message) {
         super(message);
     }

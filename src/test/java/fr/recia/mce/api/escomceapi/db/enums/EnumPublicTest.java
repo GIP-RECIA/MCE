@@ -15,9 +15,15 @@
  */
 package fr.recia.mce.api.escomceapi.db.enums;
 
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -74,6 +80,51 @@ class EnumPublicTest {
     @DisplayName("Profils sans changement de mot de passe établissement")
     void profilesWithoutPassEtab(EnumPublic profile) {
         assertThat(profile.isPassEtab()).isFalse();
+    }
+
+    @ParameterizedTest(name = "categorie={0} ds={1} local={2} collectivite={3} → {4}")
+    @MethodSource("resolveMatrix")
+    @DisplayName("resolve() reproduit le mapping historique de evalPublic")
+    void resolveProfile(EnumCategorie categorie, DomSource source, boolean local, boolean collectivite, EnumPublic expected) {
+        assertThat(EnumPublic.resolve(categorie, source, local, collectivite)).isEqualTo(expected);
+    }
+
+    static Stream<Arguments> resolveMatrix() {
+        return Stream.of(
+                Arguments.of(null, DomSource.AC, false, false, EnumPublic.AUTRE),
+                Arguments.of(EnumCategorie.ELEVE, null, false, false, EnumPublic.ELEVE),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.CFA, true, false, EnumPublic.APPRENANT),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.CFA, false, false, EnumPublic.APPRENANT),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.AC, true, false, EnumPublic.ELEVE),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.AC, false, false, EnumPublic.ELEVE_EDUC),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.LA, true, false, EnumPublic.ELEVE_AGRI),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.LA, false, false, EnumPublic.ELEVE_AGRI),
+                Arguments.of(EnumCategorie.ELEVE, DomSource.GIP, true, false, EnumPublic.ELEVE),
+                Arguments.of(EnumCategorie.PARENT, DomSource.AC, true, false, EnumPublic.PARENT),
+                Arguments.of(EnumCategorie.PARENT, DomSource.AC, false, false, EnumPublic.PARENT_EDUC),
+                Arguments.of(EnumCategorie.PARENT, DomSource.LA, true, false, EnumPublic.PARENT_AGRI),
+                Arguments.of(EnumCategorie.PARENT, DomSource.GIP, true, false, EnumPublic.PARENT),
+                Arguments.of(EnumCategorie.PROF, DomSource.AC, true, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.PROF, DomSource.AC, false, false, EnumPublic.EDUCATION),
+                Arguments.of(EnumCategorie.PROF, DomSource.LA, true, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.PROF, DomSource.LA, false, false, EnumPublic.AGRI),
+                Arguments.of(EnumCategorie.PROF, DomSource.GIP, false, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.ENTREPRISE, null, false, false, EnumPublic.EXTERIEUR),
+                Arguments.of(EnumCategorie.TUTEUR, null, false, false, EnumPublic.EXTERIEUR),
+                Arguments.of(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.GIP, true, true, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.GIP, false, true, EnumPublic.CVDL),
+                Arguments.of(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.AC, false, false, EnumPublic.EDUCATION),
+                Arguments.of(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.LA, false, false, EnumPublic.AGRI),
+                Arguments.of(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.GIP, false, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.NON_PROF_ETAB, DomSource.AC, true, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.NON_PROF_ETAB, DomSource.AC, false, false, EnumPublic.EDUCATION),
+                Arguments.of(EnumCategorie.NON_PROF_ETAB, DomSource.LA, false, false, EnumPublic.AGRI),
+                Arguments.of(EnumCategorie.NON_PROF_ETAB, null, false, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.NON_PROF_ACAD, DomSource.AC, true, false, EnumPublic.PERSONNEL),
+                Arguments.of(EnumCategorie.NON_PROF_ACAD, DomSource.AC, false, false, EnumPublic.EDUCATION),
+                Arguments.of(EnumCategorie.NON_PROF_ACAD, DomSource.LA, false, false, EnumPublic.AGRI),
+                Arguments.of(EnumCategorie.NON_PROF_ACAD, DomSource.GIP, false, false, EnumPublic.AUTRE),
+                Arguments.of(EnumCategorie.NON_PROF_ACAD, null, false, false, EnumPublic.AUTRE));
     }
 
 }

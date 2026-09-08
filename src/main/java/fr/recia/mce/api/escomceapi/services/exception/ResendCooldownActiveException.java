@@ -15,24 +15,23 @@
  */
 package fr.recia.mce.api.escomceapi.services.exception;
 
-/**
- * Levée quand un code de vérification / de réinitialisation vient déjà d'être envoyé
- * (anti-double-clic) : le client doit attendre la fin du cooldown avant de pouvoir renvoyer un code.
- */
-public class ResendCooldownActiveException extends RuntimeException {
+import lombok.Getter;
 
+/**
+ * Levée quand un code de vérification / de réinitialisation vient déjà d'être envoyé (anti-double-clic) :
+ * le client doit attendre la fin du cooldown avant de pouvoir renvoyer un code.
+ */
+@Getter
+public class ResendCooldownActiveException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
+
+    /** Temps restant avant de pouvoir renvoyer un code, en millisecondes (strictement positif). */
     private final long remainingMs;
 
     public ResendCooldownActiveException(String message, long remainingMs) {
         super(message);
         this.remainingMs = remainingMs;
-    }
-
-    /**
-     * Temps restant avant de pouvoir renvoyer un code, en millisecondes (strictement positif).
-     */
-    public long getRemainingMs() {
-        return remainingMs;
     }
 
     /**
