@@ -29,6 +29,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -75,6 +76,15 @@ public class APersonne implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateModification", length = 19)
     private Date dateModification;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "dateSourceModification")
+    private Date dateSourceModification;
+
+    @PreUpdate
+    private void onUpdate() {
+        this.dateSourceModification = new Date();
+    }
 
     @Temporal(TemporalType.DATE)
     @Column(name = "anneeScolaire", length = 10)
