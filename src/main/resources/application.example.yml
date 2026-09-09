@@ -121,6 +121,7 @@ app:
         user-branch:
             eleve-relation: 'ENTElevePersRelEleve'
             avatar-attribute: 'ESCOPersonPhoto'
+            etat-compte-attribute: 'ESCOPersonEtatCompte'
             eleve-tuteur-entr: 'ENTEleveEntrTutStage'
             tuteur-eleves: 'ENTAuxTuteurStageEleves'
             eleve-enseignements: 'ENTEleveEnseignements'

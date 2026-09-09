@@ -46,7 +46,7 @@ class LdapUserContextMapperTest {
                 "uid", "displayName", "mail", "groupAttr",
                 "groupAttr", "eleveRelation", "eleveTuteur",
                 "tuteurEleve", "enseignement", "codeMatiere",
-                "avatar", Collections.emptySet(), Collections.emptySet(), null);
+                "avatar", "etatCompte", Collections.emptySet(), Collections.emptySet(), null);
         mapper = new LdapUserContextMapper(helper);
     }
 

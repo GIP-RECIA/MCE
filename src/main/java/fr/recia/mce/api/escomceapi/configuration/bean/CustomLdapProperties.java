@@ -59,6 +59,8 @@ public class CustomLdapProperties {
 
         private String avatarAttribute = "ESCOPersonPhoto";
 
+        private String etatCompteAttribute = "ESCOPersonEtatCompte";
+
         private String eleveRelation;
 
         private String eleveTuteurEntr;

@@ -206,6 +206,9 @@ public class ActivationService {
 
         personneService.valideCompte(uid);
 
+        // Contrôle non bloquant : log d'un warning si l'état LDAP diverge de l'état base (la base prime).
+        personneService.logEtatCompteLdapDivergent(uid);
+
         log.info("[ACTIVATION][PASSWORD] SUCCÈS uid={}, profil={}, password={}, emailRéconfirmé={}", uid, pub, passwordRequise, emailEnAttente);
         return new ActivationResultDTO(uid, AccountState.VALIDE, emailEnAttente);
     }

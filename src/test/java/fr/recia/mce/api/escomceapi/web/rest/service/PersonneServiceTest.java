@@ -347,7 +347,7 @@ public class PersonneServiceTest {
     }
 
     @Nested
-    @DisplayName("Tests de Mise à Jour d'Avatar (updateAvatar)")
+    @DisplayName("Tests de mise à jour d'Avatar (updateAvatar)")
     class UpdateAvatarTests {
 
         private byte[] createValidJpeg() throws IOException {
@@ -545,6 +545,31 @@ public class PersonneServiceTest {
             assertThat(entity.getEtat()).isEqualTo("Valide");
             assertThat(entity.getDateModification()).isNotNull();
             verify(aPersonneRepository).save(entity);
+            verify(extDao).updateEtatCompte(uid, "Valide");
+        }
+
+        @Test
+        @DisplayName("valideCompte synchronise aussi l'état dans le LDAP")
+        void valideCompte_syncsEtatDansLdap() {
+            APersonne entity = entityInvalide();
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+
+            personneService.valideCompte(uid);
+
+            verify(extDao).updateEtatCompte(uid, "Valide");
+        }
+
+        @Test
+        @DisplayName("valideCompte : échec LDAP non bloquant (la base reste Valide)")
+        void valideCompte_ldapErrorDoesNotBlock() {
+            APersonne entity = entityInvalide();
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+            doThrow(new RuntimeException("LDAP down")).when(extDao).updateEtatCompte(anyString(), anyString());
+
+            assertThatCode(() -> personneService.valideCompte(uid)).doesNotThrowAnyException();
+
+            assertThat(entity.getEtat()).isEqualTo("Valide");
+            verify(aPersonneRepository).save(entity);
         }
 
         @Test
@@ -584,6 +609,73 @@ public class PersonneServiceTest {
                     .hasMessageContaining("Utilisateur introuvable");
 
             verify(aPersonneRepository, never()).save(any(APersonne.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests de l'état du compte LDAP (logEtatCompteLdapDivergent)")
+    class EtatCompteLdapTests {
+
+        private APersonne entityValide() {
+            APersonne entity = new APersonne();
+            entity.setUid(uid);
+            entity.setEtat("Valide");
+            return entity;
+        }
+
+        @Test
+        @DisplayName("Compte Valide en base + Valide en LDAP → aucun warning bloquant")
+        void logsNothingWhenLdapMatchesDb() {
+            APersonne entity = entityValide();
+            IExternalUser userLdap = mock(IExternalUser.class);
+
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+            when(cache.get(uid, IExternalUser.class)).thenReturn(userLdap);
+            when(userLdap.getAttribute("ESCOPersonEtatCompte")).thenReturn(java.util.List.of("Valide"));
+            lenient().when(mceProperties.getLdap()).thenReturn(new fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties());
+
+            personneService.logEtatCompteLdapDivergent(uid);
+
+            verify(userLdap).getAttribute("ESCOPersonEtatCompte");
+        }
+
+        @Test
+        @DisplayName("Compte Valide en base mais état LDAP divergent → warning, pas d'exception (la base prime)")
+        void logsWarningWhenLdapDivergent() {
+            APersonne entity = entityValide();
+            IExternalUser userLdap = mock(IExternalUser.class);
+            fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties ldap = new fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties();
+            // la valeur par défaut d'etatCompteAttribute est 'ESCOPersonEtatCompte'
+            when(mceProperties.getLdap()).thenReturn(ldap);
+
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+            when(cache.get(uid, IExternalUser.class)).thenReturn(userLdap);
+            when(userLdap.getAttribute("ESCOPersonEtatCompte")).thenReturn(java.util.List.of("Bloque"));
+
+            assertThatCode(() -> personneService.logEtatCompteLdapDivergent(uid)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("LDAP non renseigné (null) → aucun warning, aucune erreur")
+        void noLogWhenLdapUserNotLoaded() {
+            APersonne entity = entityValide();
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+            when(cache.get(uid, IExternalUser.class)).thenReturn(null);
+
+            assertThatCode(() -> personneService.logEtatCompteLdapDivergent(uid)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Compte non Valide en base → aucune requête LDAP effectuée")
+        void noLdapCallWhenAccountNotValide() {
+            APersonne entity = entityValide();
+            entity.setEtat("Invalide");
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+
+            personneService.logEtatCompteLdapDivergent(uid);
+
+            verifyNoInteractions(extDao);
+            verify(cache, never()).get(uid, IExternalUser.class);
         }
     }
 

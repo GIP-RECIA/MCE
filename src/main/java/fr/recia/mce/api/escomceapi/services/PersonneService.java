@@ -146,6 +146,39 @@ public class PersonneService {
     }
 
     /**
+     * Contrôle non bloquant de l'état du compte dans l'annuaire LDAP (attribut
+     * {@code ESCOPersonEtatCompte}). La base de données reste la source de vérité : si la base considère le compte
+     * {@code Valide} mais que l'annuaire indique un état divergent ({@code Bloque}, {@code Delete}, {@code Incertain},
+     * {@code Incertain_Export_Add}, {@code Incertain_Export_Modify}, {@code Invalide}...), un warning est simplement
+     * journalisé, sans refuser l'activation.
+     *
+     * @param uid
+     *            identifiant de l'utilisateur
+     */
+    public void logEtatCompteLdapDivergent(String uid) {
+        APersonne entity = aPersonneRepository.findByUid(uid);
+        if (entity == null) {
+            return;
+        }
+        if (!AccountState.VALIDE.equals(entity.getEtat())) {
+            return;
+        }
+        IExternalUser userLdap = getUserLdap(uid);
+        if (userLdap == null) {
+            log.warn("[ETAT_COMPTE_LDAP] uid={} : compte '{}' en base mais utilisateur introuvable/indisponible dans l'annuaire LDAP",
+                    uid, entity.getEtat());
+            return;
+        }
+        String etatLdapAttr = mceProperties.getLdap().getUserBranch().getEtatCompteAttribute();
+        List<String> etatsLdap = userLdap.getAttribute(etatLdapAttr);
+        boolean actifDansLdap = etatsLdap != null && etatsLdap.contains(AccountState.VALIDE);
+        if (!actifDansLdap) {
+            log.warn("[ETAT_COMPTE_LDAP] uid={} : compte '{}' en base mais état LDAP divergent ({}={}). La base prime : aucune action bloquante.",
+                    uid, entity.getEtat(), etatLdapAttr, etatsLdap);
+        }
+    }
+
+    /**
      * Récupère le contenu binaire de l'avatar d'un utilisateur depuis le stockage local.
      *
      * @param uid
@@ -401,10 +434,30 @@ public class PersonneService {
             entity.setEtat(AccountState.VALIDE);
             entity.setDateModification(new Date());
             aPersonneRepository.save(entity);
+            syncEtatCompteLdap(uid, AccountState.VALIDE);
             clearUserCaches(uid);
             log.info("[valideCompte] FIN uid={} -> Valide", uid);
         } else {
             log.info("[valideCompte] FIN uid={} déjà Valide", uid);
+        }
+    }
+
+    /**
+     * Synchronise l'état du compte dans l'annuaire LDAP (attribut {@code ESCOPersonEtatCompte}) avec l'état en base.
+     * La mise à jour LDAP n'est pas bloquante : en cas d'échec technique, un warning est journalisé mais la base,
+     * source de vérité, reste inchangée.
+     *
+     * @param uid
+     *            identifiant de l'utilisateur
+     * @param etat
+     *            nouvel état à écrire dans l'annuaire ({@link AccountState})
+     */
+    public void syncEtatCompteLdap(String uid, String etat) {
+        try {
+            extDao.updateEtatCompte(uid, etat);
+        } catch (Exception e) {
+            log.warn("[ETAT_COMPTE_LDAP] Échec de la mise à jour de l'état LDAP ({}) pour uid={} : {}. La base prime, aucune action bloquante.",
+                    etat, uid, e.getMessage());
         }
     }
 

@@ -31,4 +31,6 @@ public interface IExternalUserDao {
     void updateEmail(final String uid, final String newEmail);
 
     void updateAvatarLDAP(final String uid, final String newAvatarUrl);
+
+    void updateEtatCompte(final String uid, final String etat);
 }

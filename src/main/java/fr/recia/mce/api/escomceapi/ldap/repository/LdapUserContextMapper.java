@@ -85,6 +85,13 @@ public class LdapUserContextMapper implements ContextMapper<IExternalUser> {
             }
         }
 
+        if (externalUserHelper.getUserEtatCompteAttribute() != null
+                && !externalUserHelper.getUserEtatCompteAttribute().isEmpty()
+                && context.attributeExists(externalUserHelper.getUserEtatCompteAttribute())) {
+            attrs.put(externalUserHelper.getUserEtatCompteAttribute(),
+                    Arrays.asList(context.getStringAttributes(externalUserHelper.getUserEtatCompteAttribute())));
+        }
+
         person.setAttributes(attrs);
 
         return person;

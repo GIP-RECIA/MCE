@@ -218,8 +218,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
     }
 
     @Override
-    public void updateAvatarLDAP(String uid, String newAvatarUrl) {
-        AndFilter filter = new AndFilter();
+    public void updateAvatarLDAP(String uid, String newAvatarUrl) {        AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
 
         LdapQuery query = LdapQueryBuilder.query()
@@ -260,6 +259,51 @@ public class LdapUserDaoImp implements IExternalUserDao {
         } catch (Exception e) {
             log.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP avatar update failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void updateEtatCompte(String uid, String etat) {
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .base(externalUserHelper.getUserDNSubPath())
+                .filter(filter);
+
+        ModificationItem[] mods = new ModificationItem[]{
+                new ModificationItem(
+                        DirContext.REPLACE_ATTRIBUTE,
+                        new BasicAttribute(externalUserHelper.getUserEtatCompteAttribute(), etat))
+        };
+
+        ContextMapper<String> dnMapper = ctx -> {
+            DirContextAdapter adapter = (DirContextAdapter) ctx;
+            return adapter.getDn().toString();
+        };
+
+        List<String> dns;
+        try {
+            dns = ldapTemplate.search(query, dnMapper);
+        } catch (Exception e) {
+            log.error("Audit [UPDATE_ETAT_COMPTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP etat compte update failed: " + e.getMessage());
+        }
+
+        if (dns == null || dns.isEmpty()) {
+            log.error("Audit [UPDATE_ETAT_COMPTE] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
+            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
+        }
+
+        String dn = dns.get(0);
+        log.debug("DN résolu pour uid={} : {}", uid, dn);
+
+        try {
+            ldapTemplate.modifyAttributes(dn, mods);
+            log.info("Audit [UPDATE_ETAT_COMPTE] : SUCCÈS pour l'utilisateur [{}] - état={}", uid, etat);
+        } catch (Exception e) {
+            log.error("Audit [UPDATE_ETAT_COMPTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP etat compte update failed: " + e.getMessage());
         }
     }
 }

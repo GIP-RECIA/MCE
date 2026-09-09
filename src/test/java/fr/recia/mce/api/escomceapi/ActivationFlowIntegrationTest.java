@@ -249,7 +249,7 @@ class ActivationFlowIntegrationTest {
         stubUserByUid("act-c", true);
         stubProfil(EnumPublic.AGRI);
 
-        // ① connexion refusée : pas de mot de passe local pour ce profil
+        // connexion refusée : pas de mot de passe local pour ce profil
         mockMvc.perform(post("/api/personne/mce/activation/connexion")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"login\":\"act-c\",\"password\":\"" + TEMP_PASSWORD + "\"}"))
@@ -257,7 +257,7 @@ class ActivationFlowIntegrationTest {
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
                 .andExpect(jsonPath("$.message").value("Ce compte ne peut pas être activé avec un mot de passe"));
 
-        // ② statut → FIN
+        // statut → FIN
         mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-c"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etapeSuivante").value("FIN"))
@@ -288,10 +288,6 @@ class ActivationFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etat").value("Valide"));
     }
-
-    // ---------------------------------------------------------------
-    // Cas d'erreur (docs/test-front-activation.md §5)
-    // ---------------------------------------------------------------
 
     @Test
     @DisplayName("E1 - login inexistant : 400 BAD_REQUEST vague")
