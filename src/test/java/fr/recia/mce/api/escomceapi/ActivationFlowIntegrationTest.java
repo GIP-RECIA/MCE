@@ -202,6 +202,7 @@ class ActivationFlowIntegrationTest {
         savePersonne("act-b", "Invalide", null, true, TEMP_PASSWORD);
         stubUserByUid("act-b", true);
         stubProfil(EnumPublic.ELEVE);
+        when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
         doNothing().when(passwordService).resetPassword(any(PersonneDTO.class), anyString(), anyString());
 
         // ① connexion

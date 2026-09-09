@@ -172,6 +172,7 @@ class ActivationServiceTest {
             APersonne p = personne("dupontj", "Invalide", "Enseignant", null, null);
             when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
+            when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
 
@@ -202,6 +203,7 @@ class ActivationServiceTest {
             APersonne p = personne("eleve1", "Invalide", "Eleve", "eleve@ent.fr", new Date());
             when(aPersonneRepository.findByUid("eleve1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.ELEVE);
+            when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("eleve1");
 

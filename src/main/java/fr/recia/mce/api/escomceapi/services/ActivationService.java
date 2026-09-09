@@ -123,17 +123,19 @@ public class ActivationService {
 
         boolean charteValide = !charteService.isCharteRequired(personne);
         boolean passwordRequise = pub != null && pub.isConnectOk();
-        // Les profils sans mot de passe local (AGRI, CVDL, PARENT_EDUC, EDUCATION, ELEVE_EDUC) n'ont pas d'étape COURRIEL.
-        boolean emailRequise = passwordRequise && StringUtils.isBlank(personne.getEmail());
+        // Règle métier : toute personne pouvant modifier son mail (élèves, sans mail fixe, ou mail personnel déjà présent)
+        // doit renseigner son mail personnel à l'activation tant qu'elle n'en a pas fourni. S'applique aussi aux profils SSO (ex. ELEVE_EDUC).
+        boolean peutModifierMail = pub != null && userDTOFactory.canEditEmail(pub, personne);
+        boolean aDejaMailPerso = StringUtils.isNotBlank(personne.getEmailPersonnel());
+        boolean emailRequise = peutModifierMail && !aDejaMailPerso;
 
         String etape;
         if (!charteValide) {
             etape = STEP_CHARTE;
+        } else if (emailRequise) {
+            etape = STEP_COURRIEL;
         } else if (!passwordRequise) {
             etape = STEP_FIN;
-        } else if (pub.isEleve() || emailRequise) {
-            // Élèves/apprentis : l'étape COURRIEL précède toujours la création du mot de passe dans le parcours historique.
-            etape = STEP_COURRIEL;
         } else {
             etape = STEP_PASSWORD;
         }

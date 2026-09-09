@@ -122,6 +122,10 @@ label {
   margin: 12px 0;
 }
 
+label[hidden] {
+  display: none;
+}
+
 label input,
 label select {
   display: block;

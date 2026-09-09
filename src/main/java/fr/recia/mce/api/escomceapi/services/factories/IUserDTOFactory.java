@@ -47,6 +47,15 @@ public interface IUserDTOFactory {
      */
     boolean canResetPassword(PersonneDTO personne);
 
+    /**
+     * Indique si la personne peut modifier/renseigner un mail personnel (règle identique au « changement d'adresse email »).
+     * Vrai pour les élèves, pour les comptes ayant déjà un mail personnel, ou pour les comptes sans mail fixe (annuaire).
+     *
+     * @param pub  profil public déjà évalué (ou calculé si {@code null})
+     * @param base données en base de la personne
+     */
+    boolean canEditEmail(EnumPublic pub, APersonne base);
+
     UserDTO from(final IExternalUser extModel, final boolean withInternal);
 
     UserDTO from(final PersonneDTO model, final IExternalUser extModel);

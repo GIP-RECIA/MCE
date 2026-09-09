@@ -369,6 +369,20 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return model.getMailFixe() == null || model.getMailFixe().isEmpty();
     }
 
+    /**
+     * Indique si la personne peut renseigner/modifier un mail personnel.
+     * <p>
+     * Même règle que le « changement d'adresse email ». Pour un non-élève, {@code model.getMailFixe()}
+     * correspond à l'email principal en base ({@code base.getEmail()}), le fallback LDAP n'existant que pour les élèves
+     * (déjà traités par {@code pub.isEleve()}).
+     */
+    public boolean canEditEmail(EnumPublic pub, APersonne base) {
+        if (pub == null) {
+            return false;
+        }
+        return computeCanEditEmail(pub, base, new PersonneDTO(base));
+    }
+
     private boolean computePassEtab(EnumPublic pub, PersonneDTO model) {
         return pub.isPassEtab() && structureService.isReseauRecia(model);
     }
