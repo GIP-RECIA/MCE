@@ -286,7 +286,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
                 resolvedEmail,
                 resolvedEmailPersonnel,
                 model.getNaissance(),
-                resolveAvatarUrl(base),
+                resolveAvatarUrl(base, extModel),
                 base.getEtat(),
                 passEditable,
                 userPublic, showGeneralInfo(), respEleves, eleves, apprentisList);
@@ -427,11 +427,20 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return links;
     }
 
-    private String resolveAvatarUrl(APersonne base) {
+    private String resolveAvatarUrl(APersonne base, IExternalUser extModel) {
         if (base.getPhoto() != null) {
             log.debug("URL de l'avatar pour l'UID [{}]: {}", base.getUid(), base.getPhoto());
+            return base.getPhoto();
         }
-        return base.getPhoto();
+        if (extModel != null) {
+            String avatarAttribute = mceProperties.getLdap().getUserBranch().getAvatarAttribute();
+            List<String> urls = extModel.getAttribute(avatarAttribute);
+            if (urls != null && !urls.isEmpty()) {
+                log.debug("URL de l'avatar (fallback LDAP) pour l'UID [{}]: {}", base.getUid(), urls.get(0));
+                return urls.get(0);
+            }
+        }
+        return null;
     }
 
     @Override
