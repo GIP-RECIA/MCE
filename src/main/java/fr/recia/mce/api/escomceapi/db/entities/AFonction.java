@@ -79,6 +79,10 @@ public class AFonction implements Serializable {
     @Column(name = "dateFin", length = 19)
     private Date dateFin;
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "dateDebut", length = 19)
+    private Date dateDebut;
+
     @PreUpdate
     private void onUpdate() {
         this.dateModification = new Date();
@@ -89,7 +93,7 @@ public class AFonction implements Serializable {
     }
 
     public AFonction(APersonne aPersonne, Date dateAcquittement, Date dateCreation, Date dateModification,
-            String categorie, String source, Date dateFin) {
+            String categorie, String source, Date dateFin, Date dateDebut) {
         this.aPersonne = aPersonne;
         this.dateAcquittement = dateAcquittement;
         this.dateCreation = dateCreation;
@@ -97,6 +101,7 @@ public class AFonction implements Serializable {
         this.categorie = categorie;
         this.source = source;
         this.dateFin = dateFin;
+        this.dateDebut = dateDebut;
     }
 
 }

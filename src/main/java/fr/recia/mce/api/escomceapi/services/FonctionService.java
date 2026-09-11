@@ -69,6 +69,9 @@ public class FonctionService {
                     return new PersonneNotFoundException("Fonction non trouvée avec l'id : " + id);
                 });
         if (active) {
+            if (aFonction.getDateDebut() == null) {
+                aFonction.setDateDebut(new java.util.Date());
+            }
             aFonction.setDateFin(null);
         } else {
             aFonction.setDateFin(new java.util.Date());

@@ -26,7 +26,7 @@ import fr.recia.mce.api.escomceapi.db.entities.Fonction;
 @Repository
 public interface FonctionRepository extends AbstractRepository<Fonction, Long> {
 
-    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.FonctionDTO(a.id, t.libelleFiliere, d.disciplinePoste, s.siren, d.code, t.codeFiliere, case when a.dateFin is null then true else false end as active) "
+    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.FonctionDTO(a.id, t.libelleFiliere, d.disciplinePoste, s.siren, d.code, t.codeFiliere, case when (a.dateDebut is null or a.dateDebut <= current_timestamp) and (a.dateFin is null or a.dateFin > current_timestamp) then true else false end as active) "
             +
             "from AFonction a, Fonction f, AStructure s , Discipline d, TypeFonctionFiliere t " +
             "where a.aPersonne.id = :personne " +
