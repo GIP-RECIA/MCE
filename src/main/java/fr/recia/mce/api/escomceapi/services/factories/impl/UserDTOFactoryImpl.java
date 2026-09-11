@@ -267,7 +267,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             passEtab = computePassEtab(pub, model);
         }
 
-        String resolvedEmail = resolveEmail(model, extModel, base);
+        String resolvedEmail = resolveEmail(model, extModel);
         String resolvedEmailPersonnel = resolveEmailPersonnel(base);
         String etab = resolveEtablissementName(model);
         String userIdentifiant = model.getIdentifiant();
@@ -387,12 +387,11 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return pub.isPassEtab() && structureService.isReseauRecia(model);
     }
 
-    private String resolveEmail(PersonneDTO model, IExternalUser extModel, APersonne base) {
-        String mailFromLdap = model.getMailFromLdap();
-        if (StringUtils.isBlank(mailFromLdap) && extModel != null) {
-            mailFromLdap = extModel.getEmail();
+    private String resolveEmail(PersonneDTO model, IExternalUser extModel) {
+        if (StringUtils.isBlank(model.getMailFromLdap()) && extModel != null) {
+            model.setMailFromLdap(extModel.getEmail());
         }
-        return StringUtils.isNotBlank(mailFromLdap) ? mailFromLdap : base.getEmail();
+        return model.getMailFixe();
     }
 
     private String resolveEmailPersonnel(APersonne base) {

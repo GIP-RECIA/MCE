@@ -25,7 +25,6 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereEnfant;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
-import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import lombok.Getter;
 import lombok.Setter;
@@ -134,14 +133,11 @@ public class PersonneDTO extends Personne {
     @Override
     public String getMailFixe() {
         String mail = aPersonneBase.getEmail();
-        if (mail == null) {
-            if (EnumCategorie.ELEVE.getDbname().equals(aPersonneBase.getCategorie())) {
-                // add a condition only if its a student, isEleve()
-                log.warn(
-                        "L'utilisateur [uid={}] n'a pas d'email principal en base de données. Tentative de récupération d'un email de secours depuis l'annuaire LDAP.",
-                        getUid());
-                mail = getMailFromLdap();
-            }
+        if (StringUtils.isBlank(mail)) {
+            log.warn(
+                    "L'utilisateur [uid={}] n'a pas d'email principal en base de données. Tentative de récupération d'un email de secours depuis l'annuaire LDAP.",
+                    getUid());
+            mail = getMailFromLdap();
         }
 
         return mail;
