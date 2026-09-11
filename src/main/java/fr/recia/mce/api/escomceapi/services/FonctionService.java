@@ -73,7 +73,6 @@ public class FonctionService {
         } else {
             aFonction.setDateFin(new java.util.Date());
         }
-        aFonction.setDateModification(new java.util.Date());
         aFonctionRepository.save(aFonction);
         log.info("État de la fonction mis à jour avec succès pour l'ID : {}", id);
     }
