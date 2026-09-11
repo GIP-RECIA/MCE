@@ -23,11 +23,11 @@ public class MotDePasseOublieController {
 
     @GetMapping("/mot-de-passe-oublie")
     public String pageMotDePasseOublie() {
-        return "mot-de-passe-oublie";
+        return "forward:/index.html";
     }
 
     @GetMapping("/activation")
     public String pageActivation() {
-        return "activation";
+        return "forward:/index.html";
     }
 }

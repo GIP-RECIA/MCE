@@ -61,6 +61,7 @@ public class FonctionService {
     }
 
     public void updateDateFin(Long id, boolean active) {
+        // TODO: une nouvelle colonne sera ajoutée en BDD pour la table afonction (à mettre à jour manuellement)
         log.debug("Mise à jour de l'état de la fonction (active={}) pour l'ID : {}", active, id);
         AFonction aFonction = aFonctionRepository.findById(id)
                 .orElseThrow(() -> {

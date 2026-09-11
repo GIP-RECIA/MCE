@@ -60,6 +60,10 @@ public class SecurityConfiguration {
     private static final String[] PUBLIC_PAGES = {
             "/mot-de-passe-oublie",
             "/activation",
+            "/index.html",
+            "/",
+            "/favicon.ico",
+            "/assets/**",
             "/css/**",
             "/js/**"
     };

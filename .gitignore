@@ -29,6 +29,10 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### Node / Vite ###
+node_modules/
+package-lock.json
+
 ### VS Code ###
 .vscode/
 
