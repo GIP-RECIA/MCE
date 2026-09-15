@@ -15,7 +15,12 @@
  */
 package fr.recia.mce.api.escomceapi.configuration;
 
+import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -24,9 +29,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final MCEProperties mceProperties;
 
-    public WebConfig(RateLimitInterceptor rateLimitInterceptor) {
+    public WebConfig(RateLimitInterceptor rateLimitInterceptor, MCEProperties mceProperties) {
         this.rateLimitInterceptor = rateLimitInterceptor;
+        this.mceProperties = mceProperties;
     }
 
     @Override
@@ -43,6 +50,28 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/personne/mce/change-password",
                         "/api/personne/mce/update-email",
                         "/api/personne/mce/avatar");
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsProperties cors = mceProperties.getCors();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(cors.isAllowCredentials());
+        config.setAllowedOriginPatterns(cors.getAllowedOrigins());
+        config.setAllowedMethods(cors.getAllowedMethods());
+        config.setAllowedHeaders(cors.getAllowedHeaders());
+        config.setExposedHeaders(cors.getExposedHeaders());
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Sécurité par défaut : si CORS désactivé, on n'enregistre qu'une config vide
+        // (aucune origine autorisée → aucun header CORS émis → requêtes cross-origin bloquées).
+        if (cors.isEnable()) {
+            source.registerCorsConfiguration("/api/**", config);
+        } else {
+            source.registerCorsConfiguration("/api/**", new CorsConfiguration());
+        }
+        return source;
     }
 
     @Override
