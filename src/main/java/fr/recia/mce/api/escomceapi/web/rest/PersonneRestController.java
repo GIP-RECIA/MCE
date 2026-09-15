@@ -460,11 +460,31 @@ public class PersonneRestController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Récupère l'avatar d'un utilisateur. Endpoint volontairement public (sans JWT).
+     *
+     * <p><b>Modèle de menace (choix délibéré, cf. T13)</b> :</p>
+     * <ul>
+     *   <li>Le paramètre {@code uid} de l'URL n'est <b>pas</b> l'uid réel : c'est un <b>hash opaque</b>
+     *       produit par {@code PersonneService#getHashFromUid}. Ce hash sert de token d'accès
+     *       (capability) et dérive l'emplacement de stockage
+     *       {@code <storage>/{hash[0:2]}/{hash[2:]}/}.</li>
+     *   <li>L'endpoint est volontairement <b>sans authentification</b> : les avatars sont affichés par le
+     *       navigateur dans des balises {@code <img>}, qui ne peuvent pas porter le jeton JWT Bearer.</li>
+     *   <li>La protection repose sur le caractère <b>non énumérable</b> du hash : sans connaissance des
+     *       uids, un attaquant ne peut pas deviner les hashs d'accès. La fonction est déterministe,
+     *       sans sens inverse pratique, et le paramètre est contraint par la forme même du chemin.</li>
+     *   <li>Les avatars sont des données semi-publiques (photo de profil), déjà exposées via l'API
+     *       authentifiée : le risque résiduel est un accès direct à une photo dont le hash serait connu,
+     *       sans impact sur les données personnelles de l'annuaire.</li>
+     * </ul>
+     *
+     * <p>Le POST {@code /{uid}/avatar} (upload) reste, lui, protégé par la vérification de propriété sur
+     * l'uid réel (aucun garde {@code currentUid.equals(uid)} ici : ce serait toujours faux, car l'URL
+     * porte le hash, pas l'uid).</p>
+     */
     @GetMapping("/{uid}/avatar{suffix:.*}")
     public ResponseEntity<byte[]> getAvatar(@PathVariable String uid, @PathVariable(required = false) String suffix) {
-        // Note : le paramètre {uid} de l'URL d'avatar est un HASH opaque (getHashFromUid), PAS l'uid réel.
-        // C'est ce hash qui sert d'accès (non énumérable) au fichier : pas de garde currentUid.equals(uid).
-        // Le POST /{uid}/avatar (upload) reste protégé par la vérification de propriété sur l'uid réel.
         byte[] image = personneService.getAvatar(uid);
         if (image == null) {
             throw new PersonneNotFoundException("Avatar non trouvé pour l'uid : " + uid);

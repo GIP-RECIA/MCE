@@ -203,6 +203,24 @@ public class PersonneService {
         }
     }
 
+    /**
+     * Produit un hash opaque (hexadécimal) à partir de l'uid réel.
+     *
+     * <p>Fonction déterministe et sans sens inverse pratique (l'uid n'est pas reconstructible depuis le
+     * hash). Ce n'est <b>pas</b> un hash cryptographique : l'espace de sortie est borné par la largeur
+     * d'un {@code int}. Elle sert à :</p>
+     * <ul>
+     *   <li>dériver l'emplacement de stockage des avatars ({@code groupDir = hash[0:2]} /
+     *       {@code userDir = hash[2:]}), de sorte que le disque ne référence pas l'uid réel en clair ;</li>
+     *   <li>fournir le token d'accès opaque (non énumérable) de l'URL publique de l'avatar
+     *       {@code GET /{uid}/avatar} — voir le modèle de menace documenté dans
+     *       {@code PersonneRestController#getAvatar}.</li>
+     * </ul>
+     *
+     * @param uid
+     *            L'uid réel de l'utilisateur.
+     * @return Le hash hexadécimal (longueur ≥ 2 si {@code uid.length() ≥ 2}).
+     */
     private String getHashFromUid(String uid) {
         if (uid == null || uid.length() < 2) {
             return uid;
