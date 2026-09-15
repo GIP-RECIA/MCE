@@ -54,7 +54,18 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             return existing;
         });
 
-        if (limiter != null && !limiter.tryAcquire()) {
+        if (limiter == null) {
+            // Map saturée (>= max-entries) : sécurité par défaut — on refuse la
+            // requête plutôt que de laisser une nouvelle IP passer sans limitation.
+            log.warn("[RATE_LIMIT] Map de limiteurs saturée ({}), requête refusée pour IP={}, URI={}",
+                    policy.getMaxEntries(), ip, request.getRequestURI());
+            writeJsonResponse(response, HttpStatus.TOO_MANY_REQUESTS,
+                    new ErrorResponse("RATE_LIMIT_EXCEEDED",
+                            "Trop de requêtes. Veuillez patienter quelques instants avant de réessayer."));
+            return false;
+        }
+
+        if (!limiter.tryAcquire()) {
             log.warn("[RATE_LIMIT] Requête bloquée pour IP={}, URI={}", ip, request.getRequestURI());
             writeJsonResponse(response, HttpStatus.TOO_MANY_REQUESTS,
                     new ErrorResponse("RATE_LIMIT_EXCEEDED",

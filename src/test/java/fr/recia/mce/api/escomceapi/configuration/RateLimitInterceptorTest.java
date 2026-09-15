@@ -86,8 +86,8 @@ class RateLimitInterceptorTest {
     }
 
     @Test
-    @DisplayName("maxEntries atteint : les nouvelles IPs passent sans limiteur (dégradation contrôlée)")
-    void stopsCreatingLimitersAtMaxEntries() {
+    @DisplayName("maxEntries atteint : les nouvelles IPs sont refusées en 429 (sécurité par défaut)")
+    void stopsCreatingLimitersAtMaxEntries() throws Exception {
         SecurityProperties.RateLimit limit = policy();
         limit.setMaxEntries(1);
 
@@ -96,7 +96,8 @@ class RateLimitInterceptorTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         boolean allowed = interceptor.preHandle(request("10.1.0.2"), response, new Object());
 
-        assertThat(allowed).isTrue();
-        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(allowed).isFalse();
+        assertThat(response.getStatus()).isEqualTo(429);
+        assertThat(response.getContentAsString()).contains("RATE_LIMIT_EXCEEDED");
     }
 }
