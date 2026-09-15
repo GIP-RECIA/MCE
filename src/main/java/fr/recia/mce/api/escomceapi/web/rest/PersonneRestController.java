@@ -142,17 +142,20 @@ public class PersonneRestController {
         return ResponseEntity.ok(user);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String id) {
+    // Le path variable est un UID (sub LDAP/relation), PAS un id numérique de la base
+    // personne. La vérification d'accès et la résolution du profil utilisent la même
+    // sémantique d'uid (cf. canAccessRelationProfile et UserDTOFactory.from).
+    @GetMapping("/{uid}")
+    public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String uid) {
         String currentUid = getCurrentUid();
-        if (!canAccessRelationProfile(currentUid, id)) {
-            specialLog.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", id, currentUid);
+        if (!canAccessRelationProfile(currentUid, uid)) {
+            specialLog.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", uid, currentUid);
             throw new AccessDeniedException("Vous ne pouvez consulter que votre profil ou celui des personnes en relation avec vous");
         }
-        UserDTO enfant = userDTOFactory.from(id);
+        UserDTO enfant = userDTOFactory.from(uid);
 
         if (enfant == null) {
-            throw new PersonneNotFoundException("Enfant non trouvé pour l'id : " + id);
+            throw new PersonneNotFoundException("Enfant non trouvé pour l'uid : " + uid);
         }
 
         return ResponseEntity.ok(enfant);
@@ -487,15 +490,15 @@ public class PersonneRestController {
         return sub;
     }
 
-    private boolean canAccessRelationProfile(String currentUid, String id) {
-        if (currentUid.equals(id)) {
+    private boolean canAccessRelationProfile(String currentUid, String uid) {
+        if (currentUid.equals(uid)) {
             return true;
         }
         try {
             Collection<RelationEleveContact> relations = relationEleveService.allRelationEleves(currentUid);
             if (relations != null
                     && relations.stream().map(RelationEleveContact::getUidRelation)
-                            .anyMatch(uid -> uid != null && uid.equals(id))) {
+                            .anyMatch(rel -> rel != null && rel.equals(uid))) {
                 return true;
             }
 
@@ -504,11 +507,11 @@ public class PersonneRestController {
                 Long parentId = current.getAPersonneBase().getId();
                 return relationEleveService.allEleveEnRelation(parentId).stream()
                         .map(RelationEleveContact::getUidRelation)
-                        .anyMatch(uid -> uid != null && uid.equals(id));
+                        .anyMatch(rel -> rel != null && rel.equals(uid));
             }
             return false;
         } catch (Exception e) {
-            log.warn("Erreur lors du contrôle d'accès au profil relation {} par {} : {}", id, currentUid, e.getMessage());
+            log.warn("Erreur lors du contrôle d'accès au profil relation {} par {} : {}", uid, currentUid, e.getMessage());
             return false;
         }
     }
