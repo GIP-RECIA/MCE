@@ -27,7 +27,7 @@ spring:
         password:
 
     jpa:
-        show-sql: true
+        show-sql: false   # Ne passer à true qu'en dev (voir application-dev.yml)
         hibernate:
             naming:
                 implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
