@@ -15,19 +15,21 @@
  */
 package fr.recia.mce.api.escomceapi.web.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+/**
+ * Requête d'activation du compte courant (profil SSO déjà authentifié) : le uid est
+ * résolu côté serveur à partir du jeton, jamais confié au client.
+ */
+@Getter
+@Setter
+public class ActivationSelfRequestDTO {
 
-@Data
-public class VerifyEmailRequestDTO {
+    /** Signature de la charte (obligatoire si le compte n'a pas encore signé). */
+    private boolean charteAccepted;
 
-    // Optionnel : en cas de requête authentifiée (jeton Soffit), le contrôleur lis l'uid depuis le jeton.
-    // Seul le parcours public d'activation (sans jeton) doit fournir l'uid dans le corps.
-    private String uid;
+    /** Email personnel saisi pendant l'étape COURRIEL (facultatif selon le profil). */
+    private String email;
 
-    @NotBlank(message = "Le code de verification est obligatoire")
-    @Pattern(regexp = "\\d{6}", message = "Le code de verification doit comporter 6 chiffres")
-    private String code;
 }

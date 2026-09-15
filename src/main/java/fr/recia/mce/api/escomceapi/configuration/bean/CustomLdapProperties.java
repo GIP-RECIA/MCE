@@ -61,6 +61,8 @@ public class CustomLdapProperties {
 
         private String etatCompteAttribute = "ESCOPersonEtatCompte";
 
+        private String validationCharteAttribute = "ESCOPersonValidationCharte";
+
         private String eleveRelation;
 
         private String eleveTuteurEntr;

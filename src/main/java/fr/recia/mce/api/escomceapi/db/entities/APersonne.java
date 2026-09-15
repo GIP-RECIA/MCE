@@ -136,8 +136,8 @@ public class APersonne implements Serializable {
     @Column(name = "uid")
     private String uid;
 
-    @Temporal(TemporalType.DATE)
-    @Column(name = "validationCharte", length = 10)
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "validationCharte")
     private Date validationCharte;
 
     @Column(name = "doForward")

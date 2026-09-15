@@ -413,6 +413,7 @@ public class PersonneService {
         //  En attendant, on conserve le comportement actuel (une seule date de signature).
         entity.setValidationCharte(new Date());
         aPersonneRepository.save(entity);
+        syncValidationCharteLdap(uid, entity.getValidationCharte());
         clearUserCaches(uid);
         log.info("[signCharte] FIN uid={}", uid);
     }
@@ -458,6 +459,26 @@ public class PersonneService {
         } catch (Exception e) {
             log.warn("[ETAT_COMPTE_LDAP] Échec de la mise à jour de l'état LDAP ({}) pour uid={} : {}. La base prime, aucune action bloquante.",
                     etat, uid, e.getMessage());
+        }
+    }
+
+    /**
+     * Synchronise la date de signature de la charte dans l'annuaire LDAP (attribut
+     * {@code ESCOPersonValidationCharte}) avec la date stockée en base.
+     * La mise à jour LDAP n'est pas bloquante : en cas d'échec technique, un warning est journalisé mais la base,
+     * source de vérité, reste inchangée.
+     *
+     * @param uid
+     *            identifiant de l'utilisateur
+     * @param date
+     *            date de signature de la charte à écrire dans l'annuaire
+     */
+    public void syncValidationCharteLdap(String uid, Date date) {
+        try {
+            extDao.updateValidationCharte(uid, date);
+        } catch (Exception e) {
+            log.warn("[VALIDATION_CHARTE_LDAP] Échec de la mise à jour de la validationCharte LDAP pour uid={} : {}. La base prime, aucune action bloquante.",
+                    uid, e.getMessage());
         }
     }
 

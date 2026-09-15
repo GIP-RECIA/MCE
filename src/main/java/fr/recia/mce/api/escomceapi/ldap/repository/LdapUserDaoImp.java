@@ -37,9 +37,12 @@ import org.springframework.stereotype.Repository;
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 @Slf4j
 @Repository
@@ -304,6 +307,54 @@ public class LdapUserDaoImp implements IExternalUserDao {
         } catch (Exception e) {
             log.error("Audit [UPDATE_ETAT_COMPTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP etat compte update failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void updateValidationCharte(String uid, Date date) {
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .base(externalUserHelper.getUserDNSubPath())
+                .filter(filter);
+
+        SimpleDateFormat ldapDateFormat = new SimpleDateFormat("yyyyMMddHHmmss'Z'");
+        ldapDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        ModificationItem[] mods = new ModificationItem[]{
+                new ModificationItem(
+                        DirContext.REPLACE_ATTRIBUTE,
+                        new BasicAttribute(externalUserHelper.getUserValidationCharteAttribute(), ldapDateFormat.format(date)))
+        };
+
+        ContextMapper<String> dnMapper = ctx -> {
+            DirContextAdapter adapter = (DirContextAdapter) ctx;
+            return adapter.getDn().toString();
+        };
+
+        List<String> dns;
+        try {
+            dns = ldapTemplate.search(query, dnMapper);
+        } catch (Exception e) {
+            log.error("Audit [UPDATE_VALIDATION_CHARTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP validation charte update failed: " + e.getMessage());
+        }
+
+        if (dns == null || dns.isEmpty()) {
+            log.error("Audit [UPDATE_VALIDATION_CHARTE] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
+            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
+        }
+
+        String dn = dns.get(0);
+        log.debug("DN résolu pour uid={} : {}", uid, dn);
+
+        try {
+            ldapTemplate.modifyAttributes(dn, mods);
+            log.info("Audit [UPDATE_VALIDATION_CHARTE] : SUCCÈS pour l'utilisateur [{}] - validationCharte={}", uid, ldapDateFormat.format(date));
+        } catch (Exception e) {
+            log.error("Audit [UPDATE_VALIDATION_CHARTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
+            throw new RuntimeException("LDAP validation charte update failed: " + e.getMessage());
         }
     }
 }

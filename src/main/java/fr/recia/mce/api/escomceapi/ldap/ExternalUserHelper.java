@@ -51,6 +51,8 @@ public class ExternalUserHelper {
 
     private String userEtatCompteAttribute;
 
+    private String userValidationCharteAttribute;
+
     private Set<String> otherUserAttributes;
 
     private Set<String> otherUserDisplayedAttributes;
@@ -72,6 +74,7 @@ public class ExternalUserHelper {
         set.add(userCodeMatiereEnseignement);
         set.add(userAvatarAttribute);
         set.add(userEtatCompteAttribute);
+        set.add(userValidationCharteAttribute);
         set.addAll(otherUserAttributes);
         set.addAll(otherUserDisplayedAttributes);
         return set;

@@ -157,7 +157,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             personneDTO = personneService.retrievePersonnebyUid(extModel.getId());
             personneDTO.setMailFromLdap(extModel.getEmail());
 
-            // TODO : evalPublic
             model = personneDTO;
 
             try {

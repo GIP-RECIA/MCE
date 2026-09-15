@@ -26,6 +26,7 @@ import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.ApiException;
+import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -35,6 +36,7 @@ import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
+import fr.recia.mce.api.escomceapi.web.dto.ActivationSelfRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.CharteAcceptRequest;
 import fr.recia.mce.api.escomceapi.web.dto.CharteStatusResponse;
@@ -156,33 +158,20 @@ public class PersonneRestController {
         return ResponseEntity.ok(enfant);
     }
 
-    @PostMapping("/{uid}/change-password")
+    @PostMapping("/change-password")
     public ResponseEntity<Void> changePass(
-            @PathVariable String uid,
             @Valid @RequestBody PasswordChangeRequestDTO request) {
 
-        String currentUid = getCurrentUid();
-
-        if (!currentUid.equals(uid)) {
-            specialLog.warn("Audit [CHANGE_PASSWORD] : Tentative de changement de mot de passe non autorisée pour uid={}", uid);
-            throw new AccessDeniedException("Vous ne pouvez modifier que votre propre mot de passe");
-        }
-
+        String uid = getCurrentUid();
         userDTOFactory.changePassword(uid, request);
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/{uid}/update-email")
+    @PutMapping("/update-email")
     public ResponseEntity<?> updateEmail(
-            @PathVariable String uid,
             @Valid @RequestBody EmailUpdateRequestDTO request) {
 
-        String currentUid = getCurrentUid();
-
-        if (!currentUid.equals(uid)) {
-            log.warn("Tentative de mise à jour d'email non autorisée pour uid={}", uid);
-            throw new AccessDeniedException("Vous ne pouvez modifier que votre propre email");
-        }
+        String uid = getCurrentUid();
 
         if (!request.getEmail().equals(request.getConfirmEmail())) {
             log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
@@ -289,7 +278,17 @@ public class PersonneRestController {
     public ResponseEntity<?> verifyEmail(
             @Valid @RequestBody VerifyEmailRequestDTO request) {
 
-        String uid = request.getUid();
+        // Cas authentifié (changement d'email) : l'uid est lu depuis le jeton Soffit,
+        // ce qui empêche de vérifier un email pour le compte d'un autre utilisateur.
+        // Cas public (parcours d'activation sans jeton) : l'uid doit être fourni dans le corps.
+        String uid = getCurrentUidIfPresent();
+        if (uid == null) {
+            uid = request.getUid();
+        }
+        if (uid == null || uid.isBlank()) {
+            log.warn("[VERIFY_EMAIL] ÉCHEC : aucun uid (jeton absent et champ uid vide)");
+            throw new ChampsObligatoiresException("L'uid est obligatoire");
+        }
 
         log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
 
@@ -376,17 +375,33 @@ public class PersonneRestController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping("/{uid}/avatar")
+    /**
+     * Point d'entrée d'activation dédié aux profils SSO déjà authentifiés (EDUCATION, AGRI, CVDL, ELEVE_EDUC, ...) :
+     * le uid est résolu côté serveur à partir du jeton Soffit ({@link #getCurrentUid()}), jamais confié au client.
+     * Aucun mot de passe n'est requis (ces profils ne se connectent pas par mot de passe local).
+     */
+    @PostMapping("/activation/self")
+    public ResponseEntity<ActivationResultDTO> activerCompteCourant(
+            @Valid @RequestBody ActivationSelfRequestDTO request) {
+
+        String uid = getCurrentUid();
+        log.info("[ACTIVATION][SELF] Demande uid={}, charteAccepted={}", uid, request.isCharteAccepted());
+
+        ActivationRequestDTO inner = new ActivationRequestDTO();
+        inner.setUid(uid);
+        inner.setCharteAccepted(request.isCharteAccepted());
+        inner.setEmail(request.getEmail());
+
+        ActivationResultDTO result = activationService.activate(inner);
+        log.info("[ACTIVATION][SELF] Succès uid={} etat={}", result.getUid(), result.getEtat());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/avatar")
     public ResponseEntity<Void> updateAvatar(
-            @PathVariable String uid,
             @RequestParam("file") MultipartFile file) throws Exception {
 
-        String currentUid = getCurrentUid();
-        if (!currentUid.equals(uid)) {
-            log.warn("Tentative d'upload d'avatar non autorisée pour UID [{}] par [{}]", uid, currentUid);
-            throw new AccessDeniedException("Vous ne pouvez modifier que votre propre avatar");
-        }
-
+        String uid = getCurrentUid();
         personneService.updateAvatar(uid, file.getBytes());
         return ResponseEntity.noContent().build();
     }
@@ -457,9 +472,17 @@ public class PersonneRestController {
     }
 
     private String getCurrentUid() {
+        String sub = getCurrentUidIfPresent();
+        if (sub == null) {
+            throw new AccessDeniedException("Utilisateur non authentifié");
+        }
+        return sub;
+    }
+
+    private String getCurrentUidIfPresent() {
         String sub = soffitHolder.getSub();
         if (sub == null || sub.isBlank() || GUEST_USER.equals(sub)) {
-            throw new AccessDeniedException("Utilisateur non authentifié");
+            return null;
         }
         return sub;
     }

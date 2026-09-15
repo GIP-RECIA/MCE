@@ -18,6 +18,8 @@ package fr.recia.mce.api.escomceapi.web.dto;
 import java.util.Date;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,7 +32,9 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor
 public class UserDTO {
 
+    @JsonIgnore
     private Long id;
+    @JsonIgnore
     private String uid;
     private String givenName;
     private String sn;

@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import {
   getJson, post, type ActivationConnexionResult, type ActivationStatus, type CharteStatus
 } from '../api';
 import { EMAIL_RE, CODE_RE, passwordStrength } from '../utils';
 
 type Step = 'connexion' | 'form' | 'verify' | 'success';
+
+/** Parcours dit « SSO » : l'utilisateur est déjà authentifié (jeton), on contourne l'écran CONNEXION. */
+const isSso = ref(false);
 
 const step = ref<Step>('connexion');
 const message = ref<string | null>(null);
@@ -35,6 +38,8 @@ const successText = ref('Votre compte a été activé avec succès. Vous pouvez 
 
 const activationUid = ref<string | null>(null);
 const lastPayload = ref<Record<string, unknown> | null>(null);
+/** Endpoint de finalisation selon le parcours (mot de passe local vs SSO). */
+const activationEndpoint = ref<string>('/activation/password');
 
 const headerTitle = computed(() => {
   switch (step.value) {
@@ -52,6 +57,29 @@ const headerTitle = computed(() => {
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
+
+/** Essaie de détecter un utilisateur déjà authentifié (parcours SSO) et contourne l'écran CONNEXION. */
+async function autoDetectSso() {
+  try {
+    const uid = await getJson<string>('/debug-id');
+    if (uid && uid !== 'guest' && uid.trim()) {
+      isSso.value = true;
+      activationUid.value = uid.trim();
+      activationEndpoint.value = '/activation/self';
+      const status = await getJson<ActivationStatus>('/activation/status?uid=' + encodeURIComponent(activationUid.value));
+      if (status.etapeSuivante === 'FIN') {
+        showSuccess();
+        return;
+      }
+      prepareForm(status);
+      step.value = 'form';
+    }
+  } catch {
+    // Pas de jeton : on reste sur l'écran CONNEXION classique.
+  }
+}
+
+onMounted(() => { autoDetectSso(); });
 
 function showMessage(text: string, isError?: boolean) {
   message.value = text;
@@ -188,7 +216,7 @@ async function onSubmitActivation() {
 
   isLoading.value = true;
   try {
-    const res = await post<{ emailEnAttenteDeVerification?: boolean }>('/activation/password', payload);
+    const res = await post<{ emailEnAttenteDeVerification?: boolean }>(activationEndpoint.value, payload);
     if (res.emailEnAttenteDeVerification) {
       step.value = 'verify';
     } else {
@@ -203,7 +231,11 @@ async function onSubmitActivation() {
 
 function showSuccess() {
   successTitle.value = 'Compte activé';
-  successText.value = 'Votre compte a été activé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.';
+  if (isSso.value) {
+    successText.value = 'Votre compte a été activé avec succès. Vous pouvez maintenant vous connecter depuis votre portail (ENT).';
+  } else {
+    successText.value = 'Votre compte a été activé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.';
+  }
   step.value = 'success';
 }
 
@@ -236,11 +268,18 @@ async function onResendCode() {
   clearMessage();
 
   try {
-    await post('/activation/password', lastPayload.value);
+    await post(activationEndpoint.value, lastPayload.value);
     showMessage('Un nouveau code vous a été envoyé. Vérifiez votre boîte mail.', false);
   } catch (err) {
     showMessage(errorMessage(err), true);
   }
+}
+
+// Le formulaire unique sert aux trois étapes : on redirige le submit vers le bon handler.
+function onSubmitStep() {
+  if (step.value === 'connexion') return onSubmitConnexion();
+  if (step.value === 'verify') return onSubmitVerify();
+  return onSubmitActivation();
 }
 </script>
 
@@ -250,7 +289,7 @@ async function onResendCode() {
       <h3>{{ headerTitle }}</h3>
     </div>
 
-    <form class="card-body" novalidate @submit.prevent="onSubmitActivation">
+    <form class="card-body" novalidate @submit.prevent="onSubmitStep">
       <div
         v-if="message"
         ref="messageBox"

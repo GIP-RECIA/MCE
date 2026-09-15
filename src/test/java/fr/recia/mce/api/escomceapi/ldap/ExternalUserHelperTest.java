@@ -30,7 +30,7 @@ class ExternalUserHelperTest {
                 "uid", "displayName", "mail", "searchAttr",
                 "groupAttr", "eleveRelation", "eleveTuteur",
                 "tuteurEleve", "enseignement", "codeMatiere",
-                "avatar", "etatCompte", Collections.emptySet(), Collections.emptySet(), "dnSubPath");
+                "avatar", "etatCompte", "validationCharte", Collections.emptySet(), Collections.emptySet(), "dnSubPath");
 
         Set<String> attrs = helper.getAttributes();
 
@@ -38,8 +38,8 @@ class ExternalUserHelperTest {
                 .contains("uid", "displayName", "mail", "searchAttr",
                         "groupAttr", "eleveRelation", "eleveTuteur",
                         "tuteurEleve", "enseignement", "codeMatiere",
-                        "avatar", "etatCompte")
-                .hasSize(12);
+                        "avatar", "etatCompte", "validationCharte")
+                .hasSize(13);
     }
 
     @Test
@@ -48,7 +48,7 @@ class ExternalUserHelperTest {
                 "uid", null, null, null,
                 null, null, null,
                 null, null, null,
-                null, null, Set.of("other1"), Set.of("otherDisplay1"), null);
+                null, null, null, Set.of("other1"), Set.of("otherDisplay1"), null);
 
         Set<String> attrs = helper.getAttributes();
 

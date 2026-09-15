@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.ldap.repository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 
 public interface IExternalUserDao {
@@ -33,4 +34,6 @@ public interface IExternalUserDao {
     void updateAvatarLDAP(final String uid, final String newAvatarUrl);
 
     void updateEtatCompte(final String uid, final String etat);
+
+    void updateValidationCharte(final String uid, final Date date);
 }

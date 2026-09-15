@@ -776,8 +776,26 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Échec : uid manquant → 400 VALIDATION_ERROR")
+        @DisplayName("Vérification réussie avec l'uid du jeton lorsque le corps ne contient pas d'uid")
+        void shouldVerifySuccessfullyWithJwtUidWhenBodyUidAbsent() throws Exception {
+            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
+            request.setCode("123456");
+
+            mockMvc.perform(post(BASE_URL + "verify-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value("SUCCESS"))
+                    .andExpect(jsonPath("$.message").value("Email verifié avec succès"));
+
+            verify(emailVerificationService).verifyEmail(USER, "123456");
+        }
+
+        @Test
+        @DisplayName("Échec : uid manquant (jeton et corps) → 400 VALIDATION_ERROR")
         void shouldFailWhenUidMissing() throws Exception {
+            when(soffitHolder.getSub()).thenReturn(null);
+
             VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
             request.setCode("123456");
 
