@@ -73,25 +73,51 @@ class FonctionServiceTest {
     @Test
     void testUpdateDateFin_Active() {
         AFonction aFonction = new AFonction();
+        Date dateFinSource = new Date(System.currentTimeMillis() - 1000);
+        aFonction.setDateFinSource(dateFinSource);
         aFonction.setDateFin(new Date());
+        Date dateDebut = new Date(System.currentTimeMillis() - 86400000);
+        aFonction.setDateDebut(dateDebut);
 
         when(aFonctionRepository.findById(1L)).thenReturn(Optional.of(aFonction));
 
         fonctionService.updateDateFin(1L, true);
 
         assertNull(aFonction.getDateFin());
+        assertEquals(dateDebut, aFonction.getDateDebut());
+        assertEquals(dateFinSource, aFonction.getDateFinSource());
         verify(aFonctionRepository).save(aFonction);
     }
 
     @Test
     void testUpdateDateFin_Inactive() {
         AFonction aFonction = new AFonction();
+        Date dateFinSource = new Date(System.currentTimeMillis() - 1000);
+        aFonction.setDateFinSource(dateFinSource);
+        Date dateDebut = new Date(System.currentTimeMillis() - 86400000);
+        aFonction.setDateDebut(dateDebut);
 
         when(aFonctionRepository.findById(1L)).thenReturn(Optional.of(aFonction));
 
         fonctionService.updateDateFin(1L, false);
 
         assertNotNull(aFonction.getDateFin());
+        assertEquals(dateDebut, aFonction.getDateDebut());
+        assertEquals(dateFinSource, aFonction.getDateFinSource());
+        verify(aFonctionRepository).save(aFonction);
+    }
+
+    @Test
+    void testUpdateDateFin_neModifiePasDateDebut() {
+        AFonction aFonction = new AFonction();
+        assertNull(aFonction.getDateDebut());
+
+        when(aFonctionRepository.findById(1L)).thenReturn(Optional.of(aFonction));
+
+        fonctionService.updateDateFin(1L, true);
+
+        assertNull(aFonction.getDateDebut());
+        assertNull(aFonction.getDateFin());
         verify(aFonctionRepository).save(aFonction);
     }
 

@@ -286,6 +286,7 @@ class EntitiesGettersSettersTest {
         f.setCategorie("cat");
         f.setSource("src");
         f.setDateFin(d);
+        f.setDateFinSource(d);
 
         assertThat(f.getId()).isEqualTo(1L);
         assertThat(f.getVersion()).isEqualTo(2L);
@@ -296,6 +297,7 @@ class EntitiesGettersSettersTest {
         assertThat(f.getCategorie()).isEqualTo("cat");
         assertThat(f.getSource()).isEqualTo("src");
         assertThat(f.getDateFin()).isEqualTo(d);
+        assertThat(f.getDateFinSource()).isEqualTo(d);
     }
 
     @Test

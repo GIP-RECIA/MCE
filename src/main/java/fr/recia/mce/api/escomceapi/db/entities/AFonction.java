@@ -83,6 +83,10 @@ public class AFonction implements Serializable {
     @Column(name = "dateDebut", length = 19)
     private Date dateDebut;
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "dateFinSource", length = 19)
+    private Date dateFinSource;
+
     @PreUpdate
     private void onUpdate() {
         this.dateModification = new Date();
