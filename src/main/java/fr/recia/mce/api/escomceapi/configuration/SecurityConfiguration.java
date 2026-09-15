@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -29,6 +30,9 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
+
+import javax.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -75,6 +79,9 @@ public class SecurityConfiguration {
             "/js/**"
     };
 
+    private static final String UNAUTHORIZED_JSON_BODY =
+            "{\"code\":\"UNAUTHORIZED\",\"message\":\"Jeton manquant ou invalide\"}";
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, Environment environment) throws Exception {
         final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
@@ -99,6 +106,12 @@ public class SecurityConfiguration {
                 .contentTypeOptions(Customizer.withDefaults())
                 .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
                 .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'")));
+        http.exceptionHandling(exception -> exception.authenticationEntryPoint((req, res, ex) -> {
+            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            res.getWriter().write(UNAUTHORIZED_JSON_BODY);
+        }));
 
         return http.build();
     }
