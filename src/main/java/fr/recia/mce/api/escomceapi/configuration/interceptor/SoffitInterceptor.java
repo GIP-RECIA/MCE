@@ -24,6 +24,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,19 +35,61 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SoffitInterceptor implements HandlerInterceptor {
 
+    private static final String ANONYMOUS_PRINCIPAL = "anonymousUser";
+    private static final String GUEST_USER_PREFIX = "guest";
+
     private final SoffitHolder soffitHolder;
+    private final boolean requireAuthenticatedPrincipal;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SoffitInterceptor(SoffitHolder soffitHolder) {
+    public SoffitInterceptor(SoffitHolder soffitHolder, boolean requireAuthenticatedPrincipal) {
         this.soffitHolder = soffitHolder;
+        this.requireAuthenticatedPrincipal = requireAuthenticatedPrincipal;
     }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String authHeader = request.getHeader("Authorization");
+        log.debug("En-tête Authorization reçu : présent={}", request.getHeader("Authorization") != null);
 
-        log.debug("En-tête Authorization reçu : présent={}", authHeader != null);
+        // 1) Source de confiance : le principal posé par le filtre Spring Security
+        //    (SoffitApiPreAuthenticatedProcessingFilter), dont la signature HMAC a
+        //    été vérifiée avec app.soffit.jwt-signature-key.
+        if (resolveAuthenticatedPrincipal()) {
+            return true;
+        }
+
+        // 2) Mode strict (app.soffit.require-authenticated-principal=true) : sans
+        //    principal vérifié, aucun jeton n'est accepté. sub reste nul (ou "guest"),
+        //    les contrôleurs / factories refusent la requête (401/403).
+        if (requireAuthenticatedPrincipal) {
+            log.warn("Mode strict : aucun principal authentifié (signature HMAC) pour le chemin : {}", request.getRequestURI());
+            return true;
+        }
+
+        // 3) Fallback hérité : décodage tolérant du payload JWT (sans vérif. signature),
+        //    conservé uniquement pour les déploiements dont le reverse proxy injecte un
+        //    JWT non signé avec la clé configurée. À retirer une fois le proxy aligné sur
+        //    la clé et le flag passé à true.
+        return resolveFromBearerToken(request, response);
+    }
+
+    private boolean resolveAuthenticatedPrincipal() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof String) {
+            String sub = (String) auth.getPrincipal();
+            if (!sub.isBlank() && !ANONYMOUS_PRINCIPAL.equals(sub) && !sub.startsWith(GUEST_USER_PREFIX)) {
+                soffitHolder.setSub(sub);
+                log.debug("Utilisateur authentifié via SecurityContext (HMAC vérifiée) - sub : {}", sub);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean resolveFromBearerToken(HttpServletRequest request, HttpServletResponse response) {
+
+        String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn("Aucun jeton Bearer valide trouvé pour le chemin : {}", request.getRequestURI());

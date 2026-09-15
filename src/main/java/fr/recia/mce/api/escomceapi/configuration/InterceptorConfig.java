@@ -32,10 +32,12 @@ public class InterceptorConfig implements WebMvcConfigurer {
 
     private final SoffitHolder soffitHolder;
     private final CharteService charteService;
+    private final MCEProperties mceProperties;
 
-    public InterceptorConfig(SoffitHolder soffitHolder, CharteService charteService) {
+    public InterceptorConfig(SoffitHolder soffitHolder, CharteService charteService, MCEProperties mceProperties) {
         this.soffitHolder = soffitHolder;
         this.charteService = charteService;
+        this.mceProperties = mceProperties;
     }
 
     @Override
@@ -48,7 +50,7 @@ public class InterceptorConfig implements WebMvcConfigurer {
 
     @Bean
     public SoffitInterceptor soffitInterceptor() {
-        return new SoffitInterceptor(soffitHolder);
+        return new SoffitInterceptor(soffitHolder, mceProperties.getSoffit().isRequireAuthenticatedPrincipal());
     }
 
     @Bean

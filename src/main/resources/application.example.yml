@@ -148,6 +148,9 @@ app:
 
     soffit:
         jwt-signature-key:
+        # Mode strict (recommandé en prod) : sub lu depuis le SecurityContext (HMAC vérifiée).
+        # false = fallback au décodage tolérant (déploiements dont le proxy n'injecte pas un JWT signé avec la bonne clé).
+        require-authenticated-principal: false
 
     avatar:
         base-url: '/api/personne/mce/'

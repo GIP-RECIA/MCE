@@ -29,6 +29,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 class SoffitInterceptorTest {
 
@@ -41,7 +43,7 @@ class SoffitInterceptorTest {
     @BeforeEach
     void setUp() {
         soffitHolder = new SoffitHolder();
-        interceptor = new SoffitInterceptor(soffitHolder);
+        interceptor = new SoffitInterceptor(soffitHolder, false);
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         handler = mock(Object.class);
@@ -110,6 +112,72 @@ class SoffitInterceptorTest {
 
         assertThat(result).isFalse();
         verify(response).setStatus(401);
+    }
+
+    @Test
+    void shouldUseSecurityContextPrincipalInStrictMode() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("trusteduser", "N/A"));
+        try {
+            interceptor = new SoffitInterceptor(soffitHolder, true);
+            when(request.getHeader("Authorization")).thenReturn("Bearer header.payload.forged");
+
+            boolean result = interceptor.preHandle(request, response, handler);
+
+            assertThat(result).isTrue();
+            assertThat(soffitHolder.getSub()).isEqualTo("trusteduser");
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldPreferSecurityContextOverBearerHeader() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("trusteduser", "N/A"));
+        try {
+            String payload = Base64.getUrlEncoder().encodeToString("{\"sub\":\"forged\",\"exp\":9999999999}".getBytes());
+            when(request.getHeader("Authorization")).thenReturn("Bearer header." + payload + ".signature");
+
+            boolean result = interceptor.preHandle(request, response, handler);
+
+            assertThat(result).isTrue();
+            assertThat(soffitHolder.getSub()).isEqualTo("trusteduser");
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldIgnoreForgedBearerTokenInStrictMode() throws Exception {
+        interceptor = new SoffitInterceptor(soffitHolder, true);
+        String payload = Base64.getUrlEncoder().encodeToString("{\"sub\":\"forged\",\"exp\":9999999999}".getBytes());
+        when(request.getHeader("Authorization")).thenReturn("Bearer header." + payload + ".signature");
+        when(request.getRequestURI()).thenReturn("/api/test");
+
+        boolean result = interceptor.preHandle(request, response, handler);
+
+        assertThat(result).isTrue();
+        assertThat(soffitHolder.getSub()).isNull();
+    }
+
+    @Test
+    void shouldRejectAnonymousOrGuestSecurityContextPrincipal() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("anonymousUser", "N/A"));
+        try {
+            interceptor = new SoffitInterceptor(soffitHolder, true);
+            String payload = Base64.getUrlEncoder().encodeToString("{\"sub\":\"forged\",\"exp\":9999999999}".getBytes());
+            when(request.getHeader("Authorization")).thenReturn("Bearer header." + payload + ".signature");
+            when(request.getRequestURI()).thenReturn("/api/test");
+
+            boolean result = interceptor.preHandle(request, response, handler);
+
+            assertThat(result).isTrue();
+            assertThat(soffitHolder.getSub()).isNull();
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
 }
