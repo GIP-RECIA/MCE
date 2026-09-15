@@ -40,9 +40,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/personne/mce/activation/connexion",
                         "/api/personne/mce/activation/password",
                         "/api/personne/mce/activation/self",
-                        "/api/personne/mce/*/change-password",
-                        "/api/personne/mce/*/update-email",
-                        "/api/personne/mce/*/avatar");
+                        "/api/personne/mce/change-password",
+                        "/api/personne/mce/update-email",
+                        "/api/personne/mce/avatar");
     }
 
     @Override
