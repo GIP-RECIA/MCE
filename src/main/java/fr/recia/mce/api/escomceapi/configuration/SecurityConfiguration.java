@@ -19,6 +19,8 @@ import org.apereo.portal.soffit.security.SoffitApiAuthenticationManager;
 import org.apereo.portal.soffit.security.SoffitApiPreAuthenticatedProcessingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -44,6 +46,9 @@ public class SecurityConfiguration {
         return new SoffitApiAuthenticationManager();
     }
 
+    // Swagger ne doit être accessible qu'hors production (documentation complète des
+    // endpoints, DTOs et schémas). En prod, l'UI et /v3/api-docs restent interdits
+    // (tombent sur denyAll()).
     private static final String[] SWAGGER_WHITELIST = {
             "/swagger-ui.html",
             "/swagger-ui/**",
@@ -69,19 +74,22 @@ public class SecurityConfiguration {
     };
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, Environment environment) throws Exception {
         final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
         filter.setAuthenticationManager(authenticationManager());
 
         http.addFilter(filter);
         http.csrf(AbstractHttpConfigurer::disable);
-        http.authorizeHttpRequests(authz -> authz
-                .antMatchers(SWAGGER_WHITELIST).permitAll()
-                .antMatchers("/health-check").permitAll()
-                .antMatchers(PUBLIC_ENDPOINTS).permitAll()
-                .antMatchers(PUBLIC_PAGES).permitAll()
-                .antMatchers("/api/**").authenticated()
-                .anyRequest().denyAll());
+        http.authorizeHttpRequests(authz -> {
+            if (!environment.acceptsProfiles(Profiles.of("prod"))) {
+                authz.antMatchers(SWAGGER_WHITELIST).permitAll();
+            }
+            authz.antMatchers("/health-check").permitAll()
+                    .antMatchers(PUBLIC_ENDPOINTS).permitAll()
+                    .antMatchers(PUBLIC_PAGES).permitAll()
+                    .antMatchers("/api/**").authenticated()
+                    .anyRequest().denyAll();
+        });
         http.sessionManagement(session -> session.sessionFixation().newSession());
 
         return http.build();
