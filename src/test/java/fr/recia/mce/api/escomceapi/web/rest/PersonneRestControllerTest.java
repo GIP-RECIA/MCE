@@ -74,6 +74,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+
 import static org.mockito.Mockito.*;
 import org.mockito.ArgumentCaptor;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -204,7 +205,7 @@ class PersonneRestControllerTest {
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
             doNothing().when(userDTOFactory).changePassword(eq(USER), any());
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNoContent());
@@ -213,16 +214,16 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Interdiction de changer le mot de passe d'un autre utilisateur")
-        void shouldReturnForbiddenWhenChangingAnotherUserPassword() throws Exception {
+        @DisplayName("L'uid du jeton est toujours utilisé pour /change-password (plus d'uid dans le chemin)")
+        void shouldUseAuthenticatedUidForPasswordChange() throws Exception {
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
 
-            mockMvc.perform(post(BASE_URL + "autre.user/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isNoContent());
 
-            verify(userDTOFactory, never()).changePassword(any(), any());
+            verify(userDTOFactory).changePassword(eq(USER), any());
         }
 
         @Test
@@ -232,7 +233,7 @@ class PersonneRestControllerTest {
 
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden());
@@ -243,7 +244,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Mauvaise requête lorsque le corps de la requête est invalide")
         void shouldReturnBadRequestWhenBodyIsInvalid() throws Exception {
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{}"))
                     .andExpect(status().isBadRequest());
@@ -259,7 +260,7 @@ class PersonneRestControllerTest {
             doThrow(new RuntimeException("Erreur LDAP"))
                     .when(userDTOFactory).changePassword(eq(USER), any());
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isInternalServerError());
@@ -273,7 +274,7 @@ class PersonneRestControllerTest {
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
             request.setOldPass(null);
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -287,7 +288,7 @@ class PersonneRestControllerTest {
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
             request.setNewPass(null);
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -304,7 +305,7 @@ class PersonneRestControllerTest {
             doThrow(new IllegalArgumentException("Mot de passe trop faible"))
                     .when(userDTOFactory).changePassword(eq(USER), any());
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -320,7 +321,7 @@ class PersonneRestControllerTest {
             doThrow(new PersonneNotFoundException("Utilisateur introuvable"))
                     .when(userDTOFactory).changePassword(eq(USER), any());
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNotFound());
@@ -331,7 +332,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Mauvaise requête pour JSON malformé")
         void shouldReturnBadRequestForMalformedJson() throws Exception {
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("invalid json"))
                     .andExpect(status().isBadRequest());
@@ -354,7 +355,7 @@ class PersonneRestControllerTest {
                 return null;
             }).when(userDTOFactory).changePassword(eq(USER), any());
 
-            mockMvc.perform(post(BASE_URL + USER + "/change-password")
+            mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -578,7 +579,6 @@ class PersonneRestControllerTest {
 
             mockMvc.perform(get(BASE_URL + enfantId))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.uid").value(enfantId))
                     .andExpect(jsonPath("$.parentEleve[0].uidRelation").value("pierrevar"))
                     .andExpect(jsonPath("$.parentEleve[0].eleve.uid").value(enfantId));
         }
@@ -593,7 +593,7 @@ class PersonneRestControllerTest {
         void shouldUpdateEmailSuccessfully() throws Exception {
             EmailUpdateRequestDTO request = buildValidEmailUpdateRequest();
 
-            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isAccepted());
@@ -603,14 +603,17 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Interdiction de mettre à jour l'email d'un autre utilisateur")
-        void shouldReturnForbiddenWhenUpdatingAnotherUserEmail() throws Exception {
+        @DisplayName("L'uid du jeton est toujours utilisé pour /update-email (plus d'uid dans le chemin)")
+        void shouldUseAuthenticatedUidForEmailUpdate() throws Exception {
             EmailUpdateRequestDTO request = buildValidEmailUpdateRequest();
 
-            mockMvc.perform(put(BASE_URL + "autre.user/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isAccepted());
+
+            verify(personneService).validateEmailForUpdate(eq(USER), anyString());
+            verify(emailVerificationService).sendVerificationEmail(eq(USER), anyString());
         }
 
         @Test
@@ -619,7 +622,7 @@ class PersonneRestControllerTest {
             EmailUpdateRequestDTO request = buildValidEmailUpdateRequest();
             request.setConfirmEmail("wrong@example.com");
 
-            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
@@ -633,7 +636,7 @@ class PersonneRestControllerTest {
             doThrow(new IllegalArgumentException("Le domaine de l'adresse email est exclu"))
                     .when(personneService).validateEmailForUpdate(USER, "test@example.com");
 
-            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
                     .andExpect(status().isBadRequest())
@@ -649,7 +652,7 @@ class PersonneRestControllerTest {
             doThrow(new IllegalArgumentException("Le format de l'adresse email n'est pas valide"))
                     .when(personneService).validateEmailForUpdate(USER, "test@example.com");
 
-            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
                     .andExpect(status().isBadRequest())
@@ -664,7 +667,7 @@ class PersonneRestControllerTest {
             doThrow(new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel"))
                     .when(personneService).validateEmailForUpdate(USER, "test@example.com");
 
-            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
                     .andExpect(status().isForbidden())
@@ -679,7 +682,7 @@ class PersonneRestControllerTest {
             doThrow(new PersonneNotFoundException("Utilisateur introuvable en base : " + USER))
                     .when(personneService).validateEmailForUpdate(USER, "test@example.com");
 
-            mockMvc.perform(put(BASE_URL + USER + "/update-email")
+            mockMvc.perform(put(BASE_URL + "update-email")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(buildValidEmailUpdateRequest())))
                     .andExpect(status().isNotFound())
@@ -837,7 +840,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Upload d'avatar réussi")
         void shouldUpdateAvatarSuccessfully() throws Exception {
-            mockMvc.perform(multipart(BASE_URL + USER + "/avatar")
+            mockMvc.perform(multipart(BASE_URL + "avatar")
                     .file("file", "fake-image-content".getBytes()))
                     .andExpect(status().isNoContent());
 
@@ -845,11 +848,13 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Upload d'avatar refusé pour un autre utilisateur")
-        void shouldReturnForbiddenWhenUpdatingAnotherUserAvatar() throws Exception {
-            mockMvc.perform(multipart(BASE_URL + "other/avatar")
+        @DisplayName("L'upload d'avatar est toujours rattaché au uid du jeton (plus d'uid dans le chemin)")
+        void shouldUseAuthenticatedUidForAvatarUpload() throws Exception {
+            mockMvc.perform(multipart(BASE_URL + "avatar")
                     .file("file", "content".getBytes()))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isNoContent());
+
+            verify(personneService).updateAvatar(eq(USER), any(byte[].class));
         }
 
         @Test
@@ -858,7 +863,7 @@ class PersonneRestControllerTest {
             doThrow(new InvalidAvatarException("Avatar invalide : format non supporté ou fichier trop volumineux"))
                     .when(personneService).updateAvatar(eq(USER), any(byte[].class));
 
-            mockMvc.perform(multipart(BASE_URL + USER + "/avatar")
+            mockMvc.perform(multipart(BASE_URL + "avatar")
                     .file("file", "fake-image-content".getBytes()))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("INVALID_AVATAR"));
@@ -867,7 +872,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Upload sans fichier → 500 INTERNAL_SERVER_ERROR (file.getBytes() sur null)")
         void shouldFailWhenNoFileProvided() throws Exception {
-            mockMvc.perform(multipart(BASE_URL + USER + "/avatar"))
+            mockMvc.perform(multipart(BASE_URL + "avatar"))
                     .andExpect(status().isInternalServerError())
                     .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
         }

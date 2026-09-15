@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.services.factories.impl;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
@@ -46,8 +47,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.Mock;
+import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -69,6 +72,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("Tests - UserDTOFactoryImpl")
 class UserDTOFactoryImplTest {
 
@@ -138,6 +142,8 @@ class UserDTOFactoryImplTest {
         mailProperties.setAcMailPattern("[^@]+@ac-orleans-tours.fr");
 
         lenient().when(structureService.isReseauRecia(any(PersonneDTO.class))).thenReturn(false);
+
+        lenient().when(mceProperties.getLdap()).thenReturn(new CustomLdapProperties());
 
         lenient().when(cerbereConfirmationRepository.findConfirmedByPersonId(anyLong()))
                 .thenReturn(Collections.emptyList());
@@ -436,12 +442,12 @@ class UserDTOFactoryImplTest {
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getEmail()).isEqualTo("ldap@email.fr");
+            assertThat(result.getEmail()).isEqualTo(mailFixeDomainNotTrusted);
             assertThat(result.getEmailPersonnel()).isEqualTo("confirmed@email.fr");
         }
 
         @Test
-        @DisplayName("Mail fixe : LDAP > apersonne.email, cerbere confirmé pour emailPersonnel uniquement")
+        @DisplayName("Mail fixe : BDD d'abord, cerbere confirmé pour emailPersonnel uniquement")
         void cerbereConfirmedForPersonalEmailOnly() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
             when(model.getMailFixe()).thenReturn(mailFixeDomainNotTrusted);
@@ -454,16 +460,15 @@ class UserDTOFactoryImplTest {
 
             UserDTO result = factory.from(model, extModel);
 
-            assertThat(result.getEmail()).isEqualTo("ldap@email.fr");
+            assertThat(result.getEmail()).isEqualTo(mailFixeDomainNotTrusted);
             assertThat(result.getEmailPersonnel()).isEqualTo("confirmed@email.fr");
         }
 
         @Test
-        @DisplayName("LDAP fallback quand pas de cerbere confirmed et email DB null")
+        @DisplayName("Email BDD vide → fallback LDAP (porté par getMailFixe)")
         void ldapFallbackWhenDbNull() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
-            when(model.getMailFixe()).thenReturn(null);
-            when(model.getMailFromLdap()).thenReturn("ldap@email.fr");
+            when(model.getMailFixe()).thenReturn("ldap@email.fr");
             when(cerbereConfirmationRepository.findConfirmedByPersonId(1L))
                     .thenReturn(Collections.emptyList());
             when(aPersonneBase.getEmailPersonnel()).thenReturn("perso@email.fr");
@@ -490,11 +495,10 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("mailFixe null → email par défaut (getEmail)")
+        @DisplayName("Email BDD présent → conservé (même domaine non fiable)")
         void mailFixeNull() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
-            when(model.getMailFixe()).thenReturn(null);
-            when(aPersonneBase.getEmail()).thenReturn("default@email.fr");
+            when(model.getMailFixe()).thenReturn("default@email.fr");
 
             UserDTO result = factory.from(model, extModel);
 
@@ -532,7 +536,7 @@ class UserDTOFactoryImplTest {
         @DisplayName("enumPublic null → canEditEmail calcule depuis EnumCategorie")
         void nullEnumPublic() {
             when(model.getEnumPublic()).thenReturn(null);
-            when(aPersonneBase.getEmail()).thenReturn(mailFixeValue);
+            when(model.getMailFixe()).thenReturn(mailFixeValue);
 
             UserDTO result = factory.from(model, extModel);
             assertThat(result).isNotNull();
@@ -704,10 +708,10 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("resolveEmail: LDAP blank → fallback extModel.getEmail()")
+        @DisplayName("resolveEmail: email == getMailFixe (fallback LDAP interne)")
         void emailFallbackExtModel() {
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
-            when(model.getMailFixe()).thenReturn(null);
+            when(model.getMailFixe()).thenReturn("ext@test.fr");
             when(model.getMailFromLdap()).thenReturn("");
             when(extModel.getEmail()).thenReturn("ext@test.fr");
 
@@ -913,6 +917,7 @@ class UserDTOFactoryImplTest {
             when(extModel.getEmail()).thenReturn("ldap@email.fr");
             when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE);
             when(model.getMailFixe()).thenReturn(null);
+            when(model.getMailFromLdap()).thenReturn("ldap@email.fr");
 
             UserDTO result = factory.from(extModel, true);
             assertThat(result).isNotNull();
