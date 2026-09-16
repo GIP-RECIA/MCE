@@ -17,8 +17,10 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -33,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -60,6 +63,9 @@ public class ActivationService {
 
     @Autowired
     private IUserDTOFactory userDTOFactory;
+
+    @Autowired
+    private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     /**
      * Point d'entrée CONNEXION du parcours d'activation : identifiants de connexion + mot de passe temporaire.
@@ -126,7 +132,7 @@ public class ActivationService {
         // Règle métier : toute personne pouvant modifier son mail (élèves, sans mail fixe, ou mail personnel déjà présent)
         // doit renseigner son mail personnel à l'activation tant qu'elle n'en a pas fourni. S'applique aussi aux profils SSO (ex. ELEVE_EDUC).
         boolean peutModifierMail = pub != null && userDTOFactory.canEditEmail(pub, personne);
-        boolean aDejaMailPerso = StringUtils.isNotBlank(personne.getEmailPersonnel());
+        boolean aDejaMailPerso = hasPersonalEmail(personne);
         boolean emailRequise = peutModifierMail && !aDejaMailPerso;
 
         String etape;
@@ -213,6 +219,18 @@ public class ActivationService {
 
         log.info("[ACTIVATION][PASSWORD] SUCCÈS uid={}, profil={}, password={}, emailRéconfirmé={}", uid, pub, passwordRequise, emailEnAttente);
         return new ActivationResultDTO(uid, AccountState.VALIDE, emailEnAttente);
+    }
+
+    /**
+     * Indique si la personne dispose déjà d'un email personnel : renseigné dans {@code apersonne.emailPersonnel}
+     * ou confirmé lors d'une activation précédente (trace dans {@code cerbere_confirmation}).
+     */
+    private boolean hasPersonalEmail(APersonne personne) {
+        if (StringUtils.isNotBlank(personne.getEmailPersonnel())) {
+            return true;
+        }
+        List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(personne.getId());
+        return !confirmed.isEmpty();
     }
 
 }

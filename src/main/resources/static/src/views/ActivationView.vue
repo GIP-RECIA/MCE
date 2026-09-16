@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
 import {
-  getJson, post, type ActivationConnexionResult, type ActivationStatus, type CharteStatus
+  getJson, getText, post, type ActivationConnexionResult, type ActivationStatus, type CharteStatus
 } from '../api';
 import { EMAIL_RE, CODE_RE, passwordStrength } from '../utils';
 
@@ -9,6 +9,22 @@ type Step = 'connexion' | 'form' | 'verify' | 'success';
 
 /** Parcours dit « SSO » : l'utilisateur est déjà authentifié (jeton), on contourne l'écran CONNEXION. */
 const isSso = ref(false);
+
+/**
+ * URL de retour : si fournie via le paramètre de requête, on y renvoie après succès (par ex. retour à l'ENT).
+ * Seuls les chemins relatifs et les URL absolues du même hôte sont acceptés (anti open-redirect).
+ */
+const returnToUrl = computed(() => {
+  const rt = new URLSearchParams(window.location.search).get('returnTo');
+  if (!rt) return null;
+  if (rt.startsWith('/')) return rt;
+  try {
+    const url = new URL(rt, window.location.origin);
+    return url.origin === window.location.origin ? url.href : null;
+  } catch {
+    return null;
+  }
+});
 
 const step = ref<Step>('connexion');
 const message = ref<string | null>(null);
@@ -61,10 +77,10 @@ function errorMessage(err: unknown): string {
 /** Essaie de détecter un utilisateur déjà authentifié (parcours SSO) et contourne l'écran CONNEXION. */
 async function autoDetectSso() {
   try {
-    const uid = await getJson<string>('/debug-id');
-    if (uid && uid !== 'guest' && uid.trim()) {
+    const uidText = (await getText('/debug-id')).trim();
+    if (uidText && uidText !== 'guest') {
       isSso.value = true;
-      activationUid.value = uid.trim();
+      activationUid.value = uidText;
       activationEndpoint.value = '/activation/self';
       const status = await getJson<ActivationStatus>('/activation/status?uid=' + encodeURIComponent(activationUid.value));
       if (status.etapeSuivante === 'FIN') {
@@ -230,13 +246,20 @@ async function onSubmitActivation() {
 }
 
 function showSuccess() {
+  const returnTo = returnToUrl.value;
   successTitle.value = 'Compte activé';
-  if (isSso.value) {
+  if (returnTo) {
+    successText.value = 'Votre compte est prêt. Vous allez être redirigé automatiquement…';
+  } else if (isSso.value) {
     successText.value = 'Votre compte a été activé avec succès. Vous pouvez maintenant vous connecter depuis votre portail (ENT).';
   } else {
     successText.value = 'Votre compte a été activé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.';
   }
   step.value = 'success';
+  // Retour automatique vers la page d'origine (par ex. l'ENT) après succès.
+  if (returnTo) {
+    window.setTimeout(() => { window.location.assign(returnTo); }, 2000);
+  }
 }
 
 async function onSubmitVerify() {

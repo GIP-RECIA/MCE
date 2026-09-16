@@ -15,6 +15,8 @@
  */
 package fr.recia.mce.api.escomceapi.configuration.interceptor;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,6 +25,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.CharteService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -111,9 +114,24 @@ public class CharteInterceptor implements HandlerInterceptor {
         boolean charteRequise = charteService.isCharteRequired(uid);
         if (charteRequise) {
             log.warn("[CHARTE][INTERCEPTOR] Accès refusé : charte non signée pour uid={} path={}", uid, requestPath);
+            // Navigation navigateur (rendu HTML) : on redirige vers la page d'activation,
+            // où la charte est proposée à la signature (le compte étant déjà activé, seul
+            // le bloc charte s'affiche, sans identifiant ni mot de passe).
+            if (isBrowserNavigation(request)) {
+                String returnTo = request.getRequestURI();
+                if (request.getQueryString() != null) {
+                    returnTo += "?" + request.getQueryString();
+                }
+                String redirectUrl = request.getContextPath() + "/activation?returnTo=" + URLEncoder.encode(returnTo, StandardCharsets.UTF_8);
+                log.info("[CHARTE][INTERCEPTOR] Redirection navigateur pour uid={} vers {}", uid, redirectUrl);
+                response.sendRedirect(redirectUrl);
+                return false;
+            }
+            // Clients API/XHR : réponse JSON (gérée côté portlet frontend qui redirige vers /activation).
+            String charteUrl = charteService.getCharteUrl(uid);
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"code\":\"CHARTE_REQUIRED\",\"message\":\"Veuillez accepter la charte d'utilisation avant de continuer\"}");
+            response.getWriter().write("{\"code\":\"CHARTE_REQUIRED\",\"message\":\"Veuillez accepter la charte d'utilisation avant de continuer\",\"charteUrl\":\"" + charteUrl + "\"}");
             return false;
         }
 
@@ -128,5 +146,15 @@ public class CharteInterceptor implements HandlerInterceptor {
             }
         }
         return false;
+    }
+
+    /**
+     * Détecte une navigation navigateur « pleine page » (entête Accept contenant text/html),
+     * par opposition aux appels JSON/XHR du frontend et aux clients d'API. Seules les
+     * navigations navigateur doivent être redirigées vers la page d'activation (signature de charte).
+     */
+    private boolean isBrowserNavigation(HttpServletRequest request) {
+        String accept = request.getHeader(HttpHeaders.ACCEPT);
+        return accept != null && accept.toLowerCase().contains("text/html");
     }
 }
