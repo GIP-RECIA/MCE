@@ -1169,10 +1169,24 @@ class UserDTOFactoryImplTest {
         }
 
         @Test
-        @DisplayName("NON_PROF_COL_LOCAL + COLL-CD28 + !isLocalUser → CVDL (pas de mdp local)")
+        @DisplayName("NON_PROF_COL_LOCAL + COLL-CD28 + !isLocalUser → PERSONNEL (COLL-CD28 n'est pas CVDL, comme Cerbère)")
         void nonProfColLocalCd28NonLocalUser() {
             assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CD28", null)))
-                    .isEqualTo(EnumPublic.CVDL);
+                    .isEqualTo(EnumPublic.PERSONNEL);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + COLL-CD28 + AC + !isLocalUser → EDUCATION (fallthrough NON_PROF_ETAB, comme Cerbère)")
+        void nonProfColLocalCd28AcNonLocalUser() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CD28", DomSource.AC)))
+                    .isEqualTo(EnumPublic.EDUCATION);
+        }
+
+        @Test
+        @DisplayName("NON_PROF_COL_LOCAL + COLL-CD28 + LA + !isLocalUser → AGRI (fallthrough NON_PROF_ETAB, comme Cerbère)")
+        void nonProfColLocalCd28LaNonLocalUser() {
+            assertThat(eval(modelWithDomSource("Non_enseignant_collectivite_locale", "ENT-COLL-CD28", DomSource.LA)))
+                    .isEqualTo(EnumPublic.AGRI);
         }
 
         @Test

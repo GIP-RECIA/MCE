@@ -269,17 +269,17 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Mauvaise requête lorsque l'ancien mot de passe est manquant")
-        void shouldReturnBadRequestWhenOldPassMissing() throws Exception {
+        @DisplayName("L'ancien mot de passe manquant est délégué au service (comptes sans ancien mot de passe)")
+        void shouldDelegateMissingOldPassToService() throws Exception {
             PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
             request.setOldPass(null);
 
             mockMvc.perform(post(BASE_URL + "change-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isNoContent());
 
-            verify(userDTOFactory, never()).changePassword(any(), any());
+            verify(userDTOFactory).changePassword(eq(USER), any());
         }
 
         @Test

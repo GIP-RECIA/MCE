@@ -22,7 +22,6 @@ import javax.validation.constraints.NotBlank;
 @Data
 public class PasswordChangeRequestDTO {
 
-    @NotBlank(message = "L'ancien mot de passe est requis")
     private String oldPass;
 
     @NotBlank(message = "Le nouveau mot de passe est requis")

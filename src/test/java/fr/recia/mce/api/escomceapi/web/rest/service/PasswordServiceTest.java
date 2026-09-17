@@ -964,7 +964,7 @@ class PasswordServiceTest {
         }
 
         @Test
-        @DisplayName("noOldPass : CVDL + ntPass + sans mdp stocké → succès sans oldPass")
+        @DisplayName("noOldPass : CVDL + ntPass + sans mdp stocké → succès sans oldPass, Samba seul (LDAP intact)")
         void changePassword_NoOldPass_Success() {
             personneDTO.setEnumPublic(EnumPublic.CVDL);
             personneDTO.setNtPass(true);
@@ -979,7 +979,13 @@ class PasswordServiceTest {
             passwordService.changePassword(personneDTO, req);
 
             verify(aPersonneRepository).saveAndFlush(aPersonne);
-            verify(externalUserDao).updatePassword(eq(uid), startsWith("{ARGON2}"));
+            // Compte à mot de passe réseau seul : l'annuaire LDAP n'est jamais modifié...
+            verify(externalUserDao, never()).updatePassword(any(), any());
+            // ...et le mot de passe local (miroir du userPassword LDAP) reste inchangé.
+            assertThat(aPersonne.getPassword()).isNull();
+            // Les hashes Samba (mot de passe réseau) sont bien régénérés.
+            assertThat(aPersonne.getSambaLmpassword()).isNotBlank();
+            assertThat(aPersonne.getSambaNtpassword()).isNotBlank();
             verify(cerberePasswordRepository).saveAndFlush(any(CerberePassword.class));
         }
 

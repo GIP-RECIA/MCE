@@ -190,7 +190,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
         if (source != null) {
             isLocalUser = source.startsWith("SarapisUi");
-            isCollectivite = source.endsWith("COLL-CVDL") || source.endsWith("COLL-CD28");
+            isCollectivite = source.endsWith("COLL-CVDL");
         }
 
         EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());

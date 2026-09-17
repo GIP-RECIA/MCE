@@ -237,7 +237,7 @@ public enum EnumPublic {
      * @param categorie la catégorie LDAP de la personne, éventuellement {@code null}
      * @param source la source de la structure, éventuellement {@code null}
      * @param local {@code true} si la source de la personne est locale ({@code SarapisUi…})
-     * @param collectivite {@code true} si la source de la personne est une collectivité ({@code COLL-CVDL}/{@code COLL-CD28})
+     * @param collectivite {@code true} si la source de la personne est une collectivité ({@code COLL-CVDL})
      * @return le profil attribué (jamais {@code null})
      */
     public static EnumPublic resolve(EnumCategorie categorie, DomSource source, boolean local, boolean collectivite) {
@@ -335,7 +335,7 @@ public enum EnumPublic {
      * @param local {@code true} = seules les personnes authentifiées localement ({@code SarapisUi…}) matchent ;
      *              {@code false} = seules celles passant par un SSO externe (CAS) matchent
      * @param collectivite {@code true} = seules les personnes dont la structure est une collectivité
-     *              ({@code COLL-CVDL}, {@code COLL-CD28}) matchent ; {@code false} = seules celles dont la
+     *              ({@code COLL-CVDL}) matchent ; {@code false} = seules celles dont la
      *              structure n'en est pas une matchent
      * @return la règle, avec la catégorie, le caractère local et la collectivité fixés, source libre
      */
@@ -384,7 +384,7 @@ public enum EnumPublic {
      * @param local {@code true} = seules les personnes authentifiées localement ({@code SarapisUi…}) matchent ;
      *              {@code false} = seules celles passant par un SSO externe (CAS) matchent
      * @param collectivite {@code true} = seules les personnes dont la structure est une collectivité
-     *              ({@code COLL-CVDL}, {@code COLL-CD28}) matchent ; {@code false} = seules celles dont la
+     *              ({@code COLL-CVDL}) matchent ; {@code false} = seules celles dont la
      *              structure n'en est pas une matchent
      * @return la règle, avec les quatre contraintes fixées
      */

@@ -221,9 +221,14 @@ public class PasswordService {
         try {
             specialLog.info("Audit [{}] : updatePassword DEBUT uid={}", auditPrefix, uid);
 
+            // Comptes à mot de passe réseau seul (CVDL ntPass sans mot de passe local géré) :
+            // on ne met à jour que les hashes Samba (LM/NT), sans écrire de mot de passe local
+            // ni dans la base (miroir du userPassword LDAP) ni dans l'annuaire.
+            boolean networkOnly = isNoOldPass(person);
+
             Algo algo = Algo.ARGON2;
-            boolean withSamba = requiresSamba(person);
-            specialLog.info("Audit [{}] : algo={} withSamba={} uid={}", auditPrefix, algo, withSamba, uid);
+            boolean withSamba = networkOnly || requiresSamba(person);
+            specialLog.info("Audit [{}] : algo={} withSamba={} networkOnly={} uid={}", auditPrefix, algo, withSamba, networkOnly, uid);
 
             if (isPasswordAlreadyUsed(person, newPassword)) {
                 throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
@@ -239,11 +244,17 @@ public class PasswordService {
             savePasswordToHistory(person, result.ldapHash);
             specialLog.info("Audit [{}] : savePasswordToHistory OK uid={}", auditPrefix, uid);
 
-            updatePasswordInDatabase(person, result);
+            updatePasswordInDatabase(person, result, networkOnly);
             specialLog.info("Audit [{}] : updatePasswordInDatabase OK uid={}", auditPrefix, uid);
 
-            updatePasswordInLdap(uid, result.ldapHash);
-            specialLog.info("Audit [{}] : updatePasswordInLdap OK uid={}", auditPrefix, uid);
+            if (networkOnly) {
+                specialLog.info(
+                        "Audit [{}] : updatePasswordInLdap IGNORÉ (mot de passe réseau seul, sans mot de passe local géré) uid={}",
+                        auditPrefix, uid);
+            } else {
+                updatePasswordInLdap(uid, result.ldapHash);
+                specialLog.info("Audit [{}] : updatePasswordInLdap OK uid={}", auditPrefix, uid);
+            }
 
             specialLog.info("Audit [{}] : SUCCÈS pour l'utilisateur [{}]", auditPrefix, uid);
         } catch (WeakPasswordException | IllegalArgumentException e) {
@@ -930,7 +941,7 @@ public class PasswordService {
         }
     }
 
-    private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {
+    private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result, boolean networkOnly) {
         Long id = person.getAPersonneBase().getId();
         log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null,
                 result.sambaNt != null);
@@ -943,7 +954,13 @@ public class PasswordService {
 
         log.debug("AVANT DÉFINITION — sambaLm présent en base pour uid={} : {}", person.getUid(), entity.getSambaLmpassword() != null);
 
-        entity.setPassword(result.ldapHash);
+        if (networkOnly) {
+            // Compte à mot de passe réseau seul : le champ password est le miroir du
+            // userPassword LDAP, on ne doit donc pas l'écraser (pas de mot de passe local géré).
+            specialLog.info("Audit [UPDATE_DB] : compte à mot de passe réseau seul — mot de passe local inchangé uid={}", person.getUid());
+        } else {
+            entity.setPassword(result.ldapHash);
+        }
         entity.setSambaLmpassword(result.sambaLm);
         entity.setSambaNtpassword(result.sambaNt);
         entity.setDateModification(new Date());

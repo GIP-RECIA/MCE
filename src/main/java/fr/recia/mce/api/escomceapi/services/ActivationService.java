@@ -135,10 +135,13 @@ public class ActivationService {
         boolean aDejaMailPerso = hasPersonalEmail(personne);
         boolean emailRequise = peutModifierMail && !aDejaMailPerso;
 
+                // EduConnect (ELEVE_EDUC, PARENT_EDUC) : passe toujours par COURRIEL (noPass) avant FIN.
+        // Les autres profils CAS (EDUCATION, AGRI, CVDL) peuvent sauter COURRIEL via valideSansPass.
+        boolean forceCourriel = pub != null && pub.isEduconnect();
         String etape;
         if (!charteValide) {
             etape = STEP_CHARTE;
-        } else if (emailRequise) {
+        } else if (emailRequise || forceCourriel) {
             etape = STEP_COURRIEL;
         } else if (!passwordRequise) {
             etape = STEP_FIN;
