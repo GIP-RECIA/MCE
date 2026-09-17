@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.services.AccountState;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +38,9 @@ import org.springframework.stereotype.Repository;
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -55,6 +58,12 @@ public class LdapUserDaoImp implements IExternalUserDao {
     private ExternalUserHelper externalUserHelper;
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
+
+    /**
+     * Sentinelle écrite dans {@code userPassword} lorsque l'état du compte est ≠ {@code Valide} (équivalent legacy).
+     * Elle ne matche aucune regex de parsing {@code \{((SSHA)|(ARGON2))\}(.+)} : aucun bind LDAP ne passe.
+     */
+    private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
 
     @Override
     public IExternalUser getUserByUid(String uid) {
@@ -168,6 +177,72 @@ public class LdapUserDaoImp implements IExternalUserDao {
             specialLog.error("Audit [UPDATE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}",
                     uid, e.getMessage());
             throw new RuntimeException("LDAP password update failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void modifEtatLdapPassword(String uid, String ldapHash, String etatCompte, String sambaLm, String sambaNt) {
+
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+
+        LdapQuery query = LdapQueryBuilder.query()
+                .base(externalUserHelper.getUserDNSubPath())
+                .filter(filter);
+
+        // userPassword : hash réel si l'état du compte est Valide, sinon sentinelle {SCRIPT}LOCK (verrouillage)
+        String userPasswordValue = AccountState.VALIDE.equals(etatCompte) ? ldapHash : SCRIPT_LOCK;
+
+        List<ModificationItem> mods = new ArrayList<>();
+        mods.add(new ModificationItem(
+                DirContext.REPLACE_ATTRIBUTE,
+                new BasicAttribute("userPassword", userPasswordValue.getBytes(StandardCharsets.UTF_8))));
+        mods.add(new ModificationItem(
+                DirContext.REPLACE_ATTRIBUTE,
+                new BasicAttribute(externalUserHelper.getUserEtatCompteAttribute(), etatCompte.toUpperCase())));
+
+        // samba : écrits uniquement si les deux hashes sont fournis (cohérence pair LM/NT, équivalent legacy)
+        if (sambaLm != null && sambaNt != null) {
+            mods.add(new ModificationItem(
+                    DirContext.REPLACE_ATTRIBUTE,
+                    new BasicAttribute("sambaLMPassword", sambaLm)));
+            mods.add(new ModificationItem(
+                    DirContext.REPLACE_ATTRIBUTE,
+                    new BasicAttribute("sambaNTPassword", sambaNt)));
+        }
+
+        ContextMapper<String> dnMapper = ctx -> {
+            DirContextAdapter adapter = (DirContextAdapter) ctx;
+            return adapter.getDn().toString();
+        };
+
+        List<String> dns;
+        try {
+            dns = ldapTemplate.search(query, dnMapper);
+        } catch (Exception e) {
+            specialLog.error("Audit [MODIF_ETAT_LDAP_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}",
+                    uid, e.getMessage());
+            throw new RuntimeException("LDAP password/etat update failed: " + e.getMessage());
+        }
+
+        if (dns == null || dns.isEmpty()) {
+            specialLog.error(
+                    "Audit [MODIF_ETAT_LDAP_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour",
+                    uid);
+            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
+        }
+
+        String dn = dns.get(0);
+        log.debug("DN résolu pour uid={} : {}", uid, dn);
+
+        try {
+            ldapTemplate.modifyAttributes(dn, mods.toArray(new ModificationItem[0]));
+            specialLog.info("Audit [MODIF_ETAT_LDAP_PASSWORD] : SUCCÈS pour l'utilisateur [{}] - état={} (userPassword={})", uid, etatCompte,
+                    AccountState.VALIDE.equals(etatCompte) ? "hash réel" : SCRIPT_LOCK);
+        } catch (Exception e) {
+            specialLog.error("Audit [MODIF_ETAT_LDAP_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}",
+                    uid, e.getMessage());
+            throw new RuntimeException("LDAP password/etat update failed: " + e.getMessage());
         }
     }
 

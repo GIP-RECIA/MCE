@@ -63,7 +63,8 @@ public class PasswordService {
     private static final int SALT_LENGTH = 8;
     private static final String PREFIXCODE = "{SSHA}";
     private static final String PREFIXCODE_ARGON2 = "{ARGON2}";
-    private static final String ACTIVE_PASSWORD = PREFIXCODE + "Active==================================================";
+    private static final String ACTIVE_PASSWORD = PREFIXCODE + "Active=";
+    // Marqueur complet stocké en base : "{SSHA}Active=================================================="
 
     private static final Argon2PasswordEncoder argon2Encoder = new Argon2PasswordEncoder();
 
@@ -221,14 +222,9 @@ public class PasswordService {
         try {
             specialLog.info("Audit [{}] : updatePassword DEBUT uid={}", auditPrefix, uid);
 
-            // Comptes à mot de passe réseau seul (CVDL ntPass sans mot de passe local géré) :
-            // on ne met à jour que les hashes Samba (LM/NT), sans écrire de mot de passe local
-            // ni dans la base (miroir du userPassword LDAP) ni dans l'annuaire.
-            boolean networkOnly = isNoOldPass(person);
-
             Algo algo = Algo.ARGON2;
-            boolean withSamba = networkOnly || requiresSamba(person);
-            specialLog.info("Audit [{}] : algo={} withSamba={} networkOnly={} uid={}", auditPrefix, algo, withSamba, networkOnly, uid);
+            boolean withSamba = requiresSamba(person);
+            specialLog.info("Audit [{}] : algo={} withSamba={} uid={}", auditPrefix, algo, withSamba, uid);
 
             if (isPasswordAlreadyUsed(person, newPassword)) {
                 throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
@@ -244,17 +240,11 @@ public class PasswordService {
             savePasswordToHistory(person, result.ldapHash);
             specialLog.info("Audit [{}] : savePasswordToHistory OK uid={}", auditPrefix, uid);
 
-            updatePasswordInDatabase(person, result, networkOnly);
+            updatePasswordInDatabase(person, result);
             specialLog.info("Audit [{}] : updatePasswordInDatabase OK uid={}", auditPrefix, uid);
 
-            if (networkOnly) {
-                specialLog.info(
-                        "Audit [{}] : updatePasswordInLdap IGNORÉ (mot de passe réseau seul, sans mot de passe local géré) uid={}",
-                        auditPrefix, uid);
-            } else {
-                updatePasswordInLdap(uid, result.ldapHash);
-                specialLog.info("Audit [{}] : updatePasswordInLdap OK uid={}", auditPrefix, uid);
-            }
+            updatePasswordInLdap(person, result);
+            specialLog.info("Audit [{}] : updatePasswordInLdap OK uid={}", auditPrefix, uid);
 
             specialLog.info("Audit [{}] : SUCCÈS pour l'utilisateur [{}]", auditPrefix, uid);
         } catch (WeakPasswordException | IllegalArgumentException e) {
@@ -774,8 +764,8 @@ public class PasswordService {
     }
 
     /**
-     * @return {@code true} si l'utilisateur peut changer son mdp sans fournir l'ancien. Conditions : CVDL + ntPass + aucun vrai mdp stocké (null, blank ou
-     *         marqueur ACTIVE).
+     * @return {@code true} si l'utilisateur peut changer son mdp sans fournir l'ancien. Conditions : CVDL strict (ni
+     *         PERSONNEL GIP) + ntPass + aucun vrai mdp stocké (null, blank ou marqueur {@code {SSHA}Active=}).
      */
     private boolean isNoOldPass(PersonneDTO person) {
         if (person == null || person.getEnumPublic() == null) {
@@ -784,10 +774,8 @@ public class PasswordService {
         if (!person.isNtPass()) {
             return false;
         }
-        if (!person.getEnumPublic().isNtProfile()) {
-            return false;
-        }
-        if (person.getEnumPublic().isConnectOk()) {
+        // CVDL est le seul profil sans connexion locale : !pub.isConnectOk() est toujours vrai pour CVDL (redondant).
+        if (!EnumPublic.CVDL.equals(person.getEnumPublic())) {
             return false;
         }
         String stored = person.getAPersonneBase().getPassword();
@@ -941,7 +929,7 @@ public class PasswordService {
         }
     }
 
-    private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result, boolean networkOnly) {
+    private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {
         Long id = person.getAPersonneBase().getId();
         log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null,
                 result.sambaNt != null);
@@ -954,13 +942,7 @@ public class PasswordService {
 
         log.debug("AVANT DÉFINITION — sambaLm présent en base pour uid={} : {}", person.getUid(), entity.getSambaLmpassword() != null);
 
-        if (networkOnly) {
-            // Compte à mot de passe réseau seul : le champ password est le miroir du
-            // userPassword LDAP, on ne doit donc pas l'écraser (pas de mot de passe local géré).
-            specialLog.info("Audit [UPDATE_DB] : compte à mot de passe réseau seul — mot de passe local inchangé uid={}", person.getUid());
-        } else {
-            entity.setPassword(result.ldapHash);
-        }
+        entity.setPassword(result.ldapHash);
         entity.setSambaLmpassword(result.sambaLm);
         entity.setSambaNtpassword(result.sambaNt);
         entity.setDateModification(new Date());
@@ -972,9 +954,11 @@ public class PasswordService {
         log.debug("APRÈS SAUVEGARDE — sambaLm sauvegardé pour uid={} : présent={}", person.getUid(), saved.getSambaLmpassword() != null);
     }
 
-    private void updatePasswordInLdap(String uid, String hash) {
+    private void updatePasswordInLdap(PersonneDTO person, PasswordResult result) {
+        String uid = person.getUid() != null ? person.getUid() : "unknown";
         try {
-            externalUserDao.updatePassword(uid, hash);
+            String etat = person.getAPersonneBase().getEtat();
+            externalUserDao.modifEtatLdapPassword(uid, result.ldapHash, etat, result.sambaLm, result.sambaNt);
         } catch (Exception e) {
             specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid,
                     e.getMessage());

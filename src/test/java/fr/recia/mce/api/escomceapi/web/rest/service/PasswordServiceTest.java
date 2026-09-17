@@ -53,6 +53,7 @@ import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -863,7 +864,7 @@ class PasswordServiceTest {
             passwordService.changePassword(personneDTO, req);
 
             verify(aPersonneRepository).saveAndFlush(aPersonne);
-            verify(externalUserDao).updatePassword(eq(uid), startsWith("{ARGON2}"));
+            verify(externalUserDao).modifEtatLdapPassword(eq(uid), startsWith("{ARGON2}"), eq("Valide"), nullable(String.class), nullable(String.class));
             verify(cerberePasswordRepository).saveAndFlush(any(CerberePassword.class));
 
             assertThat(aPersonne.getPassword()).startsWith("{ARGON2}");
@@ -964,7 +965,7 @@ class PasswordServiceTest {
         }
 
         @Test
-        @DisplayName("noOldPass : CVDL + ntPass + sans mdp stocké → succès sans oldPass, Samba seul (LDAP intact)")
+        @DisplayName("noOldPass : CVDL + ntPass + sans mdp stocké → succès sans oldPass (Samba + userPassword + etatCompte)")
         void changePassword_NoOldPass_Success() {
             personneDTO.setEnumPublic(EnumPublic.CVDL);
             personneDTO.setNtPass(true);
@@ -973,16 +974,26 @@ class PasswordServiceTest {
             PasswordChangeRequestDTO req = createRequest(null, "NewPass123456!", "NewPass123456!");
 
             when(cerberePasswordRepository.findByAPersonne(any())).thenReturn(new ArrayList<>());
+            when(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()).thenReturn(".*samba.*");
+            when(extUser.getAttribute("memberOf")).thenReturn(List.of("cn=samba-users,ou=groups"));
             when(aPersonneRepository.findById(100L)).thenReturn(Optional.of(aPersonne));
             when(aPersonneRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
 
             passwordService.changePassword(personneDTO, req);
 
             verify(aPersonneRepository).saveAndFlush(aPersonne);
-            // Compte à mot de passe réseau seul : l'annuaire LDAP n'est jamais modifié...
-            verify(externalUserDao, never()).updatePassword(any(), any());
-            // ...et le mot de passe local (miroir du userPassword LDAP) reste inchangé.
-            assertThat(aPersonne.getPassword()).isNull();
+            // Équivalent legacy modifEtatLdapPassword : l'annuaire est modifié (hash + etatCompte + samba)
+            ArgumentCaptor<String> captorHash = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<String> captorEtat = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<String> captorLm = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<String> captorNt = ArgumentCaptor.forClass(String.class);
+            verify(externalUserDao).modifEtatLdapPassword(eq(uid), captorHash.capture(), captorEtat.capture(), captorLm.capture(), captorNt.capture());
+            assertThat(captorHash.getValue()).startsWith("{ARGON2}");
+            assertThat(captorEtat.getValue()).isEqualTo("Valide");
+            assertThat(captorLm.getValue()).isNotBlank();
+            assertThat(captorNt.getValue()).isNotBlank();
+            // Le mot de passe local (miroir du userPassword LDAP) est bien posé en base.
+            assertThat(aPersonne.getPassword()).startsWith("{ARGON2}");
             // Les hashes Samba (mot de passe réseau) sont bien régénérés.
             assertThat(aPersonne.getSambaLmpassword()).isNotBlank();
             assertThat(aPersonne.getSambaNtpassword()).isNotBlank();

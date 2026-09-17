@@ -19,12 +19,14 @@ import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,6 +69,9 @@ class ActivationServiceTest {
     @Mock
     private IUserDTOFactory userDTOFactory;
 
+    @Mock
+    private CerbereConfirmationRepository cerbereConfirmationRepository;
+
     // Spy : isCharteRequired(APersonne) exécute la vraie règle de domaine
     // (charte requise tant que validationCharte est null), comme l'ancien contrôle inline.
     @Spy
@@ -72,6 +79,14 @@ class ActivationServiceTest {
 
     @InjectMocks
     private ActivationService activationService;
+
+    @BeforeEach
+    void setUp() {
+        // Comportement par défaut pour éviter NullPointerException
+        lenient().when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
+        lenient().when(cerbereConfirmationRepository.findConfirmedByPersonId(any()))
+                .thenReturn(java.util.Collections.emptyList());
+    }
 
     private APersonne personne(String uid, String etat, String categorie, String email, Date validationCharte) {
         APersonne p = new APersonne();
@@ -173,6 +188,7 @@ class ActivationServiceTest {
             when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
+            doReturn(true).when(charteService).isCharteRequired(any(APersonne.class));
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
 
@@ -188,6 +204,7 @@ class ActivationServiceTest {
             APersonne p = personne("dupontj", "Invalide", "Enseignant", "jean@ac.fr", new Date());
             when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
+            when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
 
@@ -204,6 +221,7 @@ class ActivationServiceTest {
             when(aPersonneRepository.findByUid("eleve1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.ELEVE);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
+            doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("eleve1");
 
@@ -217,6 +235,8 @@ class ActivationServiceTest {
             APersonne p = personne("cvdl1", "Invalide", "Non_enseignant_collectivite_locale", null, new Date());
             when(aPersonneRepository.findByUid("cvdl1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.CVDL);
+            when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
+            doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("cvdl1");
 

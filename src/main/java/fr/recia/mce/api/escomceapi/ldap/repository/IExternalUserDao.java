@@ -29,6 +29,26 @@ public interface IExternalUserDao {
 
     void updatePassword(final String uid, final String newHashedPassword);
 
+    /**
+     * Mise à jour LDAP atomique du mot de passe et de l'état du compte (équivalent du legacy
+     * {@code modifEtatLdapPassword}). Selon l'état fourni :
+     * <ul>
+     * <li>état du compte {@code Valide} → {@code userPassword} reçoit le hash réel {@code ldapHash} ;</li>
+     * <li>état ≠ {@code Valide} → {@code userPassword} reçoit la sentinelle {@code {SCRIPT}LOCK} (verrouillage : aucun
+     * bind LDAP ne passe, la valeur ne matche aucune regex de parsing) ;</li>
+     * <li>l'attribut {@code etatCompte} ({@code ESCOPersonEtatCompte}) est toujours écrit, en majuscules ;</li>
+     * <li>{@code sambaLMPassword} et {@code sambaNTPassword} sont écrits si les deux valeurs sont fournies.</li>
+     * </ul>
+     *
+     * @param uid identifiant de l'utilisateur
+     * @param ldapHash hash réel à écrire (seulement si l'état du compte est {@code Valide})
+     * @param etatCompte état du compte en base (libellé {@link fr.recia.mce.api.escomceapi.services.AccountState})
+     * @param sambaLm hash Samba LM, {@code null} = ne pas écrire
+     * @param sambaNt hash Samba NT, {@code null} = ne pas écrire
+     */
+    void modifEtatLdapPassword(final String uid, final String ldapHash, final String etatCompte, final String sambaLm,
+            final String sambaNt);
+
     void updateEmail(final String uid, final String newEmail);
 
     void updateAvatarLDAP(final String uid, final String newAvatarUrl);
