@@ -199,13 +199,6 @@ public class ActivationService {
 
         EnumPublic pub = userDTOFactory.evalPublic(personneDTO);
         boolean passwordRequise = pub != null && pub.isConnectOk();
-        if (passwordRequise) {
-            if (StringUtils.isBlank(request.getNewPassword())) {
-                throw new IllegalArgumentException("Le nouveau mot de passe est obligatoire pour ce compte");
-            }
-            passwordService.resetPassword(personneDTO, request.getNewPassword(), request.getConfirmPassword());
-            personneService.clearUserCaches(uid);
-        }
 
         boolean emailEnAttente = false;
         if (StringUtils.isNotBlank(request.getEmail())) {
@@ -215,7 +208,20 @@ public class ActivationService {
             emailEnAttente = true;
         }
 
-        personneService.valideCompte(uid);
+        if (passwordRequise) {
+            if (StringUtils.isBlank(request.getNewPassword())) {
+                throw new IllegalArgumentException("Le nouveau mot de passe est obligatoire pour ce compte");
+            }
+            // L'état Valide est posé AVANT l'écriture du mot de passe en LDAP : le hash réel est écrit,
+            // et non la sentinelle {SCRIPT}LOCK (les écritures base restent dans cette même transaction).
+            personneService.valideCompte(uid);
+            passwordService.resetPassword(personneDTO, request.getNewPassword(), request.getConfirmPassword());
+            personneService.clearUserCaches(uid);
+        } else {
+            // Profils sans mot de passe local (EduConnect/SSO) : activation avec le marqueur actif,
+            // équivalent legacy DomainServiceImpl.setEtatValidWithoutPassword.
+            personneService.setEtatValidWithoutPassword(uid);
+        }
 
         // Contrôle non bloquant : log d'un warning si l'état LDAP diverge de l'état base (la base prime).
         personneService.logEtatCompteLdapDivergent(uid);

@@ -64,7 +64,8 @@ public class PasswordService {
     private static final String PREFIXCODE = "{SSHA}";
     private static final String PREFIXCODE_ARGON2 = "{ARGON2}";
     private static final String ACTIVE_PASSWORD = PREFIXCODE + "Active=";
-    // Marqueur complet stocké en base : "{SSHA}Active=================================================="
+    // Marqueur actif complet pour les comptes valides SANS mot de passe local : "{SSHA}Active" + 50 "="
+    public static final String ACTIVE = PREFIXCODE + "Active" + "=".repeat(50);
 
     private static final Argon2PasswordEncoder argon2Encoder = new Argon2PasswordEncoder();
 
@@ -957,7 +958,11 @@ public class PasswordService {
     private void updatePasswordInLdap(PersonneDTO person, PasswordResult result) {
         String uid = person.getUid() != null ? person.getUid() : "unknown";
         try {
-            String etat = person.getAPersonneBase().getEtat();
+            // L'état est relu en base (source de vérité) au moment de l'écriture LDAP : le hash réel n'est
+            // écrit que si le compte est Valide, sinon la sentinelle {SCRIPT}LOCK (verrouillage LDAP).
+            String etat = aPersonneRepository.findById(person.getAPersonneBase().getId())
+                    .map(APersonne::getEtat)
+                    .orElse(person.getAPersonneBase().getEtat());
             externalUserDao.modifEtatLdapPassword(uid, result.ldapHash, etat, result.sambaLm, result.sambaNt);
         } catch (Exception e) {
             specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid,

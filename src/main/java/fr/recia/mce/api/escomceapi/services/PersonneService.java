@@ -462,6 +462,40 @@ public class PersonneService {
     }
 
     /**
+     * Active un compte {@code Invalide} SANS mot de passe local (profils EduConnect/SSO : ELEVE_EDUC, PARENT_EDUC,
+     * EDUCATION, AGRI, CVDL...) en posant l'état {@code Valide} et le marqueur {@code {SSHA}Active} en base,
+     * puis en annuaire LDAP (hash = marqueur, etatCompte = VALIDE).
+     * Équivalent legacy {@code DomainServiceImpl.setEtatValidWithoutPassword} (Cerbère).
+     * La base reste la source de vérité : un échec LDAP est journalisé en warning, sans bloquer l'activation.
+     */
+    @Transactional
+    public void setEtatValidWithoutPassword(String uid) {
+        log.info("[setEtatValidWithoutPassword] DEBUT uid={}", uid);
+        APersonne entity = aPersonneRepository.findByUid(uid);
+        if (entity == null) {
+            throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
+        }
+        if (AccountState.DELETE.equals(entity.getEtat())) {
+            throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
+        }
+
+        entity.setPassword(PasswordService.ACTIVE);
+        entity.setSambaLmpassword(null);
+        entity.setSambaNtpassword(null);
+        entity.setEtat(AccountState.VALIDE);
+        entity.setDateModification(new Date());
+        aPersonneRepository.save(entity);
+        try {
+            extDao.modifEtatLdapPassword(uid, PasswordService.ACTIVE, AccountState.VALIDE, null, null);
+        } catch (Exception e) {
+            log.warn("[SET_ETAT_VALID_WITHOUT_PASSWORD] Échec de la mise à jour LDAP pour uid={} : {}. La base prime, aucune action bloquante.",
+                    uid, e.getMessage());
+        }
+        clearUserCaches(uid);
+        log.info("[setEtatValidWithoutPassword] FIN uid={} -> Valide (marqueur actif)", uid);
+    }
+
+    /**
      * Synchronise l'état du compte dans l'annuaire LDAP (attribut {@code ESCOPersonEtatCompte}) avec l'état en base.
      * La mise à jour LDAP n'est pas bloquante : en cas d'échec technique, un warning est journalisé mais la base,
      * source de vérité, reste inchangée.

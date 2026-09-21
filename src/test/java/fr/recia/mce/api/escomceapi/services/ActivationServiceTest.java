@@ -299,7 +299,7 @@ class ActivationServiceTest {
         }
 
         @Test
-        @DisplayName("Profil SSO (PARENT_EDUC) → aucun mot de passe créé, compte activé")
+        @DisplayName("Profil SSO (PARENT_EDUC) → aucun mot de passe créé, compte activé avec marqueur actif")
         void shouldActivateWithoutPasswordForSsoProfile() {
             APersonne ihm = personne("parent1", "Invalide", "Personne_relation_eleve", "parent@x.fr", new Date());
             PersonneDTO dto = new PersonneDTO(ihm);
@@ -311,7 +311,8 @@ class ActivationServiceTest {
                     request("parent1", false, null, null, null));
 
             verify(passwordService, never()).resetPassword(any(), any(), any());
-            verify(personneService).valideCompte("parent1");
+            verify(personneService, never()).valideCompte(anyString());
+            verify(personneService).setEtatValidWithoutPassword("parent1");
             assertThat(result.getEtat()).isEqualTo("Valide");
         }
 
