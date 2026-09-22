@@ -280,43 +280,9 @@ public class PersonneRestController {
     }
 
     /**
-     * Parcours « mot de passe réseau » (équivalent Cerbère NewPassRezo) : envoie par email un code de
-     * changement à un compte CVDL ntPass sans mot de passe local stocké déjà authentifié (uid issu du jeton,
-     * jamais du corps de requête — on ne peut demander un code que pour son propre compte).
-     */
-    @PostMapping("/network-password/forgot")
-    public ResponseEntity<?> networkPasswordForgot() {
-
-        String uid = getCurrentUid();
-        log.info("[NETWORK_PASSWORD_RESET] Demande uid={}", uid);
-
-        try {
-            emailVerificationService.sendNetworkPasswordResetCode(uid);
-        } catch (ResendCooldownActiveException e) {
-            // Anti-double-clic : laisser le GlobalExceptionHandler répondre 429 avec le temps restant.
-            throw e;
-        } catch (ContactAdminException e) {
-            log.warn("[NETWORK_PASSWORD_RESET] CONTACT_ADMIN uid={} : {}", uid, e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", e.getMessage()));
-        } catch (IllegalArgumentException | ApiException e) {
-            log.warn("[NETWORK_PASSWORD_RESET] ÉCHEC uid={} : {}", uid, e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("NETWORK_PASSWORD_RESET_FAILED", e.getMessage()));
-        } catch (RuntimeException e) {
-            log.error("[NETWORK_PASSWORD_RESET] ERREUR uid={} : {}", uid, e.getMessage());
-            return ResponseEntity.internalServerError()
-                    .body(new ErrorResponse("INTERNAL_ERROR", "Une erreur interne est survenue"));
-        }
-
-        log.info("[NETWORK_PASSWORD_RESET] Code envoyé pour uid={}", uid);
-        return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_CODE_SENT",
-                "Un code de changement de votre mot de passe réseau a été envoyé à votre adresse email"));
-    }
-
-    /**
-     * Applique le changement de mot de passe réseau après validation du code reçu par email. L'uid est lu
-     * depuis le jeton Soffit : impossible de changer le mot de passe réseau d'un autre compte.
+     * Applique le changement direct du mot de passe réseau (conforme à l'ancienne application : pas
+     * d'ancien mot de passe, pas de code). L'uid est lu depuis le jeton Soffit : impossible de changer
+     * le mot de passe réseau d'un autre compte.
      */
     @PostMapping("/network-password/reset")
     public ResponseEntity<?> networkPasswordReset(
@@ -325,8 +291,8 @@ public class PersonneRestController {
         String uid = getCurrentUid();
         log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
 
-        emailVerificationService.processNetworkPasswordReset(
-                uid, request.getCode(), request.getNewPassword(), request.getConfirmPassword());
+        emailVerificationService.changeNetworkPassword(
+                uid, request.getNewPassword(), request.getConfirmPassword());
 
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS",
@@ -335,15 +301,14 @@ public class PersonneRestController {
 
     /**
      * Statut du parcours « mot de passe réseau » du compte authentifié : éligibilité (CVDL ntPass sans
-     * mot de passe local stocké, détectée côté serveur car {@code ntPass} n'est pas présent dans le jeton
-     * OIDC) et présence d'un code de changement déjà en attente. Permet au portail d'afficher le bon écran.
+     * mot de passe local stocké, état Valide, détectée côté serveur car {@code ntPass} n'est pas présent
+     * dans le jeton OIDC). Permet au portail d'afficher le bon écran.
      */
     @GetMapping("/network-password/status")
     public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus() {
         String uid = getCurrentUid();
         NetworkPasswordResetStatusDTO status = emailVerificationService.getNetworkPasswordResetStatus(uid);
-        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={} pendingCode={}", uid,
-                status.isEligible(), status.isPendingCode());
+        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
         return ResponseEntity.ok(status);
     }
 

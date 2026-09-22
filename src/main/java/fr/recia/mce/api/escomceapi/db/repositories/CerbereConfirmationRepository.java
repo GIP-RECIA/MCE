@@ -50,10 +50,6 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
         return findPendingByPersonIdAndType(personId, ConfirmationType.PASSWORD_RESET.getLikePattern());
     }
 
-    default List<CerbereConfirmation> findPendingNetworkPasswordResetByPersonId(Long personId) {
-        return findPendingByPersonIdAndType(personId, ConfirmationType.NETWORK_PASSWORD_RESET.getLikePattern());
-    }
-
     // ── Pending par type + code ──
 
     @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.code = :code AND cc.confirmation IS NULL AND cc.code LIKE :likePattern")
@@ -73,10 +69,6 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
         return findPendingByPersonIdAndCodeAndTypeWithLock(personId, code, ConfirmationType.PASSWORD_RESET.getLikePattern());
     }
 
-    default Optional<CerbereConfirmation> findPendingNetworkPasswordResetByPersonIdAndCodeWithLock(Long personId, String code) {
-        return findPendingByPersonIdAndCodeAndTypeWithLock(personId, code, ConfirmationType.NETWORK_PASSWORD_RESET.getLikePattern());
-    }
-
     // ── Dernières confirmations par type ──
 
     @Query("FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.code LIKE :likePattern ORDER BY cc.id DESC")
@@ -84,21 +76,6 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
 
     default List<CerbereConfirmation> findLatestPasswordResetByPersonId(Long personId) {
         return findLatestByPersonIdAndType(personId, ConfirmationType.PASSWORD_RESET.getLikePattern());
-    }
-
-    default List<CerbereConfirmation> findLatestNetworkPasswordResetByPersonId(Long personId) {
-        return findLatestByPersonIdAndType(personId, ConfirmationType.NETWORK_PASSWORD_RESET.getLikePattern());
-    }
-
-    // ── Pending par type + code (sans personId) ──
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("FROM CerbereConfirmation cc WHERE cc.code = :code AND cc.confirmation IS NULL AND cc.code LIKE :likePattern")
-    Optional<CerbereConfirmation> findPendingByCodeAndTypeWithLock(@Param("code") String code,
-            @Param("likePattern") String likePattern);
-
-    default Optional<CerbereConfirmation> findPendingPasswordResetByCodeWithLock(String code) {
-        return findPendingByCodeAndTypeWithLock(code, ConfirmationType.PASSWORD_RESET.getLikePattern());
     }
 
     // ── Suppression ──
@@ -113,10 +90,6 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
 
     default void deletePendingPasswordResetByPersonId(Long personId) {
         deletePendingByPersonIdAndType(personId, ConfirmationType.PASSWORD_RESET.getLikePattern());
-    }
-
-    default void deletePendingNetworkPasswordResetByPersonId(Long personId) {
-        deletePendingByPersonIdAndType(personId, ConfirmationType.NETWORK_PASSWORD_RESET.getLikePattern());
     }
 
 }

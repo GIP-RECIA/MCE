@@ -19,16 +19,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
- * Statut du parcours « mot de passe réseau » (équivalent Cerbère NewPassRezo) pour le compte
- * authentifié : indique au portail si le compte est éligible (CVDL ntPass sans mot de passe local
- * stocké) et si un code de changement est déjà en attente.
+ * Statut du parcours « mot de passe réseau » pour le compte authentifié : indique au portail si le
+ * compte est éligible (CVDL ntPass sans mot de passe local stocké, état Valide). L'éligibilité se
+ * calcule côté serveur car {@code ntPass} n'apparaît pas dans le jeton OIDC.
  */
 @Data
 @AllArgsConstructor
 public class NetworkPasswordResetStatusDTO {
 
     private boolean eligible;
-
-    private boolean pendingCode;
 
 }

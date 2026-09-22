@@ -1522,15 +1522,6 @@ class EmailVerificationServiceTest {
     // Flux « mot de passe réseau seul » (équivalent Cerbère NewPassRezo)
     // ─────────────────────────────────────────────────────────────────────
 
-    private CerbereConfirmation pendingNetworkReset(long personId, long ageMs) {
-        CerbereConfirmation c = new CerbereConfirmation();
-        c.setCode("NRES:" + sha256("000000"));
-        long expiryHoursMs = 24 * 3_600_000L;
-        c.setLimite(new Date(System.currentTimeMillis() + expiryHoursMs - ageMs));
-        c.setConfirmation(null);
-        return c;
-    }
-
     private PersonneDTO cvdlNtPassDto() {
         PersonneDTO dto = mock(PersonneDTO.class);
         lenient().when(dto.getEnumPublic()).thenReturn(EnumPublic.CVDL);
@@ -1539,99 +1530,50 @@ class EmailVerificationServiceTest {
     }
 
     @Nested
-    @DisplayName("sendNetworkPasswordResetCode")
-    class SendNetworkPasswordResetCodeTests {
+    @DisplayName("changeNetworkPassword")
+    class ChangeNetworkPasswordTests {
 
-        private static final long COOLDOWN_MS = 60_000L;
-
-        @BeforeEach
-        void configurePolicy() {
-            mceProperties.getSecurity().getResetPolicy().setResendCooldownMs(COOLDOWN_MS);
-        }
-
-        private void stubEligible(APersonne p) {
+        private APersonne stubEligible(long id) {
+            APersonne p = validPerson(id);
             PersonneDTO dto = cvdlNtPassDto();
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
-            when(passwordService.isNoOldPassEligible(any(PersonneDTO.class))).thenReturn(true);
+            when(passwordService.isNoOldPassEligible(dto)).thenReturn(true);
+            return p;
         }
 
         @Test
-        @DisplayName("Succès : crée une confirmation hashée NRES: et envoie l'email au compte")
-        void successCreatesNresConfirmation() {
-            APersonne p = validPerson(301L);
-            stubEligible(p);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(301L)).thenReturn(List.of());
-            when(cerbereConfirmationRepository.findLatestNetworkPasswordResetByPersonId(301L)).thenReturn(List.of());
-            when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        @DisplayName("Succès : réinitialise le mot de passe réseau sans ancien mdp ni code, purge les caches")
+        void success() {
+            APersonne p = stubEligible(301L);
 
-            service.sendNetworkPasswordResetCode(p.getUid());
+            service.changeNetworkPassword(p.getUid(), "N3wPassw0rd!X", "N3wPassw0rd!X");
 
-            verify(cerbereConfirmationRepository).save(confirmationCaptor.capture());
-            verify(mailSender).send(mailCaptor.capture());
-
-            CerbereConfirmation saved = confirmationCaptor.getValue();
-            assertThat(saved.getAPersonne()).isEqualTo(p);
-            assertThat(saved.getCode()).startsWith("NRES:").matches("NRES:[0-9a-f]{64}");
-            assertThat(saved.getMail()).isEqualTo(email);
-            assertThat(saved.getConfirmation()).isNull();
-            assertThat(saved.getLimite()).isAfter(new Date());
-
-            SimpleMailMessage msg = mailCaptor.getValue();
-            assertThat(msg.getTo()).containsExactly(email);
-            assertThat(msg.getFrom()).isEqualTo("noreply@mce.fr");
-            assertThat(msg.getSubject()).isEqualTo("Réinitialisation");
-            assertThat(msg.getText()).contains("Votre code de réinitialisation est :");
-        }
-
-        @Test
-        @DisplayName("Succès : réutilise la confirmation NRES en attente existante")
-        void reusesPendingConfirmation() {
-            APersonne p = validPerson(302L);
-            CerbereConfirmation existing = pendingNetworkReset(302L, COOLDOWN_MS + 300_000);
-            stubEligible(p);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(302L))
-                    .thenReturn(List.of(existing));
-            when(cerbereConfirmationRepository.findLatestNetworkPasswordResetByPersonId(302L))
-                    .thenReturn(List.of(existing));
-            when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-
-            service.sendNetworkPasswordResetCode(p.getUid());
-
-            verify(cerbereConfirmationRepository).save(same(existing));
-            verify(mailSender).send(any(SimpleMailMessage.class));
-        }
-
-        @Test
-        @DisplayName("Anti-double-clic : demande récente (< cooldown) → ResendCooldownActiveException")
-        void antiDoubleClickBlocksRecentRequest() {
-            APersonne p = validPerson(303L);
-            stubEligible(p);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(303L))
-                    .thenReturn(List.of(pendingNetworkReset(303L, 1_000)));
-
-            assertThatThrownBy(() -> service.sendNetworkPasswordResetCode(p.getUid()))
-                    .isInstanceOf(ResendCooldownActiveException.class);
-
-            verify(cerbereConfirmationRepository, never()).save(any());
+            verify(passwordService).resetPassword(any(PersonneDTO.class), eq("N3wPassw0rd!X"), eq("N3wPassw0rd!X"));
+            verify(personneService).clearUserCaches(p.getUid());
             verifyNoInteractions(mailSender);
+            verify(cerbereConfirmationRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("REFUS : compte avec mot de passe local stocké (non éligible réseau seul) → InvalidCodeException")
-        void notEligibleRejected() {
-            APersonne p = validPerson(304L);
-            PersonneDTO dto = cvdlNtPassDto();
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
-            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
-            when(passwordService.isNoOldPassEligible(any(PersonneDTO.class))).thenReturn(false);
+        @DisplayName("uid null ou vide → InvalidCodeException, aucune requête")
+        void blankOrNullUidThrows() {
+            assertThatThrownBy(() -> service.changeNetworkPassword(" ", "N3wPassw0rd!X", "N3wPassw0rd!X"))
+                    .isInstanceOf(InvalidCodeException.class);
 
-            assertThatThrownBy(() -> service.sendNetworkPasswordResetCode(p.getUid()))
-                    .isInstanceOf(InvalidCodeException.class)
-                    .hasMessageContaining("mot de passe réseau seul");
+            verifyNoInteractions(aPersonneRepository, passwordService, personneService);
+        }
 
-            verify(cerbereConfirmationRepository, never()).save(any());
-            verifyNoInteractions(mailSender);
+        @Test
+        @DisplayName("Échec : uid inconnu → InactiveAccountException, rien n'est appliqué")
+        void unknownUidThrows() {
+            when(aPersonneRepository.findByUidWithLock(uid)).thenReturn(null);
+
+            assertThatThrownBy(() -> service.changeNetworkPassword(uid, "N3wPassw0rd!X", "N3wPassw0rd!X"))
+                    .isInstanceOf(InactiveAccountException.class)
+                    .hasMessageContaining("Aucun compte associé");
+
+            verify(passwordService, never()).resetPassword(any(), any(), any());
         }
 
         @Test
@@ -1641,123 +1583,7 @@ class EmailVerificationServiceTest {
             p.setEtat("Supprime");
             when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
 
-            assertThatThrownBy(() -> service.sendNetworkPasswordResetCode(p.getUid()))
-                    .isInstanceOf(InactiveAccountException.class)
-                    .hasMessageContaining("compte n'est pas actif");
-
-            verifyNoInteractions(mailSender);
-        }
-
-        @Test
-        @DisplayName("REFUS : aucune adresse email sur le compte → ContactAdminException")
-        void noEmailThrowsContactAdmin() {
-            APersonne p = validPerson(306L);
-            p.setEmail(null);
-            p.setEmailPersonnel(null);
-            stubEligible(p);
-
-            assertThatThrownBy(() -> service.sendNetworkPasswordResetCode(p.getUid()))
-                    .isInstanceOf(ContactAdminException.class)
-                    .hasMessageContaining("administrateur");
-
-            verify(cerbereConfirmationRepository, never()).save(any());
-            verifyNoInteractions(mailSender);
-        }
-
-        @Test
-        @DisplayName("Échec : uid inconnu → InactiveAccountException, rien n'est persisté ni envoyé")
-        void unknownUidThrows() {
-            when(aPersonneRepository.findByUidWithLock(uid)).thenReturn(null);
-
-            assertThatThrownBy(() -> service.sendNetworkPasswordResetCode(uid))
-                    .isInstanceOf(InactiveAccountException.class)
-                    .hasMessageContaining("Aucun compte associé");
-
-            verifyNoInteractions(cerbereConfirmationRepository, mailSender);
-        }
-    }
-
-    @Nested
-    @DisplayName("processNetworkPasswordReset")
-    class ProcessNetworkPasswordResetTests {
-
-        private CerbereConfirmation nresConfirmation(String code) {
-            CerbereConfirmation c = new CerbereConfirmation();
-            c.setCode("NRES:" + sha256(code));
-            c.setMail(email);
-            c.setLimite(Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
-            c.setConfirmation(null);
-            return c;
-        }
-
-        private APersonne stubValidPerson(long id) {
-            APersonne p = validPerson(id);
-            PersonneDTO dto = connectOkDto();
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
-            // getUserByUid n'est pas atteint par tous les scénarios (code erroné, expiration) : stub tolérant.
-            lenient().when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
-            return p;
-        }
-
-        @Test
-        @DisplayName("Succès : valide le code NRES:, réinitialise le mot de passe et consume la confirmation")
-        void success() {
-            APersonne p = stubValidPerson(311L);
-            CerbereConfirmation confirmation = nresConfirmation("123456");
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonIdAndCodeWithLock(
-                    311L, "NRES:" + sha256("123456"))).thenReturn(Optional.of(confirmation));
-
-            service.processNetworkPasswordReset(p.getUid(), "123456", "N3wPassw0rd!X", "N3wPassw0rd!X");
-
-            verify(passwordService).resetPassword(any(PersonneDTO.class), eq("N3wPassw0rd!X"), eq("N3wPassw0rd!X"));
-            assertThat(confirmation.getConfirmation()).isNotNull();
-            verify(cerbereConfirmationRepository).save(confirmation);
-            verify(cerbereConfirmationRepository).deletePendingNetworkPasswordResetByPersonId(311L);
-            verify(personneService).clearUserCaches(p.getUid());
-        }
-
-        @Test
-        @DisplayName("Échec : code incorrect → InvalidCodeException, aucun changement appliqué")
-        void wrongCodeThrows() {
-            APersonne p = stubValidPerson(312L);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonIdAndCodeWithLock(
-                    eq(312L), anyString())).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> service.processNetworkPasswordReset(p.getUid(), "999999",
-                    "N3wPassw0rd!X", "N3wPassw0rd!X"))
-                    .isInstanceOf(InvalidCodeException.class)
-                    .hasMessageContaining("incorrect");
-
-            verify(passwordService, never()).resetPassword(any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("Échec : code expiré → CodeExpiredException, confirmation supprimée")
-        void expiredCodeThrows() {
-            APersonne p = stubValidPerson(313L);
-            CerbereConfirmation confirmation = nresConfirmation("654321");
-            confirmation.setLimite(Date.from(Instant.now().minus(1, ChronoUnit.HOURS)));
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonIdAndCodeWithLock(
-                    313L, "NRES:" + sha256("654321"))).thenReturn(Optional.of(confirmation));
-
-            assertThatThrownBy(() -> service.processNetworkPasswordReset(p.getUid(), "654321",
-                    "N3wPassw0rd!X", "N3wPassw0rd!X"))
-                    .isInstanceOf(CodeExpiredException.class)
-                    .hasMessageContaining("a expiré");
-
-            verify(cerbereConfirmationRepository).delete(confirmation);
-            verify(passwordService, never()).resetPassword(any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("Échec : compte non actif → InactiveAccountException")
-        void inactiveAccountThrows() {
-            APersonne p = validPerson(314L);
-            p.setEtat("Supprime");
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
-
-            assertThatThrownBy(() -> service.processNetworkPasswordReset(p.getUid(), "123456",
-                    "N3wPassw0rd!X", "N3wPassw0rd!X"))
+            assertThatThrownBy(() -> service.changeNetworkPassword(p.getUid(), "N3wPassw0rd!X", "N3wPassw0rd!X"))
                     .isInstanceOf(InactiveAccountException.class)
                     .hasMessageContaining("compte n'est pas actif");
 
@@ -1768,16 +1594,28 @@ class EmailVerificationServiceTest {
         @DisplayName("Échec : profil impossible à charger → InactiveAccountException")
         void profileLoadFailureThrows() {
             APersonne p = validPerson(315L);
-            CerbereConfirmation confirmation = nresConfirmation("123456");
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonIdAndCodeWithLock(
-                    315L, "NRES:" + sha256("123456"))).thenReturn(Optional.of(confirmation));
+            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(null);
 
-            assertThatThrownBy(() -> service.processNetworkPasswordReset(p.getUid(), "123456",
-                    "N3wPassw0rd!X", "N3wPassw0rd!X"))
+            assertThatThrownBy(() -> service.changeNetworkPassword(p.getUid(), "N3wPassw0rd!X", "N3wPassw0rd!X"))
                     .isInstanceOf(InactiveAccountException.class)
                     .hasMessageContaining("Impossible de charger");
+
+            verify(passwordService, never()).resetPassword(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("REFUS : compte avec mot de passe local stocké (non éligible réseau seul) → InvalidCodeException")
+        void notEligibleRejected() {
+            APersonne p = validPerson(304L);
+            PersonneDTO dto = cvdlNtPassDto();
+            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
+            when(passwordService.isNoOldPassEligible(dto)).thenReturn(false);
+
+            assertThatThrownBy(() -> service.changeNetworkPassword(p.getUid(), "N3wPassw0rd!X", "N3wPassw0rd!X"))
+                    .isInstanceOf(InvalidCodeException.class)
+                    .hasMessageContaining("mot de passe réseau seul");
 
             verify(passwordService, never()).resetPassword(any(), any(), any());
         }
@@ -1794,86 +1632,77 @@ class EmailVerificationServiceTest {
         }
 
         @Test
-        @DisplayName("Compte éligible avec code en attente → eligible=true pendingCode=true")
-        void eligibleWithPendingCode() {
+        @DisplayName("Compte éligible (CVDL ntPass, état Valide) → eligible=true")
+        void eligibleAccount() {
             APersonne p = stubPerson(321L);
             PersonneDTO dto = cvdlNtPassDto();
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(passwordService.isNoOldPassEligible(dto)).thenReturn(true);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(321L))
-                    .thenReturn(List.of(pendingNetworkReset(321L, 0)));
 
             NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
 
             assertThat(status).isNotNull();
             assertThat(status.isEligible()).isTrue();
-            assertThat(status.isPendingCode()).isTrue();
         }
 
         @Test
-        @DisplayName("Compte non éligible sans code en attente → eligible=false pendingCode=false")
-        void notEligibleWithoutPendingCode() {
+        @DisplayName("Compte non éligible → eligible=false")
+        void notEligibleAccount() {
             APersonne p = stubPerson(322L);
             PersonneDTO dto = cvdlNtPassDto();
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(passwordService.isNoOldPassEligible(dto)).thenReturn(false);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(322L)).thenReturn(List.of());
 
             NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
 
             assertThat(status.isEligible()).isFalse();
-            assertThat(status.isPendingCode()).isFalse();
         }
 
         @Test
-        @DisplayName("Read-only : ne vérifie pas le profil via le policy service")
-        void doesNotCheckAccountPolicy() {
-            APersonne p = stubPerson(323L);
+        @DisplayName("Compte inactif (état ≠ Valide) → eligible=false même si éligibilité ntPass")
+        void inactiveAccountNotEligible() {
+            APersonne p = validPerson(323L);
+            p.setEtat("Bloque");
+            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
             PersonneDTO dto = cvdlNtPassDto();
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
-            when(passwordService.isNoOldPassEligible(dto)).thenReturn(true);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(323L)).thenReturn(List.of());
 
-            service.getNetworkPasswordResetStatus(p.getUid());
+            NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
 
-            verifyNoInteractions(passwordResetPolicyService);
+            assertThat(status.isEligible()).isFalse();
+            verify(passwordService, never()).isNoOldPassEligible(any());
         }
 
         @Test
-        @DisplayName("Personne inconnue → eligible=false pendingCode=false, aucun accès au profil")
+        @DisplayName("Personne inconnue → eligible=false, aucun accès au profil")
         void unknownPersonNotFound() {
             when(aPersonneRepository.findByUid("ghost.unknown")).thenReturn(null);
 
             NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus("ghost.unknown");
 
             assertThat(status.isEligible()).isFalse();
-            assertThat(status.isPendingCode()).isFalse();
             verify(personneService, never()).getUserByUid(anyString());
-            verify(cerbereConfirmationRepository, never()).findPendingNetworkPasswordResetByPersonId(anyLong());
         }
 
         @Test
-        @DisplayName("uid null ou vide → eligible=false pendingCode=false, aucune requête")
+        @DisplayName("uid null ou vide → eligible=false, aucune requête")
         void blankOrNullUid() {
             NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(null);
 
             assertThat(status.isEligible()).isFalse();
-            assertThat(status.isPendingCode()).isFalse();
-            verifyNoInteractions(aPersonneRepository, personneService, cerbereConfirmationRepository);
+            verifyNoInteractions(aPersonneRepository, personneService, cerbereConfirmationRepository, passwordService);
         }
 
         @Test
-        @DisplayName("Profil impossible à charger → eligible=false mais pendingCode préservé")
-        void profileLoadFailureKeepsPendingCode() {
+        @DisplayName("Profil impossible à charger → eligible=false")
+        void profileLoadFailureNotEligible() {
             APersonne p = stubPerson(324L);
             when(personneService.getUserByUid(p.getUid())).thenReturn(null);
-            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(324L))
-                    .thenReturn(List.of(pendingNetworkReset(324L, 0)));
 
             NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
 
             assertThat(status.isEligible()).isFalse();
-            assertThat(status.isPendingCode()).isTrue();
+            verify(passwordService, never()).isNoOldPassEligible(any());
         }
     }
 }

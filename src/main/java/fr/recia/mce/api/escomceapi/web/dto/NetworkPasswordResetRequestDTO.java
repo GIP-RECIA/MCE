@@ -18,14 +18,9 @@ package fr.recia.mce.api.escomceapi.web.dto;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
 
 @Data
 public class NetworkPasswordResetRequestDTO {
-
-    @NotBlank(message = "Le code de verification est obligatoire")
-    @Pattern(regexp = "\\d{6}", message = "Le code doit comporter 6 chiffres")
-    private String code;
 
     @NotBlank(message = "Le nouveau mot de passe est obligatoire")
     private String newPassword;

@@ -39,6 +39,7 @@ import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException
 import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
+import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.relations.impl.RelationEleveServiceImpl;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
@@ -53,7 +54,6 @@ import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
-import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
@@ -1140,105 +1140,31 @@ class PersonneRestControllerTest {
     }
 
     @Nested
-    @DisplayName("Tests du point d'accès /network-password/forgot (mot de passe réseau seul)")
-    class NetworkPasswordForgotEndpointTests {
-
-        @Test
-        @DisplayName("Succès → 200 NETWORK_PASSWORD_RESET_CODE_SENT (uid lu depuis le jeton)")
-        void shouldReturnNetworkPasswordResetCodeSent() throws Exception {
-            doNothing().when(emailVerificationService).sendNetworkPasswordResetCode(USER);
-
-            mockMvc.perform(post(BASE_URL + "network-password/forgot"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value("NETWORK_PASSWORD_RESET_CODE_SENT"));
-
-            verify(emailVerificationService).sendNetworkPasswordResetCode(USER);
-        }
-
-        @Test
-        @DisplayName("Compte non éligible (ApiException) → 400 NETWORK_PASSWORD_RESET_FAILED")
-        void shouldReturnNetworkPasswordResetFailed() throws Exception {
-            doThrow(new InvalidCodeException("Ce parcours est réservé aux comptes à mot de passe réseau seul"))
-                    .when(emailVerificationService).sendNetworkPasswordResetCode(USER);
-
-            mockMvc.perform(post(BASE_URL + "network-password/forgot"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("NETWORK_PASSWORD_RESET_FAILED"));
-        }
-
-        @Test
-        @DisplayName("Aucun email (ContactAdminException) → 400 CONTACT_ADMIN_REQUIRED")
-        void shouldReturnContactAdminRequired() throws Exception {
-            doThrow(new ContactAdminException("Aucune adresse email n'est associée à votre compte."))
-                    .when(emailVerificationService).sendNetworkPasswordResetCode(USER);
-
-            mockMvc.perform(post(BASE_URL + "network-password/forgot"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("CONTACT_ADMIN_REQUIRED"));
-        }
-
-        @Test
-        @DisplayName("Anti-double-clic (cooldown actif) → 429 RESEND_COOLDOWN")
-        void shouldReturnResendCooldown() throws Exception {
-            doThrow(new ResendCooldownActiveException("Un code a déjà été envoyé récemment pour ce compte.", 42_000L))
-                    .when(emailVerificationService).sendNetworkPasswordResetCode(USER);
-
-            mockMvc.perform(post(BASE_URL + "network-password/forgot"))
-                    .andExpect(status().isTooManyRequests())
-                    .andExpect(jsonPath("$.code").value("RESEND_COOLDOWN"))
-                    .andExpect(jsonPath("$.retryAfterSeconds").value(42));
-        }
-
-        @Test
-        @DisplayName("Erreur technique (RuntimeException) → 500 INTERNAL_ERROR")
-        void shouldReturnInternalError() throws Exception {
-            doThrow(new RuntimeException("SMTP down"))
-                    .when(emailVerificationService).sendNetworkPasswordResetCode(USER);
-
-            mockMvc.perform(post(BASE_URL + "network-password/forgot"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"));
-        }
-
-        @Test
-        @DisplayName("Utilisateur non authentifié → 403 FORBIDDEN, aucune interaction service")
-        void shouldReturnForbiddenWhenNotAuthenticated() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(null);
-
-            mockMvc.perform(post(BASE_URL + "network-password/forgot"))
-                    .andExpect(status().isForbidden());
-
-            verify(emailVerificationService, never()).sendNetworkPasswordResetCode(anyString());
-        }
-    }
-
-    @Nested
     @DisplayName("Tests du point d'accès /network-password/reset (mot de passe réseau seul)")
     class NetworkPasswordResetEndpointTests {
 
-        private final String validBody = "{\"code\":\"123456\","
-                + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
+        private final String validBody = "{\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
 
         @Test
         @DisplayName("Succès → 200 NETWORK_PASSWORD_RESET_SUCCESS (uid lu depuis le jeton)")
         void shouldReturnNetworkPasswordResetSuccess() throws Exception {
-            doNothing().when(emailVerificationService).processNetworkPasswordReset(
-                    eq(USER), anyString(), anyString(), anyString());
+            doNothing().when(emailVerificationService).changeNetworkPassword(
+                    eq(USER), anyString(), anyString());
 
             mockMvc.perform(post(BASE_URL + "network-password/reset")
                     .contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value("NETWORK_PASSWORD_RESET_SUCCESS"));
 
-            verify(emailVerificationService).processNetworkPasswordReset(
-                    USER, "123456", "N3wPassw0rd!X", "N3wPassw0rd!X");
+            verify(emailVerificationService).changeNetworkPassword(
+                    USER, "N3wPassw0rd!X", "N3wPassw0rd!X");
         }
 
         @Test
-        @DisplayName("Code invalide → 400 INVALID_CODE")
+        @DisplayName("Compte non éligible → 400 INVALID_CODE")
         void shouldMapInvalidCode() throws Exception {
-            doThrow(new InvalidCodeException("Le code de changement de mot de passe est incorrect"))
-                    .when(emailVerificationService).processNetworkPasswordReset(anyString(), anyString(), anyString(), anyString());
+            doThrow(new InvalidCodeException("Ce parcours est réservé aux comptes à mot de passe réseau seul"))
+                    .when(emailVerificationService).changeNetworkPassword(anyString(), anyString(), anyString());
 
             mockMvc.perform(post(BASE_URL + "network-password/reset")
                     .contentType(MediaType.APPLICATION_JSON).content(validBody))
@@ -1247,23 +1173,21 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Code non conforme (≠ 6 chiffres) → 400 VALIDATION_ERROR")
-        void shouldValidateSixDigitCode() throws Exception {
-            String body = "{\"code\":\"12ab56\","
-                    + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
+        @DisplayName("Compte inactif → 400 INACTIVE_ACCOUNT")
+        void shouldMapInactiveAccount() throws Exception {
+            doThrow(new InactiveAccountException("Votre compte n'est pas actif"))
+                    .when(emailVerificationService).changeNetworkPassword(anyString(), anyString(), anyString());
 
             mockMvc.perform(post(BASE_URL + "network-password/reset")
-                    .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-
-            verifyNoInteractions(emailVerificationService);
+                    .andExpect(jsonPath("$.code").value("INACTIVE_ACCOUNT"));
         }
 
         @Test
         @DisplayName("newPassword manquant → 400 VALIDATION_ERROR")
         void shouldValidateMissingNewPassword() throws Exception {
-            String body = "{\"code\":\"123456\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
+            String body = "{\"confirmPassword\":\"N3wPassw0rd!X\"}";
 
             mockMvc.perform(post(BASE_URL + "network-password/reset")
                     .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -1282,7 +1206,7 @@ class PersonneRestControllerTest {
                     .contentType(MediaType.APPLICATION_JSON).content(validBody))
                     .andExpect(status().isForbidden());
 
-            verify(emailVerificationService, never()).processNetworkPasswordReset(anyString(), anyString(), anyString(), anyString());
+            verify(emailVerificationService, never()).changeNetworkPassword(anyString(), anyString(), anyString());
         }
     }
 
@@ -1291,29 +1215,27 @@ class PersonneRestControllerTest {
     class NetworkPasswordStatusEndpointTests {
 
         @Test
-        @DisplayName("Compte authentifié → 200 avec eligible et pendingCode (uid lu depuis le jeton)")
+        @DisplayName("Compte authentifié éligible → 200 eligible=true (uid lu depuis le jeton)")
         void shouldReturnStatus() throws Exception {
             when(emailVerificationService.getNetworkPasswordResetStatus(USER))
-                    .thenReturn(new NetworkPasswordResetStatusDTO(true, true));
+                    .thenReturn(new NetworkPasswordResetStatusDTO(true));
 
             mockMvc.perform(get(BASE_URL + "network-password/status"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.eligible").value(true))
-                    .andExpect(jsonPath("$.pendingCode").value(true));
+                    .andExpect(jsonPath("$.eligible").value(true));
 
             verify(emailVerificationService).getNetworkPasswordResetStatus(USER);
         }
 
         @Test
-        @DisplayName("Compte non éligible sans code en attente → 200 eligible=false pendingCode=false")
+        @DisplayName("Compte non éligible → 200 eligible=false")
         void shouldReturnNotEligibleStatus() throws Exception {
             when(emailVerificationService.getNetworkPasswordResetStatus(USER))
-                    .thenReturn(new NetworkPasswordResetStatusDTO(false, false));
+                    .thenReturn(new NetworkPasswordResetStatusDTO(false));
 
             mockMvc.perform(get(BASE_URL + "network-password/status"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.eligible").value(false))
-                    .andExpect(jsonPath("$.pendingCode").value(false));
+                    .andExpect(jsonPath("$.eligible").value(false));
         }
 
         @Test
