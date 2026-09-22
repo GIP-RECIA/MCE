@@ -124,6 +124,19 @@ public class ActivationService {
         if (personne == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
+        if (AccountState.VALIDE.equals(personne.getEtat())) {
+            // Re-entry SSO : compte déjà activé — le parcours est terminé, on ne re-sert pas les étapes.
+            log.info("[ACTIVATION][STATUS] uid={} déjà Valide, parcours terminé (FIN)", uid);
+            return ActivationStatusResponseDTO.builder()
+                    .uid(personne.getUid())
+                    .etat(personne.getEtat())
+                    .charteRequise(false)
+                    .charteSignee(true)
+                    .emailRequise(false)
+                    .passwordRequise(false)
+                    .etapeSuivante(STEP_FIN)
+                    .build();
+        }
 
         EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
 

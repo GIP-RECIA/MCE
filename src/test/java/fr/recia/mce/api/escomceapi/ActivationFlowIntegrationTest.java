@@ -291,6 +291,20 @@ class ActivationFlowIntegrationTest {
     }
 
     @Test
+    @DisplayName("D bis - statut d'un compte déjà Valide (re-entry SSO) → FIN")
+    void scenarioDbis_compteDejaValide() throws Exception {
+        savePersonne("act-d2", "Valide", "d2@exemple.fr", true, TEMP_PASSWORD);
+
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-d2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.etat").value("Valide"))
+                .andExpect(jsonPath("$.etapeSuivante").value("FIN"))
+                .andExpect(jsonPath("$.charteRequise").value(false))
+                .andExpect(jsonPath("$.passwordRequise").value(false))
+                .andExpect(jsonPath("$.emailRequise").value(false));
+    }
+
+    @Test
     @DisplayName("E1 - login inexistant : 400 BAD_REQUEST vague")
     void erreurE1_loginInconnu() throws Exception {
         mockMvc.perform(post("/api/personne/mce/activation/connexion")

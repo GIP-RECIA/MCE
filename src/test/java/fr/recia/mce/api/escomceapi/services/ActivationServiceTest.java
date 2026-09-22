@@ -246,6 +246,21 @@ class ActivationServiceTest {
         }
 
         @Test
+        @DisplayName("Compte déjà Valide (re-entry SSO) → FIN sans étape")
+        void shouldRouteAlreadyActiveToFin() {
+            APersonne p = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", new Date());
+            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+
+            ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
+
+            assertThat(s.getEtapeSuivante()).isEqualTo("FIN");
+            assertThat(s.getEtat()).isEqualTo("Valide");
+            assertThat(s.isCharteRequise()).isFalse();
+            assertThat(s.isPasswordRequise()).isFalse();
+            assertThat(s.isEmailRequise()).isFalse();
+        }
+
+        @Test
         @DisplayName("Uid inconnu → PersonneNotFoundException")
         void shouldFailWhenUidUnknown() {
             when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
