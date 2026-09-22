@@ -44,6 +44,7 @@ import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ForgotPasswordRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ResetPasswordRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
@@ -275,6 +276,60 @@ public class PersonneRestController {
         log.info("[RESET_PASSWORD] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("PASSWORD_RESET_SUCCESS",
                 "Votre mot de passe a été réinitialisé avec succès"));
+    }
+
+    /**
+     * Parcours « mot de passe réseau » (équivalent Cerbère NewPassRezo) : envoie par email un code de
+     * changement à un compte CVDL ntPass sans mot de passe local stocké déjà authentifié (uid issu du jeton,
+     * jamais du corps de requête — on ne peut demander un code que pour son propre compte).
+     */
+    @PostMapping("/network-password/forgot")
+    public ResponseEntity<?> networkPasswordForgot() {
+
+        String uid = getCurrentUid();
+        log.info("[NETWORK_PASSWORD_RESET] Demande uid={}", uid);
+
+        try {
+            emailVerificationService.sendNetworkPasswordResetCode(uid);
+        } catch (ResendCooldownActiveException e) {
+            // Anti-double-clic : laisser le GlobalExceptionHandler répondre 429 avec le temps restant.
+            throw e;
+        } catch (ContactAdminException e) {
+            log.warn("[NETWORK_PASSWORD_RESET] CONTACT_ADMIN uid={} : {}", uid, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", e.getMessage()));
+        } catch (IllegalArgumentException | ApiException e) {
+            log.warn("[NETWORK_PASSWORD_RESET] ÉCHEC uid={} : {}", uid, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("NETWORK_PASSWORD_RESET_FAILED", e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("[NETWORK_PASSWORD_RESET] ERREUR uid={} : {}", uid, e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(new ErrorResponse("INTERNAL_ERROR", "Une erreur interne est survenue"));
+        }
+
+        log.info("[NETWORK_PASSWORD_RESET] Code envoyé pour uid={}", uid);
+        return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_CODE_SENT",
+                "Un code de changement de votre mot de passe réseau a été envoyé à votre adresse email"));
+    }
+
+    /**
+     * Applique le changement de mot de passe réseau après validation du code reçu par email. L'uid est lu
+     * depuis le jeton Soffit : impossible de changer le mot de passe réseau d'un autre compte.
+     */
+    @PostMapping("/network-password/reset")
+    public ResponseEntity<?> networkPasswordReset(
+            @Valid @RequestBody NetworkPasswordResetRequestDTO request) {
+
+        String uid = getCurrentUid();
+        log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
+
+        emailVerificationService.processNetworkPasswordReset(
+                uid, request.getCode(), request.getNewPassword(), request.getConfirmPassword());
+
+        log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
+        return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS",
+                "Votre mot de passe réseau a été modifié avec succès"));
     }
 
     @PostMapping("/verify-email")

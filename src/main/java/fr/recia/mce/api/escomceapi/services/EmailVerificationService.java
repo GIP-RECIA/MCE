@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Coordination du cycle de vérification d'email et de réinitialisation de mot de passe.
@@ -216,20 +217,7 @@ public class EmailVerificationService {
 
         // Réutilisation ou création
         List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
-        CerbereConfirmation confirmation;
-        if (!existing.isEmpty() && existing.get(0).getConfirmation() == null) {
-            confirmation = existing.get(0);
-            log.info("[RESET_PASSWORD] Réutilisation de la confirmation existante id={}", confirmation.getId());
-        } else {
-            confirmation = new CerbereConfirmation();
-            confirmation.setAPersonne(person);
-            confirmation.setEditor(person);
-        }
-        confirmation.setCode(hashedCode);
-        confirmation.setMail(email);
-        confirmation.setLimite(limite);
-        confirmation.setConfirmation(null);
-        cerbereConfirmationRepository.save(confirmation);
+        storeOrReuseConfirmation(person, existing, hashedCode, email, limite, "RESET_PASSWORD");
 
         // Nouvelle demande de code : le compteur de tentatives repart de zéro.
         attemptGuardService.clearResetAttempt(person.getId());
@@ -494,45 +482,21 @@ public class EmailVerificationService {
 
         if (uid != null && !uid.isBlank()) {
             // Cas UID connu : résolution par uid + code
-            person = aPersonneRepository.findByUid(uid);
-            if (person == null) {
+            APersonne resolvedPerson = aPersonneRepository.findByUid(uid);
+            if (resolvedPerson == null) {
                 throw new InvalidCodeException("Aucun compte associé à cet identifiant");
             }
+            person = resolvedPerson;
 
-            AttemptGuardService.AttemptEntry attempts = attemptGuardService.resetAttempt(person.getId());
-            attempts.touch();
-            int maxAttempts = passwordResetPolicyService.maxAttempts();
-
-            if (attempts.count.get() >= maxAttempts) {
-                log.warn("[PROCESS_RESET_PASSWORD] Compteur saturé ({}/{}) uid={}", attempts.count.get(), maxAttempts, uid);
-                cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
-                attemptGuardService.clearResetAttempt(person.getId());
-                throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
-            }
-
-            Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(
-                    person.getId(), hashedCode);
-
-            if (optConfirmation.isEmpty()) {
-                int currentAttempt = attempts.count.incrementAndGet();
-                log.info("[PROCESS_RESET_PASSWORD] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
-                if (currentAttempt > maxAttempts) {
-                    log.warn("[PROCESS_RESET_PASSWORD] Nombre max de tentatives dépassé uid={}, suppression du code", uid);
-                    cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(person.getId());
-                    attemptGuardService.clearResetAttempt(person.getId());
-                    throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.");
-                }
-                throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
-            }
-
-            confirmation = optConfirmation.get();
-        }
-
-        if (confirmation.getLimite().before(new Date())) {
-            log.warn("[PROCESS_RESET_PASSWORD] Code expiré uid={}", person.getUid());
-            cerbereConfirmationRepository.delete(confirmation);
-            attemptGuardService.clearResetAttempt(person.getId());
-            throw new CodeExpiredException("Le code de réinitialisation a expiré. Veuillez demander un nouveau code.");
+            confirmation = validatePendingCode(
+                    resolvedPerson,
+                    hashedCode,
+                    "PROCESS_RESET_PASSWORD",
+                    "Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.",
+                    "Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.",
+                    "Le code de réinitialisation a expiré. Veuillez demander un nouveau code.",
+                    () -> cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(resolvedPerson.getId(), hashedCode),
+                    () -> cerbereConfirmationRepository.deletePendingPasswordResetByPersonId(resolvedPerson.getId()));
         }
 
         if (passwordResetPolicyService.isInactiveAccount(person)) {
@@ -577,6 +541,223 @@ public class EmailVerificationService {
         personneService.clearUserCaches(person.getUid());
 
         log.info("[PROCESS_RESET_PASSWORD] Succès uid={}", person.getUid());
+    }
+
+    /**
+     * Fabrique la confirmation de code : réutilise la confirmation en attente du type donné si elle existe,
+     * sinon en crée une nouvelle rattachée à la personne. Positionne le code hashé, le destinataire et la
+     * limite puis persiste. Partagé entre le parcours public et le parcours « mot de passe réseau ».
+     *
+     * @return la confirmation persistée (existante réutilisée ou nouvelle)
+     */
+    private CerbereConfirmation storeOrReuseConfirmation(APersonne person, List<CerbereConfirmation> existing,
+            String hashedCode, String recipient, Date limite, String logPrefix) {
+        CerbereConfirmation confirmation;
+        if (!existing.isEmpty() && existing.get(0).getConfirmation() == null) {
+            confirmation = existing.get(0);
+            log.info("[{}] Réutilisation de la confirmation existante id={}", logPrefix, confirmation.getId());
+        } else {
+            confirmation = new CerbereConfirmation();
+            confirmation.setAPersonne(person);
+            confirmation.setEditor(person);
+        }
+        confirmation.setCode(hashedCode);
+        confirmation.setMail(recipient);
+        confirmation.setLimite(limite);
+        confirmation.setConfirmation(null);
+        cerbereConfirmationRepository.save(confirmation);
+        return confirmation;
+    }
+
+    /**
+     * Garde-fou partagé d'application d'un code (anti-bruteforce + expiration) pour les parcours de
+     * réinitialisation/mot de passe réseau : compteur de tentatives, résolution de la confirmation en attente,
+     * rejet d'un code erroné/expiré. La suppression des confirmations en attente et la recherche du code sont
+     * fournies par l'appelant (chaque parcours travaille sur son propre type de confirmation).
+     *
+     * @return la confirmation valide, non expirée
+     */
+    private CerbereConfirmation validatePendingCode(APersonne person, String hashedCode, String logPrefix,
+            String tooManyAttemptsMessage, String wrongCodeMessage, String expiredMessage,
+            Supplier<Optional<CerbereConfirmation>> pendingCodeLookup, Runnable deletePendingCampaign) {
+        AttemptGuardService.AttemptEntry attempts = attemptGuardService.resetAttempt(person.getId());
+        attempts.touch();
+        int maxAttempts = passwordResetPolicyService.maxAttempts();
+
+        if (attempts.count.get() >= maxAttempts) {
+            log.warn("[{}] Compteur saturé ({}/{}) uid={}", logPrefix, attempts.count.get(), maxAttempts, person.getUid());
+            deletePendingCampaign.run();
+            attemptGuardService.clearResetAttempt(person.getId());
+            throw new MaxAttemptsExceededException(tooManyAttemptsMessage);
+        }
+
+        Optional<CerbereConfirmation> optConfirmation = pendingCodeLookup.get();
+
+        if (optConfirmation.isEmpty()) {
+            int currentAttempt = attempts.count.incrementAndGet();
+            log.info("[{}] Mauvais code, tentative {}/{} pour uid={}", logPrefix, currentAttempt, maxAttempts, person.getUid());
+            if (currentAttempt > maxAttempts) {
+                log.warn("[{}] Nombre max de tentatives dépassé uid={}, suppression du code", logPrefix, person.getUid());
+                deletePendingCampaign.run();
+                attemptGuardService.clearResetAttempt(person.getId());
+                throw new MaxAttemptsExceededException(tooManyAttemptsMessage);
+            }
+            throw new InvalidCodeException(wrongCodeMessage);
+        }
+
+        CerbereConfirmation confirmation = optConfirmation.get();
+
+        if (confirmation.getLimite().before(new Date())) {
+            log.warn("[{}] Code expiré uid={}", logPrefix, person.getUid());
+            cerbereConfirmationRepository.delete(confirmation);
+            attemptGuardService.clearResetAttempt(person.getId());
+            throw new CodeExpiredException(expiredMessage);
+        }
+        return confirmation;
+    }
+
+    /**
+     * Parcours « mot de passe réseau » (équivalent Cerbère NewPassRezo), déclenchable depuis le portail
+     * Mon Compte pour un utilisateur déjà authentifié (uid résolu côté serveur) : un compte CVDL ntPass sans
+     * mot de passe local stocké ne peut pas fournir d'ancien mot de passe lors du changement ; il prouve sa
+     * légitimité en recevant un code de changement par email (type distinct {@code NRES:}).
+     *
+     * @param uid identifiant de l'utilisateur authentifié (provenant du jeton, jamais du corps de requête)
+     */
+    @Transactional
+    public void sendNetworkPasswordResetCode(String uid) {
+        log.info("[NETWORK_PASSWORD_RESET] Début sendNetworkPasswordResetCode uid={}", uid);
+
+        APersonne person = aPersonneRepository.findByUidWithLock(uid);
+        if (person == null) {
+            throw new InactiveAccountException("Aucun compte associé à cet identifiant");
+        }
+
+        if (passwordResetPolicyService.isInactiveAccount(person)) {
+            log.warn("[NETWORK_PASSWORD_RESET] État '{}' ≠ '{}' pour uid={}", person.getEtat(),
+                    PasswordResetPolicyService.VALID_ACCOUNT_STATE, uid);
+            throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
+        }
+
+        PersonneDTO personneDTO = personneService.getUserByUid(uid);
+        if (personneDTO == null) {
+            throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
+        }
+
+        // Réservé aux comptes à mot de passe réseau seul : un compte disposant d'un mot de passe local
+        // stocké doit passer par le changement avec l'ancien mot de passe.
+        if (!passwordService.isNoOldPassEligible(personneDTO)) {
+            log.warn("[NETWORK_PASSWORD_RESET] REFUSÉ pour l'utilisateur [{}] - Raison : compte non éligible au mot de passe réseau seul", uid);
+            throw new InvalidCodeException(
+                    "Ce parcours est réservé aux comptes à mot de passe réseau seul. Si votre compte dispose d'un mot de passe local, utilisez le changement avec votre ancien mot de passe.");
+        }
+
+        String resetEmail = resolveNetworkResetEmail(person);
+        if (resetEmail == null) {
+            log.warn("[NETWORK_PASSWORD_RESET] Aucun email sur le compte uid={}", uid);
+            throw new ContactAdminException(
+                    "Aucune adresse email n'est associée à votre compte. Veuillez contacter un administrateur de votre établissement.");
+        }
+
+        // Anti-double-clic
+        passwordResetPolicyService.assertResendAllowed(
+                cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(person.getId()), uid,
+                "NETWORK_PASSWORD_RESET");
+
+        // Génération du code
+        String code = verificationCodeService.generateVerificationCode();
+        String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.NETWORK_PASSWORD_RESET);
+
+        Date limite = verificationCodeService.calculateExpiryDate();
+
+        // Réutilisation de la confirmation en attente ou création d'une nouvelle
+        List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestNetworkPasswordResetByPersonId(person.getId());
+        storeOrReuseConfirmation(person, existing, hashedCode, resetEmail, limite, "NETWORK_PASSWORD_RESET");
+
+        // Nouvelle demande de code : le compteur de tentatives repart de zéro.
+        attemptGuardService.clearResetAttempt(person.getId());
+
+        final String recipient = resetEmail;
+        confirmationMailSender.sendAfterCommit(() -> confirmationMailSender.sendResetEmail(recipient, code));
+        log.info("[NETWORK_PASSWORD_RESET] Code généré pour uid={} (envoi programmé après commit)", uid);
+    }
+
+    /**
+     * Applique le changement de mot de passe réseau après validation du code {@code NRES:} reçu par email.
+     * Ne requiert aucun ancien mot de passe (compte CVDL ntPass sans mot de passe local stocké) et ne
+     * re-demande pas la charte : le compte est déjà Valide (parcours Mon Compte), comme l'ancien écran
+     * Cerbère NewPassRezo ne la redemandait pas non plus.
+     */
+    @Transactional
+    public void processNetworkPasswordReset(String uid, String code, String newPassword, String confirmPassword) {
+        log.info("[PROCESS_NETWORK_PASSWORD_RESET] Début uid={}", uid);
+
+        if (uid == null || uid.isBlank()) {
+            throw new InvalidCodeException("Le code de changement de mot de passe est incorrect ou a déjà été utilisé.");
+        }
+
+        APersonne person = aPersonneRepository.findByUid(uid);
+        if (person == null) {
+            throw new InvalidCodeException("Aucun compte associé à cet identifiant");
+        }
+
+        if (passwordResetPolicyService.isInactiveAccount(person)) {
+            throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
+        }
+
+        String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.NETWORK_PASSWORD_RESET);
+        CerbereConfirmation confirmation = validatePendingCode(
+                person,
+                hashedCode,
+                "PROCESS_NETWORK_PASSWORD_RESET",
+                "Trop de tentatives échouées. Veuillez demander un nouveau code.",
+                "Le code de changement de mot de passe est incorrect ou a déjà été utilisé.",
+                "Le code de changement de mot de passe a expiré. Veuillez en demander un nouveau.",
+                () -> cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonIdAndCodeWithLock(person.getId(), hashedCode),
+                () -> cerbereConfirmationRepository.deletePendingNetworkPasswordResetByPersonId(person.getId()));
+
+        PersonneDTO personneDTO = personneService.getUserByUid(person.getUid());
+        if (personneDTO == null) {
+            throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
+        }
+
+        // Même règle de réinitialisation que le parcours public : CVDL ntPass autorisé.
+        passwordResetPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
+
+        passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
+
+        confirmation.setConfirmation(new Date());
+        cerbereConfirmationRepository.save(confirmation);
+
+        cerbereConfirmationRepository.deletePendingNetworkPasswordResetByPersonId(person.getId());
+        attemptGuardService.clearResetAttempt(person.getId());
+
+        personneService.clearUserCaches(person.getUid());
+
+        log.info("[PROCESS_NETWORK_PASSWORD_RESET] Succès uid={}", person.getUid());
+    }
+
+    /**
+     * Résout l'email auquel envoyer le code « mot de passe réseau ». Retourne {@code null} si le compte ne
+     * porte aucun email. Ordre de préférence parmi les emails associés au compte (tous sont légitimes) :
+     * email principal, email personnel, dernier email confirmé via Cerbère, email LDAP.
+     */
+    private String resolveNetworkResetEmail(APersonne person) {
+        if (person.getEmail() != null && !person.getEmail().isBlank()) {
+            return person.getEmail().trim();
+        }
+        if (person.getEmailPersonnel() != null && !person.getEmailPersonnel().isBlank()) {
+            return person.getEmailPersonnel().trim();
+        }
+        List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(person.getId());
+        if (!confirmed.isEmpty() && confirmed.get(0).getMail() != null && !confirmed.get(0).getMail().isBlank()) {
+            return confirmed.get(0).getMail().trim();
+        }
+        String ldap = accountEmailService.ldapEmail(person);
+        if (ldap != null && !ldap.isBlank()) {
+            return ldap.trim();
+        }
+        return null;
     }
 
 }

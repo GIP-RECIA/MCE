@@ -20,7 +20,11 @@ import lombok.Getter;
 @Getter
 public enum ConfirmationType {
 
-    EMAIL_VERIFICATION("VERIFY:"), PASSWORD_RESET("RESET:");
+    EMAIL_VERIFICATION("VERIFY:"), PASSWORD_RESET("RESET:"), NETWORK_PASSWORD_RESET("NRES:");
+
+    // L'ancien écran Cerbère « mot de passe réseau seul » (NewPassRezo) : le compte n'a pas de mot de passe local
+    // stocké (CVDL ntPass / isNoOldPass) et change le mot de passe réseau via un code envoyé par email. On retient
+    // un type distinct pour ne pas écraser les codes RESET du parcours public « mot de passe oublié ».
 
     private final String codePrefix;
 

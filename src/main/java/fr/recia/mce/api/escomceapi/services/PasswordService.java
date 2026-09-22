@@ -784,6 +784,15 @@ public class PasswordService {
     }
 
     /**
+     * @return {@code true} si le compte est éligible au parcours « mot de passe réseau » (équivalent Cerbère
+     *         NewPassRezo) : CVDL strict + ntPass + aucun mot de passe local stocké. C'est la condition pour
+     *         demander un code de changement par email (il n'y a pas d'ancien mot de passe à vérifier).
+     */
+    public boolean isNoOldPassEligible(PersonneDTO person) {
+        return isNoOldPass(person);
+    }
+
+    /**
      * Vérifie si le mot de passe est assez fort et lance une exception si ce n'est pas le cas.
      *
      * @param pass
