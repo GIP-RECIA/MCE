@@ -33,6 +33,7 @@ import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
 import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -735,6 +736,44 @@ public class EmailVerificationService {
         personneService.clearUserCaches(person.getUid());
 
         log.info("[PROCESS_NETWORK_PASSWORD_RESET] Succès uid={}", person.getUid());
+    }
+
+    /**
+     * Statut du parcours « mot de passe réseau » pour le compte authentifié, exposé au portail Mon Compte
+     * afin qu'il affiche le bon écran : éligibilité (CVDL ntPass sans mot de passe local stocké) et présence
+     * d'un code de changement déjà en attente (pour pré-afficher l'écran de saisie du code).
+     *
+     * @param uid identifiant de l'utilisateur authentifié (provenant du jeton, jamais du corps de requête)
+     * @return {@link NetworkPasswordResetStatusDTO} (jamais {@code null} ; uid inconnu ⇒ non éligible)
+     */
+    public NetworkPasswordResetStatusDTO getNetworkPasswordResetStatus(String uid) {
+        log.info("[NETWORK_PASSWORD_RESET] Statut uid={}", uid);
+
+        if (uid == null || uid.isBlank()) {
+            return new NetworkPasswordResetStatusDTO(false, false);
+        }
+
+        APersonne person = aPersonneRepository.findByUid(uid);
+        if (person == null) {
+            log.warn("[NETWORK_PASSWORD_RESET] uid={} inconnu, statut non éligible", uid);
+            return new NetworkPasswordResetStatusDTO(false, false);
+        }
+
+        boolean eligible = false;
+        PersonneDTO personneDTO = personneService.getUserByUid(uid);
+        if (personneDTO != null) {
+            eligible = passwordService.isNoOldPassEligible(personneDTO);
+        } else {
+            log.warn("[NETWORK_PASSWORD_RESET] Profil non chargeable pour uid={}, statut non éligible", uid);
+        }
+
+        // Calculé même si le profil n'est pas (re)chargeable : un code en attente reste nécessaire
+        // pour débloquer le compte.
+        boolean pendingCode = !cerbereConfirmationRepository
+                .findPendingNetworkPasswordResetByPersonId(person.getId()).isEmpty();
+
+        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={} pendingCode={}", uid, eligible, pendingCode);
+        return new NetworkPasswordResetStatusDTO(eligible, pendingCode);
     }
 
     /**

@@ -53,6 +53,8 @@ import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
@@ -1281,6 +1283,48 @@ class PersonneRestControllerTest {
                     .andExpect(status().isForbidden());
 
             verify(emailVerificationService, never()).processNetworkPasswordReset(anyString(), anyString(), anyString(), anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("Tests du point d'accès /network-password/status")
+    class NetworkPasswordStatusEndpointTests {
+
+        @Test
+        @DisplayName("Compte authentifié → 200 avec eligible et pendingCode (uid lu depuis le jeton)")
+        void shouldReturnStatus() throws Exception {
+            when(emailVerificationService.getNetworkPasswordResetStatus(USER))
+                    .thenReturn(new NetworkPasswordResetStatusDTO(true, true));
+
+            mockMvc.perform(get(BASE_URL + "network-password/status"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.eligible").value(true))
+                    .andExpect(jsonPath("$.pendingCode").value(true));
+
+            verify(emailVerificationService).getNetworkPasswordResetStatus(USER);
+        }
+
+        @Test
+        @DisplayName("Compte non éligible sans code en attente → 200 eligible=false pendingCode=false")
+        void shouldReturnNotEligibleStatus() throws Exception {
+            when(emailVerificationService.getNetworkPasswordResetStatus(USER))
+                    .thenReturn(new NetworkPasswordResetStatusDTO(false, false));
+
+            mockMvc.perform(get(BASE_URL + "network-password/status"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.eligible").value(false))
+                    .andExpect(jsonPath("$.pendingCode").value(false));
+        }
+
+        @Test
+        @DisplayName("Utilisateur non authentifié → 403 FORBIDDEN, aucune interaction service")
+        void shouldReturnForbiddenWhenNotAuthenticated() throws Exception {
+            when(soffitHolder.getSub()).thenReturn(null);
+
+            mockMvc.perform(get(BASE_URL + "network-password/status"))
+                    .andExpect(status().isForbidden());
+
+            verify(emailVerificationService, never()).getNetworkPasswordResetStatus(anyString());
         }
     }
 

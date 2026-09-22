@@ -34,6 +34,7 @@ import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededExcepti
 import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1779,6 +1780,100 @@ class EmailVerificationServiceTest {
                     .hasMessageContaining("Impossible de charger");
 
             verify(passwordService, never()).resetPassword(any(), any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("getNetworkPasswordResetStatus")
+    class NetworkPasswordResetStatusTests {
+
+        private APersonne stubPerson(long id) {
+            APersonne p = validPerson(id);
+            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
+            return p;
+        }
+
+        @Test
+        @DisplayName("Compte éligible avec code en attente → eligible=true pendingCode=true")
+        void eligibleWithPendingCode() {
+            APersonne p = stubPerson(321L);
+            PersonneDTO dto = cvdlNtPassDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
+            when(passwordService.isNoOldPassEligible(dto)).thenReturn(true);
+            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(321L))
+                    .thenReturn(List.of(pendingNetworkReset(321L, 0)));
+
+            NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
+
+            assertThat(status).isNotNull();
+            assertThat(status.isEligible()).isTrue();
+            assertThat(status.isPendingCode()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Compte non éligible sans code en attente → eligible=false pendingCode=false")
+        void notEligibleWithoutPendingCode() {
+            APersonne p = stubPerson(322L);
+            PersonneDTO dto = cvdlNtPassDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
+            when(passwordService.isNoOldPassEligible(dto)).thenReturn(false);
+            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(322L)).thenReturn(List.of());
+
+            NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
+
+            assertThat(status.isEligible()).isFalse();
+            assertThat(status.isPendingCode()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Read-only : ne vérifie pas le profil via le policy service")
+        void doesNotCheckAccountPolicy() {
+            APersonne p = stubPerson(323L);
+            PersonneDTO dto = cvdlNtPassDto();
+            when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
+            when(passwordService.isNoOldPassEligible(dto)).thenReturn(true);
+            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(323L)).thenReturn(List.of());
+
+            service.getNetworkPasswordResetStatus(p.getUid());
+
+            verifyNoInteractions(passwordResetPolicyService);
+        }
+
+        @Test
+        @DisplayName("Personne inconnue → eligible=false pendingCode=false, aucun accès au profil")
+        void unknownPersonNotFound() {
+            when(aPersonneRepository.findByUid("ghost.unknown")).thenReturn(null);
+
+            NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus("ghost.unknown");
+
+            assertThat(status.isEligible()).isFalse();
+            assertThat(status.isPendingCode()).isFalse();
+            verify(personneService, never()).getUserByUid(anyString());
+            verify(cerbereConfirmationRepository, never()).findPendingNetworkPasswordResetByPersonId(anyLong());
+        }
+
+        @Test
+        @DisplayName("uid null ou vide → eligible=false pendingCode=false, aucune requête")
+        void blankOrNullUid() {
+            NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(null);
+
+            assertThat(status.isEligible()).isFalse();
+            assertThat(status.isPendingCode()).isFalse();
+            verifyNoInteractions(aPersonneRepository, personneService, cerbereConfirmationRepository);
+        }
+
+        @Test
+        @DisplayName("Profil impossible à charger → eligible=false mais pendingCode préservé")
+        void profileLoadFailureKeepsPendingCode() {
+            APersonne p = stubPerson(324L);
+            when(personneService.getUserByUid(p.getUid())).thenReturn(null);
+            when(cerbereConfirmationRepository.findPendingNetworkPasswordResetByPersonId(324L))
+                    .thenReturn(List.of(pendingNetworkReset(324L, 0)));
+
+            NetworkPasswordResetStatusDTO status = service.getNetworkPasswordResetStatus(p.getUid());
+
+            assertThat(status.isEligible()).isFalse();
+            assertThat(status.isPendingCode()).isTrue();
         }
     }
 }

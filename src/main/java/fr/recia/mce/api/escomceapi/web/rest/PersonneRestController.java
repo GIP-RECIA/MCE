@@ -45,6 +45,7 @@ import fr.recia.mce.api.escomceapi.web.dto.ConnexionActivationResponseDTO;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ForgotPasswordRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ResetPasswordRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
@@ -330,6 +331,20 @@ public class PersonneRestController {
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS",
                 "Votre mot de passe réseau a été modifié avec succès"));
+    }
+
+    /**
+     * Statut du parcours « mot de passe réseau » du compte authentifié : éligibilité (CVDL ntPass sans
+     * mot de passe local stocké, détectée côté serveur car {@code ntPass} n'est pas présent dans le jeton
+     * OIDC) et présence d'un code de changement déjà en attente. Permet au portail d'afficher le bon écran.
+     */
+    @GetMapping("/network-password/status")
+    public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus() {
+        String uid = getCurrentUid();
+        NetworkPasswordResetStatusDTO status = emailVerificationService.getNetworkPasswordResetStatus(uid);
+        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={} pendingCode={}", uid,
+                status.isEligible(), status.isPendingCode());
+        return ResponseEntity.ok(status);
     }
 
     @PostMapping("/verify-email")
