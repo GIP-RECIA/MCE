@@ -18,10 +18,12 @@ package fr.recia.mce.api.escomceapi.services;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
@@ -63,7 +65,13 @@ public class PersonneService {
     private MCEProperties mceProperties;
 
     @Autowired
+    private CharteService charteService;
+
+    @Autowired
     private APersonneRepository aPersonneRepository;
+
+    @Autowired
+    private ValidationCharteRepository validationCharteRepository;
 
     @Autowired
     private LdapUserDaoImp userLdapDao;
@@ -92,6 +100,7 @@ public class PersonneService {
         PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
 
         if (personne != null) {
+            populateCharteValidationDTO(personne, uid);
             loadLdapUser(personne, uid);
             if (cache != null) {
                 cache.putIfAbsent(uid, personne);
@@ -100,6 +109,32 @@ public class PersonneService {
 
         log.debug("Recherche base de données terminée pour l'uid [{}] : Résultat={}", uid, personne);
         return personne;
+    }
+
+    /**
+     * Reflète sur le DTO l'état de la validation de charte (date + flag) lu depuis la table dédiée
+     * {@code validationcharteservice}, pour le service courant de la personne. N'écrit plus la colonne
+     * {@code apersonne.validationCharte}.
+     */
+    private void populateCharteValidationDTO(PersonneDTO personne, String uid) {
+        try {
+            APersonne base = personne.getApersonne();
+            if (base == null || base.getId() == null) {
+                return;
+            }
+            String serviceId = charteService.resolveService(base);
+            if (serviceId == null) {
+                return;
+            }
+            ValidationCharte validation = validationCharteRepository
+                    .findByApersonneIdAndServiceId(base.getId(), serviceId);
+            if (validation != null) {
+                personne.setDateValidCharte(validation.getValidatedAt());
+                personne.setCharteValide(true);
+            }
+        } catch (Exception e) {
+            log.warn("Impossible de refléter la validation de charte sur le DTO pour l'uid [{}] : {}", uid, e.getMessage());
+        }
     }
 
     private IExternalUser getUserLdap(String uid) {
@@ -421,17 +456,19 @@ public class PersonneService {
         if (entity == null) {
             throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
         }
-        // TODO [CHARTE PAR DOMAINE] : l'écriture de la signature charte est en cours de discussion.
-        //  Une personne peut appartenir à plusieurs domaines (chacun avec sa propre charte).
-        //  On ne doit PAS bloquer l'utilisateur tant que TOUTES ses chartes ne sont pas signées,
-        //  mais vérifier uniquement la charte du DOMAINE COURANT de la requête.
-        //  Actuellement une seule colonne `apersonne.validationCharte` stocke la signature,
-        //  ce qui ne permet pas de tracer la signature par domaine.
-        //  => La structure de stockage devra évoluer (ex : table dédiée par domaine, ou colonne par source).
-        //  En attendant, on conserve le comportement actuel (une seule date de signature).
-        entity.setValidationCharte(new Date());
-        aPersonneRepository.save(entity);
-        syncValidationCharteLdap(uid, entity.getValidationCharte());
+        // Charte par service : la validation est tracée dans la table dédiée `validationcharteservice`
+        // (une ligne par couple (personne, service)), et non plus dans la colonne `apersonne.validationCharte`.
+        String serviceId = charteService.resolveService(entity);
+        ValidationCharte validation = validationCharteRepository.findByApersonneIdAndServiceId(entity.getId(), serviceId);
+        if (validation == null) {
+            validation = new ValidationCharte();
+            validation.setAPersonneId(entity.getId());
+            validation.setServiceId(serviceId);
+        }
+        validation.setCharterVersionDate(charteService.getCharteVersionDate(serviceId));
+        validation.setValidatedAt(new Date());
+        validationCharteRepository.save(validation);
+        syncValidationCharteLdap(uid, validation.getValidatedAt());
         clearUserCaches(uid);
         log.info("[signCharte] FIN uid={}", uid);
     }

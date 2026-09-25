@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.configuration.interceptor;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class SoffitInterceptor implements HandlerInterceptor {
 
     private static final String ANONYMOUS_PRINCIPAL = "anonymousUser";
     private static final String GUEST_USER_PREFIX = "guest";
+    private static final String HEADER_X_FORWARDED_HOST = "X-Forwarded-Host";
 
     private final SoffitHolder soffitHolder;
     private final boolean requireAuthenticatedPrincipal;
@@ -51,6 +53,11 @@ public class SoffitInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
         log.debug("En-tête Authorization reçu : présent={}", request.getHeader("Authorization") != null);
+
+        // Hôte du site d'arrivée (pour la détermination du domaine de charte).
+        // Toujours renseigné, même en mode anonyme : le CharteInterceptor consomme ensuite
+        // ce champ pour choisir la charte propre au domaine du site d'où l'utilisateur arrive.
+        captureArrivalHost(request);
 
         // 1) Source de confiance : le principal posé par le filtre Spring Security
         //    (SoffitApiPreAuthenticatedProcessingFilter), dont la signature HMAC a
@@ -133,6 +140,81 @@ public class SoffitInterceptor implements HandlerInterceptor {
         }
 
         return true;
+    }
+
+    /**
+     * Détermine et pose dans {@link SoffitHolder#setArrivalHost(String)} l'hôte du site
+     * d'où l'utilisateur arrive. Source d'information : le JWT Soffit (iss, sinon aud),
+     * puis l'en-tête {@code X-Forwarded-Host} posé par le reverse proxy. Sans l'un des
+     * deux (appels directs, tests), aucun hôte n'est posé : la résolution retombe alors
+     * sur la source de la personne (comportement historique).
+     */
+    private void captureArrivalHost(HttpServletRequest request) {
+        String host = null;
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            host = hostFromJwt(authHeader.replace("Bearer ", "").trim());
+        }
+        if (host == null) {
+            host = request.getHeader(HEADER_X_FORWARDED_HOST);
+        }
+        host = normalizeHost(host);
+        soffitHolder.setArrivalHost(host);
+        log.debug("Hôte du site d'arrivée déterminé : {}", host);
+    }
+
+    /**
+     * Extrait l'hôte du couple iss/aud du payload JWT (décodé sans vérification de signature),
+     * {@code null} si aucun n'est exploitable.
+     */
+    private String hostFromJwt(String jwt) {
+        try {
+            String[] parts = jwt.split("\\.");
+            if (parts.length < 2) {
+                return null;
+            }
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> claims = objectMapper.readValue(payload, Map.class);
+            Object iss = claims.get("iss");
+            Object aud = claims.get("aud");
+            Object issuer = iss != null ? iss : aud;
+            if (issuer == null) {
+                return null;
+            }
+            try {
+                return URI.create(issuer.toString()).getHost();
+            } catch (Exception e) {
+                // Pas une URL complète : on tente un nettoyage manuel (hôte[:port][/chemin]).
+                return normalizeHost(issuer.toString());
+            }
+        } catch (Exception e) {
+            log.debug("Hôte d'arrivée non déterminable depuis le JWT : {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Normalise un hôte : minuscules, sans protocole, sans port, sans chemin, sans espaces.
+     */
+    private String normalizeHost(String host) {
+        if (host == null) {
+            return null;
+        }
+        String normalized = host.trim().toLowerCase();
+        int scheme = normalized.indexOf("://");
+        if (scheme >= 0) {
+            normalized = normalized.substring(scheme + 3);
+        }
+        int slash = normalized.indexOf('/');
+        if (slash >= 0) {
+            normalized = normalized.substring(0, slash);
+        }
+        int colon = normalized.indexOf(':');
+        if (colon >= 0) {
+            normalized = normalized.substring(0, colon);
+        }
+        return normalized.isBlank() ? null : normalized;
     }
 
 }

@@ -13,20 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.configuration.interceptor.bean;
+package fr.recia.mce.api.escomceapi.db.entities;
 
+import java.io.Serializable;
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+/**
+ * Identifiant composite de {@link ValidationCharte} : un couple (personne, service).
+ */
 @Data
-public class SoffitHolder {
+@NoArgsConstructor
+@AllArgsConstructor
+public class ValidationCharteId implements Serializable {
 
-    private String sub;
+    private Long aPersonneId;
 
-    /**
-     * Hôte du site d'où l'utilisateur arrive (ex. {@code lycees.netocentre.fr}) : déduit du JWT
-     * Soffit (iss/aud), sinon de l'en-tête {@code X-Forwarded-Host}, sinon du nom côté serveur.
-     * Permet de déterminer la charte à faire signer selon le domaine du site d'arrivée.
-     */
-    private String arrivalHost;
-
+    private String serviceId;
 }

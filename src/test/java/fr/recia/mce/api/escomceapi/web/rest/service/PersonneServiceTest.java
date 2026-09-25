@@ -20,10 +20,13 @@ import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -32,6 +35,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,10 +49,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,6 +78,12 @@ public class PersonneServiceTest {
 
     @Mock
     private MCEProperties mceProperties;
+
+    @Mock
+    private CharteService charteService;
+
+    @Mock
+    private ValidationCharteRepository validationCharteRepository;
 
     @InjectMocks
     private PersonneService personneService;
@@ -504,21 +516,33 @@ public class PersonneServiceTest {
 
         private APersonne entityInvalide() {
             APersonne entity = new APersonne();
+            entity.setId(1L);
             entity.setUid(uid);
             entity.setEtat("Invalide");
             return entity;
         }
 
         @Test
-        @DisplayName("signCharte pose la date de validation et sauvegarde")
+        @DisplayName("signCharte trace la validation dans validationcharteservice et synchronise LDAP")
         void signCharte_positionsCharteAndSaves() {
             APersonne entity = entityInvalide();
             when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+            when(charteService.resolveService(any(APersonne.class))).thenReturn("AC");
+            when(charteService.getCharteVersionDate(anyString())).thenReturn(new Date());
 
             personneService.signCharte(uid);
 
-            assertThat(entity.getValidationCharte()).isNotNull();
-            verify(aPersonneRepository).save(entity);
+            ArgumentCaptor<ValidationCharte> captor = ArgumentCaptor.forClass(ValidationCharte.class);
+            verify(validationCharteRepository).save(captor.capture());
+            ValidationCharte saved = captor.getValue();
+            assertThat(saved.getAPersonneId()).isEqualTo(1L);
+            assertThat(saved.getServiceId()).isEqualTo("AC");
+            assertThat(saved.getCharterVersionDate()).isNotNull();
+            assertThat(saved.getValidatedAt()).isNotNull();
+            // La colonne apersonne.validationCharte n'est plus utilisée comme source de vérité.
+            assertThat(entity.getValidationCharte()).isNull();
+            verify(aPersonneRepository, never()).save(any(APersonne.class));
+            verify(extDao).updateValidationCharte(eq(uid), any(Date.class));
             verify(cacheManager, atLeastOnce()).getCache(anyString());
         }
 

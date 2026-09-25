@@ -126,11 +126,6 @@ public class PersonneDTO extends Personne {
     }
 
     @Override
-    public Date getDateValidCharte() {
-        return aPersonneBase.getValidationCharte();
-    }
-
-    @Override
     public String getMailFixe() {
         String mail = aPersonneBase.getEmail();
         if (StringUtils.isBlank(mail)) {
@@ -235,20 +230,18 @@ public class PersonneDTO extends Personne {
         setDateModification(new Date());
     }
 
-    @Override
-    public boolean isCharteValide() {
-        Date d = aPersonneBase.getValidationCharte();
-        return d != null;
-    }
-
     /**
      * Fixe la date de signature de la charte.
+     * <p>
+     * Portée sur les champs métier du bean {@link Personne} ({@code dateValidCharte}/{@code charteValide}) :
+     * la colonne {@code apersonne.validationCharte} n'est plus utilisée comme source de vérité depuis la
+     * migration vers la table {@code validation_charte}.
      *
-     * @param datedesignature
-     *            date de signature
+     * @param datedesignature date de signature
      */
     public void setDateValideCharte(final Date datedesignature) {
-        aPersonneBase.setValidationCharte(datedesignature);
+        super.setDateValidCharte(datedesignature);
+        super.setCharteValide(datedesignature != null);
         setDateModification();
     }
 

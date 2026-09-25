@@ -15,24 +15,23 @@
  */
 package fr.recia.mce.api.escomceapi.db.repositories;
 
-import java.util.Collection;
-
+import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
+import fr.recia.mce.api.escomceapi.db.entities.Fonction;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
-import fr.recia.mce.api.escomceapi.db.entities.Fonction;
+import java.util.Collection;
 
 @Repository
 public interface FonctionRepository extends AbstractRepository<Fonction, Long> {
 
     @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.FonctionDTO(a.id, t.libelleFiliere, d.disciplinePoste, s.siren, d.code, t.codeFiliere, case when (a.dateDebut is null or a.dateDebut <= current_timestamp) and (a.dateFin is null or a.dateFin > current_timestamp) and (a.dateFinSource is null or a.dateFinSource > current_timestamp) then true else false end as active) "
-            +
-            "from AFonction a, Fonction f, AStructure s , Discipline d, TypeFonctionFiliere t " +
-            "where a.aPersonne.id = :personne " +
-            "and f.id = a.id " +
-            "and f.discipline = d.id " +
-            "and f.typeFonctionFiliere = t.id "
-            + "and f.aStructure = s.id")
+        +
+        "from AFonction a, Fonction f, AStructure s , Discipline d, TypeFonctionFiliere t " +
+        "where a.aPersonne.id = :personne " +
+        "and f.id = a.id " +
+        "and f.discipline.id = d.id "
+        + "and f.typeFonctionFiliere.id = t.id "
+        + "and f.aStructure.id = s.id")
     Collection<FonctionDTO> findAllFonction(final Long personne);
 }

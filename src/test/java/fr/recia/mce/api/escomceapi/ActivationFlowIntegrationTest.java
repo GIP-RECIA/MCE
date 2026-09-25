@@ -18,9 +18,11 @@ package fr.recia.mce.api.escomceapi;
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
@@ -40,6 +42,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,6 +85,9 @@ class ActivationFlowIntegrationTest {
     private CerbereConfirmationRepository confirmationRepository;
 
     @Autowired
+    private ValidationCharteRepository validationCharteRepository;
+
+    @Autowired
     private MCEProperties mceProperties;
 
     @MockBean
@@ -100,6 +106,7 @@ class ActivationFlowIntegrationTest {
     void setUp() {
         mceProperties.getSecurity().getRateLimit().setPermitsPerSecond(1_000_000.0);
         confirmationRepository.deleteAll();
+        validationCharteRepository.deleteAll();
         personneRepository.deleteAll();
         reset(mailSender, passwordService, personneService, userDTOFactory);
     }
@@ -120,10 +127,17 @@ class ActivationFlowIntegrationTest {
         if (storedPassword != null) {
             p.setPassword(storedPassword);
         }
+        p = personneRepository.saveAndFlush(p);
         if (charteSignee) {
-            p.setValidationCharte(new Date());
+            // Charte par service : la validation est tracée dans validationcharteservice (service = source).
+            ValidationCharte v = new ValidationCharte();
+            v.setAPersonneId(p.getId());
+            v.setServiceId("test");
+            v.setCharterVersionDate(java.sql.Date.valueOf(LocalDate.of(2024, 1, 1)));
+            v.setValidatedAt(new Date());
+            validationCharteRepository.saveAndFlush(v);
         }
-        return personneRepository.saveAndFlush(p);
+        return p;
     }
 
     /** Stub : retourne un {@code PersonneDTO} portant l'état charte demandé, pour des appels successifs. */
@@ -131,19 +145,15 @@ class ActivationFlowIntegrationTest {
         APersonne base = new APersonne();
         base.setUid(uid);
         base.setSource("test");
-        if (charteValide) {
-            base.setValidationCharte(new Date());
-        }
         when(personneService.getUserByUid(uid)).thenReturn(new PersonneDTO(base));
     }
 
-    /** Stub : premier appel charte non signée, puis second appel charte signée (après signature). */
+    /** Stub : premier appel DTO sans charte, puis second appel DTO charte signée (après signature). */
     private void stubUserByUidChartePuisSignee(String uid) {
         APersonne sansCharte = new APersonne();
         sansCharte.setUid(uid);
         APersonne signee = new APersonne();
         signee.setUid(uid);
-        signee.setValidationCharte(new Date());
         when(personneService.getUserByUid(uid)).thenReturn(new PersonneDTO(sansCharte), new PersonneDTO(signee));
     }
 

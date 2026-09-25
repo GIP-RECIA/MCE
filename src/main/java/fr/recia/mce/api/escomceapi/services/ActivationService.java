@@ -125,6 +125,21 @@ public class ActivationService {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
         if (AccountState.VALIDE.equals(personne.getEtat())) {
+            // Compte déjà actif mais charte non signée (ex. arrivée via le redirect du CharteInterceptor) :
+            // seul le bloc charte doit s'afficher, sans redemander mot de passe ni email, sinon l'écran
+            // « Compte activé » reboucle en boucle avec l'auto-redirect returnTo.
+            if (charteService.isCharteRequired(personne)) {
+                log.info("[ACTIVATION][STATUS] uid={} déjà Valide mais charte non signée, étape CHARTE", uid);
+                return ActivationStatusResponseDTO.builder()
+                        .uid(personne.getUid())
+                        .etat(personne.getEtat())
+                        .charteRequise(true)
+                        .charteSignee(false)
+                        .emailRequise(false)
+                        .passwordRequise(false)
+                        .etapeSuivante(STEP_CHARTE)
+                        .build();
+            }
             // Re-entry SSO : compte déjà activé — le parcours est terminé, on ne re-sert pas les étapes.
             log.info("[ACTIVATION][STATUS] uid={} déjà Valide, parcours terminé (FIN)", uid);
             return ActivationStatusResponseDTO.builder()
@@ -208,6 +223,13 @@ public class ActivationService {
             // signCharte pose toujours une date courante : on la reflète sur le DTO déjà chargé
             // pour éviter un 2ᵉ chargement complet (DB + LDAP) après l'éviction du cache.
             personneDTO.setDateValideCharte(new Date());
+        }
+
+        // Re-entry d'un compte déjà actif (ex. charte à (re)signer, arrivée via le redirect du CharteInterceptor) :
+        // seule la charte manquait — on ne redemande ni mot de passe ni email et on ne réécrit pas l'état du compte.
+        if (AccountState.VALIDE.equals(personne.getEtat())) {
+            log.info("[ACTIVATION][PASSWORD] Re-entry compte déjà Valide uid={}, seule la charte était requise", uid);
+            return new ActivationResultDTO(uid, AccountState.VALIDE, false);
         }
 
         EnumPublic pub = userDTOFactory.evalPublic(personneDTO);

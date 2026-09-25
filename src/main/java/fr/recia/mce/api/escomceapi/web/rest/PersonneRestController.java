@@ -371,9 +371,10 @@ public class PersonneRestController {
             log.info("[CHARTE][ACCEPT] uid={} charte déjà signée, aucune écriture", uid);
         }
 
-        boolean charteSignee = !charteService.isCharteRequired(uid);
+        // La charte est nécessairement signée ici : soit elle l'était déjà, soit elle vient de l'être.
+        // Plus besoin de re-soumettre la requête à la base.
         String charteUrl = charteService.getCharteUrl(uid);
-        return ResponseEntity.ok(new CharteStatusResponse(!charteSignee, charteUrl, charteSignee));
+        return ResponseEntity.ok(new CharteStatusResponse(false, charteUrl, true));
     }
 
     /**

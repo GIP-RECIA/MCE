@@ -36,11 +36,9 @@ import lombok.extern.slf4j.Slf4j;
  * du domaine courant de l'utilisateur n'est pas signée.
  *
  * <p>Règle métier actuelle : {@link CharteService#isCharteRequired(String)} détermine
- * le besoin de signature à partir de la seule colonne {@code validationCharte} de
- * l'{@code APersonne}. Quand la gestion « charte par domaine » sera en place (voir le
- * TODO de {@code PersonneService.signCharte}), il suffira d'adapter cette vérification
- * pour ne contrôler que la signature du domaine courant, sans bloquer l'utilisateur
- * pour d'autres domaines dont la charte ne serait pas signée.</p>
+ * le besoin de signature du domaine courant depuis la table {@code validationcharteservice}
+ * (une ligne par couple (personne, service)). L'utilisateur n'est bloqué que pour le
+ * domaine courant, pas pour les autres domaines dont la charte ne serait pas signée.</p>
  *
  * <p>S'exécute après {@link SoffitInterceptor} : on ne vérifie la charte que pour les
  * requêtes réellement authentifiées (présence d'un {@code sub} non nul et différent de

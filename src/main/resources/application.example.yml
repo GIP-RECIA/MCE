@@ -224,6 +224,15 @@ mail:
 
 charte:
     default-url: "https://lycees.netocentre.fr/files/textes/droits_usage.html"
+    # Chemin externe du fichier CSV dom;version (versions de charte par service).
+    # Si absent ou introuvable, charte/chartes.csv du classpath est utilisé en repli.
+    csv-path: "/etc/mce/chartes.csv"
     urls:
         # URL par source d'établissement (ex: "COLL-45", "AC-ORLEANS-TOURS" → préfixe avant "-")
         LYCEE: "https://lycees.netocentre.fr/files/textes/droits_usage.html"
+    # Hôte du site d'arrivée → clé de charte (service). Complète/surcharge la résolution
+    # déduite des `urls` (ex. hôtes de test). Règle : l'hôte doit figurer dans les domaines
+    # de la personne (ESCODomaines en annuaire) ; sinon warning + charte par défaut.
+    domains:
+        lycees.netocentre.fr: "LYCEE"
+        lycees.test.recia.dev: "LYCEE"

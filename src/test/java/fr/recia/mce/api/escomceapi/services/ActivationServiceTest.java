@@ -17,9 +17,11 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
@@ -35,6 +37,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Date;
 
@@ -72,8 +75,11 @@ class ActivationServiceTest {
     @Mock
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
+    @Mock
+    private ValidationCharteRepository validationCharteRepository;
+
     // Spy : isCharteRequired(APersonne) exécute la vraie règle de domaine
-    // (charte requise tant que validationCharte est null), comme l'ancien contrôle inline.
+    // (charte requise tant qu'aucune signature n'est enregistrée pour le couple (uid, dom)).
     @Spy
     private CharteService charteService = new CharteService();
 
@@ -82,6 +88,9 @@ class ActivationServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Le spy porté par ActivationService exécute la vraie règle : injecter ses dépendances.
+        ReflectionTestUtils.setField(charteService, "aPersonneRepository", aPersonneRepository);
+        ReflectionTestUtils.setField(charteService, "validationCharteRepository", validationCharteRepository);
         // Comportement par défaut pour éviter NullPointerException
         lenient().when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
         lenient().when(cerbereConfirmationRepository.findConfirmedByPersonId(any()))
@@ -90,12 +99,19 @@ class ActivationServiceTest {
 
     private APersonne personne(String uid, String etat, String categorie, String email, Date validationCharte) {
         APersonne p = new APersonne();
+        p.setId(1L);
         p.setUid(uid);
         p.setEtat(etat);
         p.setCategorie(categorie);
         p.setEmail(email);
         p.setValidationCharte(validationCharte);
         p.setVersion(0L);
+        // Règle du service : une personne est considérée « charte validée » quand une ligne
+        // validationcharteservice existe pour (personne, service). Reflète l'ancien comportement.
+        if (validationCharte != null) {
+            lenient().when(validationCharteRepository.findByApersonneIdAndServiceId(any(), anyString()))
+                    .thenReturn(new ValidationCharte());
+        }
         return p;
     }
 
@@ -261,6 +277,22 @@ class ActivationServiceTest {
         }
 
         @Test
+        @DisplayName("Compte déjà Valide mais charte non signée → CHARTE (bloc charte seul)")
+        void shouldRouteAlreadyActiveToCharteWhenCharteMissing() {
+            APersonne p = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
+            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+
+            ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
+
+            assertThat(s.getEtapeSuivante()).isEqualTo("CHARTE");
+            assertThat(s.getEtat()).isEqualTo("Valide");
+            assertThat(s.isCharteRequise()).isTrue();
+            assertThat(s.isCharteSignee()).isFalse();
+            assertThat(s.isPasswordRequise()).isFalse();
+            assertThat(s.isEmailRequise()).isFalse();
+        }
+
+        @Test
         @DisplayName("Uid inconnu → PersonneNotFoundException")
         void shouldFailWhenUidUnknown() {
             when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
@@ -311,6 +343,26 @@ class ActivationServiceTest {
 
             verify(personneService, never()).signCharte(anyString());
             verify(personneService, never()).valideCompte(anyString());
+        }
+
+        @Test
+        @DisplayName("Re-entry compte déjà Valide + charte acceptée → seule la charte est signée, ni mot de passe ni état")
+        void shouldOnlySignCharteForAlreadyValideAccount() {
+            APersonne ihm = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
+            PersonneDTO dto = new PersonneDTO(ihm);
+            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(personneService.getUserByUid("dupontj")).thenReturn(dto);
+
+            ActivationResultDTO result = activationService.activate(
+                    request("dupontj", true, null, null, null));
+
+            verify(personneService).signCharte("dupontj");
+            assertThat(dto.isCharteValide()).isTrue();
+            verify(passwordService, never()).resetPassword(any(), any(), any());
+            verify(personneService, never()).valideCompte(anyString());
+            verify(personneService, never()).setEtatValidWithoutPassword(anyString());
+            assertThat(result.getEtat()).isEqualTo("Valide");
+            assertThat(result.isEmailEnAttenteDeVerification()).isFalse();
         }
 
         @Test

@@ -547,9 +547,10 @@ public class EmailVerificationService {
 
         passwordResetPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
 
-        log.info("[PROCESS_RESET_PASSWORD] uid={} validationCharte={} charteAccepted={}",
-                person.getUid(), person.getValidationCharte(), charteAccepted);
-        if (charteService.isCharteRequired(person)) {
+        boolean charteRequise = charteService.isCharteRequired(person);
+        log.info("[PROCESS_RESET_PASSWORD] uid={} charteRequise={} (validationcharteservice) charteAccepted={}",
+                person.getUid(), charteRequise, charteAccepted);
+        if (charteRequise) {
             if (!charteAccepted) {
                 String charteUrl = charteService.getCharteUrl(person.getUid());
                 log.info("[PROCESS_RESET_PASSWORD] uid={} charte requise, charteUrl={}", person.getUid(), charteUrl);

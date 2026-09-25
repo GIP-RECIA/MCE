@@ -201,6 +201,7 @@
                     <include>**/*.html</include>
                     <include>**/*.css</include>
                     <include>**/*.js</include>
+                    <include>**/*.csv</include>
                     <include>version.properties</include>
                 </includes>
                 <excludes>

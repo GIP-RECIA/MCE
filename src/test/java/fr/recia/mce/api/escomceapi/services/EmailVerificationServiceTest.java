@@ -22,9 +22,11 @@ import fr.recia.mce.api.escomceapi.configuration.bean.SecurityProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
+import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
@@ -82,6 +84,9 @@ class EmailVerificationServiceTest {
 
     @Mock
     private APersonneRepository aPersonneRepository;
+
+    @Mock
+    private ValidationCharteRepository validationCharteRepository;
 
     @Mock
     private MailProperties mailProperties;
@@ -177,6 +182,7 @@ class EmailVerificationServiceTest {
         lenient().when(charteProperties.getDefaultUrl()).thenReturn("https://charte.example.fr");
         ReflectionTestUtils.setField(charteService, "aPersonneRepository", aPersonneRepository);
         ReflectionTestUtils.setField(charteService, "charteProperties", charteProperties);
+        ReflectionTestUtils.setField(charteService, "validationCharteRepository", validationCharteRepository);
     }
 
     private String sha256(String code) {
@@ -1078,8 +1084,10 @@ class EmailVerificationServiceTest {
         private CerbereConfirmation stubPending(String uidValue, long personId, boolean charteValide) {
             APersonne p = validPerson(personId);
             p.setUid(uidValue);
-            p.setValidationCharte(charteValide ? new Date() : null);
             when(aPersonneRepository.findByUid(uidValue)).thenReturn(p);
+            // Règle du service : validation tracée dans validationcharteservice pour (personne, service).
+            lenient().when(validationCharteRepository.findByApersonneIdAndServiceId(eq(personId), anyString()))
+                    .thenReturn(charteValide ? new ValidationCharte() : null);
 
             String hashed = "RESET:" + sha256("123456");
             CerbereConfirmation confirmation = new CerbereConfirmation();

@@ -1,0 +1,17 @@
+# Version de la charte par service — fichier reçu (dom;version), à compléter si besoin
+#   dom     : identifiant du service (ex. COLL-37, ENT)
+#   version : date de version de la charte du service (yyyy-MM-dd)
+# L'URL (nom) de la charte reste configurée dans application.yml (charte.urls / charte.default-url).
+dom;version
+default;2024-01-02
+COLL-37;2024-01-02
+COLL-18;2024-01-02
+COLL-41;2024-01-02
+COLL-36;2024-01-02
+COLL-45;2024-01-02
+COLL-28;2024-01-02
+CFA;2024-01-02
+LYCEE;2024-01-02
+ENT;2024-01-02
+WEBOCENTRE;2024-01-02
+EF2S;2024-01-02
