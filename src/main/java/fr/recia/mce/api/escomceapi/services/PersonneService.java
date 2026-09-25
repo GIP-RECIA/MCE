@@ -195,7 +195,7 @@ public class PersonneService {
         if (entity == null) {
             return;
         }
-        if (!AccountState.VALIDE.equals(entity.getEtat())) {
+        if (!AccountState.same(entity.getEtat(), AccountState.VALIDE)) {
             return;
         }
         IExternalUser userLdap = getUserLdap(uid);
@@ -206,7 +206,8 @@ public class PersonneService {
         }
         String etatLdapAttr = mceProperties.getLdap().getUserBranch().getEtatCompteAttribute();
         List<String> etatsLdap = userLdap.getAttribute(etatLdapAttr);
-        boolean actifDansLdap = etatsLdap != null && etatsLdap.contains(AccountState.VALIDE);
+        boolean actifDansLdap = etatsLdap != null
+                && etatsLdap.stream().anyMatch(s -> AccountState.same(s, AccountState.VALIDE));
         if (!actifDansLdap) {
             log.warn("[ETAT_COMPTE_LDAP] uid={} : compte '{}' en base mais état LDAP divergent ({}={}). La base prime : aucune action bloquante.",
                     uid, entity.getEtat(), etatLdapAttr, etatsLdap);
@@ -483,10 +484,10 @@ public class PersonneService {
         if (entity == null) {
             throw new IllegalArgumentException("Utilisateur introuvable : " + uid);
         }
-        if (AccountState.DELETE.equals(entity.getEtat())) {
+        if (AccountState.same(entity.getEtat(), AccountState.DELETE)) {
             throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
         }
-        if (!AccountState.VALIDE.equals(entity.getEtat())) {
+        if (!AccountState.same(entity.getEtat(), AccountState.VALIDE)) {
             entity.setEtat(AccountState.VALIDE);
             entity.setDateModification(new Date());
             aPersonneRepository.save(entity);
@@ -512,7 +513,7 @@ public class PersonneService {
         if (entity == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
-        if (AccountState.DELETE.equals(entity.getEtat())) {
+        if (AccountState.same(entity.getEtat(), AccountState.DELETE)) {
             throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
         }
 

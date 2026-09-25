@@ -55,7 +55,7 @@ public class PasswordResetPolicyService {
     }
 
     public boolean isInactiveAccount(APersonne person) {
-        return !VALID_ACCOUNT_STATE.equals(person.getEtat());
+        return !AccountState.same(person.getEtat(), VALID_ACCOUNT_STATE);
     }
 
     /**

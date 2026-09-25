@@ -15,11 +15,6 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
-import java.util.Collection;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.entities.AFonction;
 import fr.recia.mce.api.escomceapi.db.repositories.AFonctionRepository;
@@ -27,6 +22,10 @@ import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.Collection;
 
 @Service
 @Slf4j
@@ -56,18 +55,17 @@ public class FonctionService {
 
     public Long getPersonIdOfFonction(Long fonctionId) {
         return aFonctionRepository.findById(fonctionId)
-                .map(aFonction -> aFonction.getAPersonne() == null ? null : aFonction.getAPersonne().getId())
-                .orElse(null);
+            .map(aFonction -> aFonction.getAPersonne() == null ? null : aFonction.getAPersonne().getId())
+            .orElse(null);
     }
 
     public void updateDateFin(Long id, boolean active) {
-        // TODO: une nouvelle colonne sera ajoutée en BDD pour la table afonction (à mettre à jour manuellement)
         log.debug("Mise à jour de l'état de la fonction (active={}) pour l'ID : {}", active, id);
         AFonction aFonction = aFonctionRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Impossible de mettre à jour la fonction : fonction introuvable avec l'ID : {}", id);
-                    return new PersonneNotFoundException("Fonction non trouvée avec l'id : " + id);
-                });
+            .orElseThrow(() -> {
+                log.error("Impossible de mettre à jour la fonction : fonction introuvable avec l'ID : {}", id);
+                return new PersonneNotFoundException("Fonction non trouvée avec l'id : " + id);
+            });
         if (active) {
             aFonction.setDateFin(null);
         } else {

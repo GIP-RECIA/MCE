@@ -141,7 +141,7 @@ public class PasswordService {
         String uid = person.getUid() != null ? person.getUid() : "unknown";
 
         String etat = person.getAPersonneBase().getEtat();
-        if (!VALID_ACCOUNT_STATE.equals(etat)) {
+        if (!AccountState.same(etat, VALID_ACCOUNT_STATE)) {
             specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Compte non actif (etat={})", uid, etat);
             throw new IllegalArgumentException("Votre compte n'est pas dans un état valide");
         }

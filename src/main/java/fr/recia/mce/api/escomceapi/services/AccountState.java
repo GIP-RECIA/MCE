@@ -27,6 +27,15 @@ public final class AccountState {
     public static final String INVALIDE = "Invalide";
     public static final String DELETE = "Delete";
 
+    /**
+     * Compare un état stocké à une constante, sans tenir compte de la casse : la base Cerbère
+     * ({@code aPersonne.etat}) peut contenir {@code valide} comme {@code Valide} selon le flux
+     * d'alimentation. Toujours {@code false} si {@code etat} est {@code null}.
+     */
+    public static boolean same(String etat, String constant) {
+        return constant.equalsIgnoreCase(etat);
+    }
+
     private AccountState() {
     }
 }

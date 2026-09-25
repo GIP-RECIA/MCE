@@ -91,7 +91,7 @@ public class ActivationService {
         login = login.trim();
 
         APersonne personne = aPersonneRepository.findByLogin(login);
-        if (personne == null || !AccountState.INVALIDE.equals(personne.getEtat())) {
+        if (personne == null || !AccountState.same(personne.getEtat(), AccountState.INVALIDE)) {
             // Réponse volontairement vague pour ne rien divulguer sur l'existence du compte.
             log.warn("[ACTIVATION][CONNEXION] ÉCHEC pour login={} : compte absent ou état non activable", login);
             throw new IllegalArgumentException("Identifiants incorrects");
@@ -124,7 +124,7 @@ public class ActivationService {
         if (personne == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
-        if (AccountState.VALIDE.equals(personne.getEtat())) {
+        if (AccountState.same(personne.getEtat(), AccountState.VALIDE)) {
             // Compte déjà actif mais charte non signée (ex. arrivée via le redirect du CharteInterceptor) :
             // seul le bloc charte doit s'afficher, sans redemander mot de passe ni email, sinon l'écran
             // « Compte activé » reboucle en boucle avec l'auto-redirect returnTo.
@@ -206,7 +206,7 @@ public class ActivationService {
         if (personne == null) {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
         }
-        if (AccountState.DELETE.equals(personne.getEtat())) {
+        if (AccountState.same(personne.getEtat(), AccountState.DELETE)) {
             throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
         }
 
@@ -227,7 +227,7 @@ public class ActivationService {
 
         // Re-entry d'un compte déjà actif (ex. charte à (re)signer, arrivée via le redirect du CharteInterceptor) :
         // seule la charte manquait — on ne redemande ni mot de passe ni email et on ne réécrit pas l'état du compte.
-        if (AccountState.VALIDE.equals(personne.getEtat())) {
+        if (AccountState.same(personne.getEtat(), AccountState.VALIDE)) {
             log.info("[ACTIVATION][PASSWORD] Re-entry compte déjà Valide uid={}, seule la charte était requise", uid);
             return new ActivationResultDTO(uid, AccountState.VALIDE, false);
         }

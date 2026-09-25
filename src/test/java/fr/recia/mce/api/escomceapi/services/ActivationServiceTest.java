@@ -277,6 +277,21 @@ class ActivationServiceTest {
         }
 
         @Test
+        @DisplayName("Compte déjà Valide stocké en minuscules (etat='valide') → FIN, casse indifférente")
+        void shouldRouteAlreadyActiveLowercaseToFin() {
+            APersonne p = personne("dupontj", "valide", "Enseignant", "jean@ac.fr", new Date());
+            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+
+            ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
+
+            assertThat(s.getEtapeSuivante()).isEqualTo("FIN");
+            assertThat(s.getEtat()).isEqualTo("valide");
+            assertThat(s.isCharteRequise()).isFalse();
+            assertThat(s.isPasswordRequise()).isFalse();
+            assertThat(s.isEmailRequise()).isFalse();
+        }
+
+        @Test
         @DisplayName("Compte déjà Valide mais charte non signée → CHARTE (bloc charte seul)")
         void shouldRouteAlreadyActiveToCharteWhenCharteMissing() {
             APersonne p = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
@@ -349,6 +364,26 @@ class ActivationServiceTest {
         @DisplayName("Re-entry compte déjà Valide + charte acceptée → seule la charte est signée, ni mot de passe ni état")
         void shouldOnlySignCharteForAlreadyValideAccount() {
             APersonne ihm = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
+            PersonneDTO dto = new PersonneDTO(ihm);
+            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(personneService.getUserByUid("dupontj")).thenReturn(dto);
+
+            ActivationResultDTO result = activationService.activate(
+                    request("dupontj", true, null, null, null));
+
+            verify(personneService).signCharte("dupontj");
+            assertThat(dto.isCharteValide()).isTrue();
+            verify(passwordService, never()).resetPassword(any(), any(), any());
+            verify(personneService, never()).valideCompte(anyString());
+            verify(personneService, never()).setEtatValidWithoutPassword(anyString());
+            assertThat(result.getEtat()).isEqualTo("Valide");
+            assertThat(result.isEmailEnAttenteDeVerification()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Re-entry compte déjà Valide stocké en minuscules (etat='valide') → seule la charte est signée, casse indifférente")
+        void shouldOnlySignCharteForAlreadyValideAccountLowercase() {
+            APersonne ihm = personne("dupontj", "valide", "Enseignant", "jean@ac.fr", null);
             PersonneDTO dto = new PersonneDTO(ihm);
             when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(dto);
