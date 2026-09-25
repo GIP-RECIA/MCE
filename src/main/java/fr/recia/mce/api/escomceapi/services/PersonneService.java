@@ -50,8 +50,12 @@ import java.util.List;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Objects;
+import java.util.TimeZone;
 
 @Service
 @Getter
@@ -468,8 +472,8 @@ public class PersonneService {
         }
         validation.setCharterVersionDate(charteService.getCharteVersionDate(serviceId));
         validation.setValidatedAt(new Date());
-        validationCharteRepository.save(validation);
-        syncValidationCharteLdap(uid, validation.getValidatedAt());
+        validationCharteRepository.saveAndFlush(validation);
+        syncValidationsCharteLdap(uid, entity.getId());
         clearUserCaches(uid);
         log.info("[signCharte] FIN uid={}", uid);
     }
@@ -553,23 +557,64 @@ public class PersonneService {
     }
 
     /**
-     * Synchronise la date de signature de la charte dans l'annuaire LDAP (attribut
-     * {@code ESCOPersonValidationCharte}) avec la date stockée en base.
+     * Synchronise dans l'annuaire LDAP la liste complète des validations de charte de la personne.
+     * Chaque service est représenté par une valeur {@code serviceId;versionDate;dateSignature}.
+     * La reconstruction complète évite de perdre les validations des autres domaines lorsqu'une
+     * personne signe une nouvelle charte.
      * La mise à jour LDAP n'est pas bloquante : en cas d'échec technique, un warning est journalisé mais la base,
      * source de vérité, reste inchangée.
      *
      * @param uid
      *            identifiant de l'utilisateur
-     * @param date
-     *            date de signature de la charte à écrire dans l'annuaire
      */
-    public void syncValidationCharteLdap(String uid, Date date) {
+    public void syncValidationsCharteLdap(String uid) {
         try {
-            extDao.updateValidationCharte(uid, date);
+            APersonne person = aPersonneRepository.findByUid(uid);
+            if (person == null || person.getId() == null) {
+                throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
+            }
+            syncValidationsCharteLdap(uid, person.getId());
         } catch (Exception e) {
-            log.warn("[VALIDATION_CHARTE_LDAP] Échec de la mise à jour de la validationCharte LDAP pour uid={} : {}. La base prime, aucune action bloquante.",
+            log.warn("[VALIDATION_CHARTE_LDAP] Échec de la mise à jour des validations de charte LDAP pour uid={} : {}. La base prime, aucune action bloquante.",
                     uid, e.getMessage());
         }
+    }
+
+    private void syncValidationsCharteLdap(String uid, Long personId) {
+        try {
+            List<ValidationCharte> validations = validationCharteRepository.findAllByAPersonneId(personId);
+            List<String> values = formatValidationsCharte(validations);
+            log.info("[VALIDATION_CHARTE_LDAP] Synchronisation uid={} : {} valeur(s) {}", uid, values.size(), values);
+            extDao.updateValidationsCharteService(uid, values);
+        } catch (Exception e) {
+            log.warn("[VALIDATION_CHARTE_LDAP] Échec de la mise à jour des validations de charte LDAP pour uid={} : {}. La base prime, aucune action bloquante.",
+                    uid, e.getMessage(), e);
+        }
+    }
+
+    private List<String> formatValidationsCharte(List<ValidationCharte> validations) {
+        if (validations == null || validations.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> values = new ArrayList<>(validations.size());
+        for (ValidationCharte validation : validations) {
+            if (validation == null || validation.getServiceId() == null
+                    || validation.getCharterVersionDate() == null || validation.getValidatedAt() == null) {
+                log.warn("[VALIDATION_CHARTE_LDAP] Validation incomplète ignorée : {}", validation);
+                continue;
+            }
+            values.add(validation.getServiceId() + ";"
+                    + formatDate(validation.getCharterVersionDate(), "yyyyMMdd") + ";"
+                    + formatDate(validation.getValidatedAt(), "yyyyMMddHHmmss'Z'"));
+        }
+        return values;
+    }
+
+    private String formatDate(Date date, String pattern) {
+        SimpleDateFormat formatter = new SimpleDateFormat(pattern);
+        formatter.setLenient(false);
+        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return formatter.format(date);
     }
 
     public void clearUserCaches(String uid) {

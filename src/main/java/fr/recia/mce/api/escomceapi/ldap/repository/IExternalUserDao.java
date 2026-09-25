@@ -18,7 +18,6 @@ package fr.recia.mce.api.escomceapi.ldap.repository;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 
 import java.util.Collection;
-import java.util.Date;
 import java.util.List;
 
 public interface IExternalUserDao {
@@ -55,5 +54,16 @@ public interface IExternalUserDao {
 
     void updateEtatCompte(final String uid, final String etat);
 
-    void updateValidationCharte(final String uid, final Date date);
+    /**
+     * Remplace l'attribut LDAP {@code ESCOPersonValidationCharteService} par la liste complète des validations de
+     * charte de l'utilisateur (attribut multi-valué : une valeur par service, format
+     * {@code <serviceId>;<versionDate>;<dateSignature>}, avec {@code versionDate} au format
+     * {@code yyyyMMdd} et {@code dateSignature} au format UTC {@code yyyyMMddHHmmssZ}).
+     * La liste complète est écrite en une fois (REPLACE) pour représenter fidèlement la base : une personne signant
+     * la charte d'un service conserve les validations de ses autres services. Une liste vide retire l'attribut.
+     *
+     * @param uid    identifiant de l'utilisateur
+     * @param values valeurs au format {@code serviceId;yyyyMMdd;yyyyMMddHHmmssZ}, une par service
+     */
+    void updateValidationsCharteService(final String uid, final List<String> values);
 }

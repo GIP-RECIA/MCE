@@ -15,6 +15,8 @@
  */
 package fr.recia.mce.api.escomceapi.db.repositories;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,5 +33,11 @@ public interface ValidationCharteRepository extends AbstractRepository<Validatio
     @Query("SELECT v FROM ValidationCharte v WHERE v.aPersonneId = :aPersonneId AND v.serviceId = :serviceId")
     ValidationCharte findByApersonneIdAndServiceId(@Param("aPersonneId") Long aPersonneId,
             @Param("serviceId") String serviceId);
+
+    /**
+     * Toutes les validations de charte d'une personne (une ligne par service), ordonnées par service.
+     */
+    @Query("SELECT v FROM ValidationCharte v WHERE v.aPersonneId = :aPersonneId ORDER BY v.serviceId")
+    List<ValidationCharte> findAllByAPersonneId(@Param("aPersonneId") Long aPersonneId);
 
 }

@@ -49,7 +49,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Date;
+import java.sql.Date;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -528,12 +529,13 @@ public class PersonneServiceTest {
             APersonne entity = entityInvalide();
             when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
             when(charteService.resolveService(any(APersonne.class))).thenReturn("AC");
-            when(charteService.getCharteVersionDate(anyString())).thenReturn(new Date());
+            when(charteService.getCharteVersionDate(anyString())).thenReturn(Date.valueOf("2024-01-02"));
+            when(validationCharteRepository.findAllByAPersonneId(1L)).thenReturn(List.of(capturedValidation("AC")));
 
             personneService.signCharte(uid);
 
             ArgumentCaptor<ValidationCharte> captor = ArgumentCaptor.forClass(ValidationCharte.class);
-            verify(validationCharteRepository).save(captor.capture());
+            verify(validationCharteRepository).saveAndFlush(captor.capture());
             ValidationCharte saved = captor.getValue();
             assertThat(saved.getAPersonneId()).isEqualTo(1L);
             assertThat(saved.getServiceId()).isEqualTo("AC");
@@ -542,8 +544,35 @@ public class PersonneServiceTest {
             // La colonne apersonne.validationCharte n'est plus utilisée comme source de vérité.
             assertThat(entity.getValidationCharte()).isNull();
             verify(aPersonneRepository, never()).save(any(APersonne.class));
-            verify(extDao).updateValidationCharte(eq(uid), any(Date.class));
+            verify(extDao).updateValidationsCharteService(eq(uid), eq(List.of("AC;20240102;20260126110312Z")));
             verify(cacheManager, atLeastOnce()).getCache(anyString());
+        }
+
+        @Test
+        @DisplayName("signCharte conserve les validations des autres services dans LDAP")
+        void signCharte_synchronizesAllServices() {
+            APersonne entity = entityInvalide();
+            when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
+            when(charteService.resolveService(any(APersonne.class))).thenReturn("AC");
+            when(charteService.getCharteVersionDate("AC")).thenReturn(Date.valueOf("2024-01-02"));
+            when(validationCharteRepository.findAllByAPersonneId(1L)).thenReturn(List.of(
+                    capturedValidation("AC"),
+                    capturedValidation("default")));
+
+            personneService.signCharte(uid);
+
+            verify(extDao).updateValidationsCharteService(eq(uid), eq(List.of(
+                    "AC;20240102;20260126110312Z",
+                    "default;20240102;20260126110312Z")));
+        }
+
+        private ValidationCharte capturedValidation(String serviceId) {
+            ValidationCharte validation = new ValidationCharte();
+            validation.setAPersonneId(1L);
+            validation.setServiceId(serviceId);
+            validation.setCharterVersionDate(Date.valueOf("2024-01-02"));
+            validation.setValidatedAt(new java.util.Date(1769425392000L));
+            return validation;
         }
 
         @Test

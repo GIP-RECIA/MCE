@@ -386,7 +386,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
     }
 
     @Override
-    public void updateValidationCharte(String uid, Date date) {
+    public void updateValidationsCharteService(String uid, List<String> values) {
         AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
 
@@ -394,13 +394,19 @@ public class LdapUserDaoImp implements IExternalUserDao {
                 .base(externalUserHelper.getUserDNSubPath())
                 .filter(filter);
 
-        SimpleDateFormat ldapDateFormat = new SimpleDateFormat("yyyyMMddHHmmss'Z'");
-        ldapDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        List<String> safeValues = values == null ? Collections.emptyList() : values;
+        String attributeName = externalUserHelper.getUserValidationCharteAttribute();
+        if (attributeName == null || attributeName.isBlank()) {
+            throw new IllegalStateException("Attribut LDAP de validation de charte non configuré");
+        }
+        BasicAttribute attribute = new BasicAttribute(attributeName);
+        for (String value : safeValues) {
+            attribute.add(value);
+        }
 
         ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(
-                        DirContext.REPLACE_ATTRIBUTE,
-                        new BasicAttribute(externalUserHelper.getUserValidationCharteAttribute(), ldapDateFormat.format(date)))
+                new ModificationItem(safeValues.isEmpty() ? DirContext.REMOVE_ATTRIBUTE : DirContext.REPLACE_ATTRIBUTE,
+                        attribute)
         };
 
         ContextMapper<String> dnMapper = ctx -> {
@@ -422,11 +428,12 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
 
         String dn = dns.get(0);
-        log.debug("DN résolu pour uid={} : {}", uid, dn);
+        log.info("[UPDATE_VALIDATION_CHARTE] uid={} attribut={} DN={} valeurs={}", uid, attributeName, dn, safeValues);
 
         try {
             ldapTemplate.modifyAttributes(dn, mods);
-            log.info("Audit [UPDATE_VALIDATION_CHARTE] : SUCCÈS pour l'utilisateur [{}] - validationCharte={}", uid, ldapDateFormat.format(date));
+            log.info("Audit [UPDATE_VALIDATION_CHARTE] : SUCCÈS pour l'utilisateur [{}] - validationsCharteService={}", uid,
+                    safeValues);
         } catch (Exception e) {
             log.error("Audit [UPDATE_VALIDATION_CHARTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP validation charte update failed: " + e.getMessage());

@@ -122,6 +122,7 @@ app:
             eleve-relation: 'ENTElevePersRelEleve'
             avatar-attribute: 'ESCOPersonPhoto'
             etat-compte-attribute: 'ESCOPersonEtatCompte'
+            validation-charte-attribute: 'ESCOPersonValidationCharteService'
             eleve-tuteur-entr: 'ENTEleveEntrTutStage'
             tuteur-eleves: 'ENTAuxTuteurStageEleves'
             eleve-enseignements: 'ENTEleveEnseignements'
