@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.services.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import lombok.EqualsAndHashCode;
@@ -36,6 +37,7 @@ public class RelationEleveContact {
     private final boolean isEleve2Contact;
 
     private Long contact;
+    @JsonIgnoreProperties({"uid", "identifiant"})
     private PersonneDTO eleve;
     private String uidRelation;
     private String displayNameRelation;

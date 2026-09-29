@@ -54,10 +54,12 @@ public class APersonne implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", unique = true, nullable = false)
+    @JsonIgnore
     private Long id;
 
     @Version
     @Column(name = "version", nullable = false)
+    @JsonIgnore
     private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -97,6 +99,7 @@ public class APersonne implements Serializable {
     private String civilite;
 
     @Column(name = "cle")
+    @JsonIgnore
     private String cle;
 
     @Column(name = "source")
@@ -125,6 +128,7 @@ public class APersonne implements Serializable {
     private String givenName;
 
     @Column(name = "password")
+    @JsonIgnore
     private String password;
 
     @Column(name = "sn")
@@ -134,6 +138,7 @@ public class APersonne implements Serializable {
     private String titre;
 
     @Column(name = "uid")
+    @JsonIgnore
     private String uid;
 
     @Temporal(TemporalType.TIMESTAMP)
@@ -144,9 +149,11 @@ public class APersonne implements Serializable {
     private boolean doForward;
 
     @Column(name = "sambaLMPassword")
+    @JsonIgnore
     private String sambaLmpassword;
 
     @Column(name = "sambaNTPassword")
+    @JsonIgnore
     private String sambaNtpassword;
 
     @Column(name = "photo")

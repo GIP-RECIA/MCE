@@ -564,7 +564,7 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Sérialisation UserDTO avec parentEleve contenant PersonneDTO + APersonne")
+        @DisplayName("Sérialisation UserDTO avec parentEleve : l'enfant imbriqué n'expose ni uid ni identifiant")
         void shouldSerializeUserDtoWithParentEleve() throws Exception {
             String enfantId = "F20102xc";
 
@@ -582,7 +582,11 @@ class PersonneRestControllerTest {
             mockMvc.perform(get(BASE_URL + enfantId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.parentEleve[0].uidRelation").value("pierrevar"))
-                    .andExpect(jsonPath("$.parentEleve[0].eleve.uid").value(enfantId));
+                    .andExpect(jsonPath("$.parentEleve[0].eleve.uid").doesNotExist())
+                    .andExpect(jsonPath("$.parentEleve[0].eleve.identifiant").doesNotExist())
+                    .andExpect(jsonPath("$.parentEleve[0].eleve.apersonne.uid").doesNotExist())
+                    .andExpect(jsonPath("$.parentEleve[0].eleve.apersonne.id").doesNotExist())
+                    .andExpect(jsonPath("$.parentEleve[0].eleve.displayName").exists());
         }
     }
 
