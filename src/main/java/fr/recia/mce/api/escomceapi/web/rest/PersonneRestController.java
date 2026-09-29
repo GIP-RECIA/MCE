@@ -196,32 +196,32 @@ public class PersonneRestController {
     public ResponseEntity<?> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequestDTO request) {
 
-        String uid = request.getUid();
+        String login = request.getLogin();
         String email = request.getEmail();
         String profil = request.getProfil();
 
-        log.info("[FORGOT_PASSWORD] Demande uid={}, email={}, profil={}", uid, email, profil);
+        log.info("[FORGOT_PASSWORD] Demande login={}, email={}, profil={}", login, email, profil);
 
         try {
-            emailVerificationService.sendPasswordResetCode(uid, email, profil);
+            emailVerificationService.sendPasswordResetCode(login, email, profil);
         } catch (ResendCooldownActiveException e) {
             // Anti-double-clic : laisser le GlobalExceptionHandler répondre 429 avec le temps restant.
             throw e;
         } catch (ContactAdminException e) {
-            log.warn("[FORGOT_PASSWORD] CONTACT_ADMIN uid={} : {}", uid, e.getMessage());
+            log.warn("[FORGOT_PASSWORD] CONTACT_ADMIN login={} : {}", login, e.getMessage());
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", e.getMessage()));
         } catch (IllegalArgumentException | ApiException e) {
-            log.warn("[FORGOT_PASSWORD] ÉCHEC uid={} : {}", uid, e.getMessage());
+            log.warn("[FORGOT_PASSWORD] ÉCHEC login={} : {}", login, e.getMessage());
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("FORGOT_PASSWORD_FAILED", e.getMessage()));
         } catch (RuntimeException e) {
-            log.error("[FORGOT_PASSWORD] ERREUR uid={} : {}", uid, e.getMessage());
+            log.error("[FORGOT_PASSWORD] ERREUR login={} : {}", login, e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(new ErrorResponse("INTERNAL_ERROR", "Une erreur interne est survenue"));
         }
 
-        log.info("[FORGOT_PASSWORD] Code envoyé à {} pour uid={}", email, uid);
+        log.info("[FORGOT_PASSWORD] Code envoyé à {} pour login={}", email, login);
         return ResponseEntity.ok(new ErrorResponse("RESET_CODE_SENT",
                 "Un code de réinitialisation a été envoyé à votre adresse email"));
     }
@@ -266,15 +266,15 @@ public class PersonneRestController {
     public ResponseEntity<?> resetPassword(
             @Valid @RequestBody ResetPasswordRequestDTO request) {
 
-        String uid = request.getUid();
-        log.info("[RESET_PASSWORD] Demande uid={}, charteAccepted={}", uid, request.isCharteAccepted());
+        String login = request.getLogin();
+        log.info("[RESET_PASSWORD] Demande login={}, charteAccepted={}", login, request.isCharteAccepted());
 
         emailVerificationService.processResetPassword(
-                uid, request.getResetToken(), request.getCode(),
+                login, request.getResetToken(), request.getCode(),
                 request.getNewPassword(), request.getConfirmPassword(),
                 request.isCharteAccepted());
 
-        log.info("[RESET_PASSWORD] Succès uid={}", uid);
+        log.info("[RESET_PASSWORD] Succès login={}", login);
         return ResponseEntity.ok(new ErrorResponse("PASSWORD_RESET_SUCCESS",
                 "Votre mot de passe a été réinitialisé avec succès"));
     }

@@ -24,7 +24,7 @@ import javax.validation.constraints.NotBlank;
 public class ForgotPasswordRequestDTO {
 
     @NotBlank(message = "L'identifiant est obligatoire")
-    private String uid;
+    private String login;
 
     @NotBlank(message = "L'adresse email est obligatoire")
     @Email(message = "Le format de l'adresse email est invalide")

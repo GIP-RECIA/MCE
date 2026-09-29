@@ -915,7 +915,7 @@ class PersonneRestControllerTest {
     @DisplayName("Tests du point d'accès /forgot-password")
     class ForgotPasswordEndpointTests {
 
-        private final String validBody = "{\"uid\":\"dupontj\",\"email\":\"jean.dupont@example.fr\",\"profil\":\"ELEVE\"}";
+        private final String validBody = "{\"login\":\"dupontj\",\"email\":\"jean.dupont@example.fr\",\"profil\":\"ELEVE\"}";
 
         @Test
         @DisplayName("Succès → 200 RESET_CODE_SENT")
@@ -931,7 +931,7 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Uid inconnu (IllegalArgumentException) → 400 FORGOT_PASSWORD_FAILED")
+        @DisplayName("Identifiant inconnu (IllegalArgumentException) → 400 FORGOT_PASSWORD_FAILED")
         void shouldReturnForgotPasswordFailed() throws Exception {
             doThrow(new InvalidCodeException("Aucun compte associé à cet identifiant"))
                     .when(emailVerificationService).sendPasswordResetCode(anyString(), anyString(), anyString());
@@ -966,7 +966,7 @@ class PersonneRestControllerTest {
         }
 
         @Test
-        @DisplayName("Uid manquant → 400 VALIDATION_ERROR")
+        @DisplayName("Identifiant manquant → 400 VALIDATION_ERROR")
         void shouldValidateMissingUid() throws Exception {
             String body = "{\"email\":\"jean.dupont@example.fr\"}";
 
@@ -980,7 +980,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Email mal formé → 400 VALIDATION_ERROR")
         void shouldValidateEmailFormat() throws Exception {
-            String body = "{\"uid\":\"dupontj\",\"email\":\"pas-un-email\"}";
+            String body = "{\"login\":\"dupontj\",\"email\":\"pas-un-email\"}";
 
             mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
@@ -992,7 +992,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Email absent (obligatoire) → 400 VALIDATION_ERROR")
         void shouldRejectMissingEmail() throws Exception {
-            String body = "{\"uid\":\"dupontj\",\"profil\":\"ELEVE\"}";
+            String body = "{\"login\":\"dupontj\",\"profil\":\"ELEVE\"}";
 
             mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
@@ -1004,7 +1004,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Email vide (obligatoire) → 400 VALIDATION_ERROR")
         void shouldRejectBlankEmail() throws Exception {
-            String body = "{\"uid\":\"dupontj\",\"email\":\"\",\"profil\":\"ELEVE\"}";
+            String body = "{\"login\":\"dupontj\",\"email\":\"\",\"profil\":\"ELEVE\"}";
 
             mockMvc.perform(post(FORGOT_URL).contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
@@ -1030,7 +1030,7 @@ class PersonneRestControllerTest {
     @DisplayName("Tests du point d'accès /reset-password")
     class ResetPasswordEndpointTests {
 
-        private final String validBody = "{\"uid\":\"dupontj\",\"code\":\"123456\",\"charteAccepted\":true,"
+        private final String validBody = "{\"login\":\"dupontj\",\"code\":\"123456\",\"charteAccepted\":true,"
                 + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
 
         private void serviceThrows(RuntimeException ex) {
@@ -1115,7 +1115,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("Code non conforme (≠ 6 chiffres) → 400 VALIDATION_ERROR")
         void shouldValidateSixDigitCode() throws Exception {
-            String body = "{\"uid\":\"dupontj\",\"code\":\"12ab56\",\"charteAccepted\":true,"
+            String body = "{\"login\":\"dupontj\",\"code\":\"12ab56\",\"charteAccepted\":true,"
                     + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}";
 
             mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(body))
@@ -1128,7 +1128,7 @@ class PersonneRestControllerTest {
         @Test
         @DisplayName("newPassword manquant → 400 VALIDATION_ERROR")
         void shouldValidateMissingNewPassword() throws Exception {
-            String body = "{\"uid\":\"dupontj\",\"code\":\"123456\",\"charteAccepted\":true,"
+            String body = "{\"login\":\"dupontj\",\"code\":\"123456\",\"charteAccepted\":true,"
                     + "\"confirmPassword\":\"N3wPassw0rd!X\"}";
 
             mockMvc.perform(post(RESET_URL).contentType(MediaType.APPLICATION_JSON).content(body))

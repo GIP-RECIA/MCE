@@ -17,6 +17,7 @@ package fr.recia.mce.api.escomceapi;
 
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
+import fr.recia.mce.api.escomceapi.db.entities.Login;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
@@ -36,6 +37,11 @@ import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -55,6 +61,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = "management.health.mail.enabled=false")
 class PasswordResetIntegrationTest {
 
+    private static final String LOGIN_NOM = "Integration.User";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -67,6 +75,11 @@ class PasswordResetIntegrationTest {
     @Autowired
     private MCEProperties mceProperties;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
     @MockBean
     private PersonneService personneService;
 
@@ -85,6 +98,11 @@ class PasswordResetIntegrationTest {
     void setUp() {
         mceProperties.getSecurity().getRateLimit().setPermitsPerSecond(1_000_000.0);
         confirmationRepository.deleteAll();
+        new TransactionTemplate(transactionManager).execute(status -> {
+            entityManager.createQuery("DELETE FROM Login l WHERE l.nom = :nom")
+                    .setParameter("nom", LOGIN_NOM).executeUpdate();
+            return null;
+        });
         personneRepository.deleteAll();
 
         person = new APersonne();
@@ -96,6 +114,16 @@ class PasswordResetIntegrationTest {
         person.setCategorie("Enseignant");
         person.setEmail("integration@example.fr");
         person = personneRepository.saveAndFlush(person);
+
+        Login login = new Login();
+        login.setNom(LOGIN_NOM);
+        login.setAPersonneByAPersonneLogin(person);
+        login.setAPersonneByAPersonneAlias(person);
+        new TransactionTemplate(transactionManager).execute(status -> {
+            entityManager.persist(login);
+            entityManager.flush();
+            return null;
+        });
 
         PersonneDTO dto = org.mockito.Mockito.mock(PersonneDTO.class);
         when(dto.getEnumPublic()).thenReturn(EnumPublic.PERSONNEL);
@@ -109,7 +137,7 @@ class PasswordResetIntegrationTest {
     void forgotPasswordPersistsCodeAndSendsMailThroughRealControllerAndRepositories() throws Exception {
         mockMvc.perform(post("/api/personne/mce/forgot-password")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"uid\":\"integration-user\",\"email\":\"integration@example.fr\","
+                .content("{\"login\":\"Integration.User\",\"email\":\"integration@example.fr\","
                         + "\"profil\":\"Enseignant\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("RESET_CODE_SENT"));
@@ -125,7 +153,7 @@ class PasswordResetIntegrationTest {
     void resetPasswordConsumesPersistedCodeAfterForgotPassword() throws Exception {
         mockMvc.perform(post("/api/personne/mce/forgot-password")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"uid\":\"integration-user\",\"email\":\"integration@example.fr\","
+                .content("{\"login\":\"Integration.User\",\"email\":\"integration@example.fr\","
                         + "\"profil\":\"Enseignant\"}"))
                 .andExpect(status().isOk());
 
@@ -137,7 +165,7 @@ class PasswordResetIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"uid\":\"integration-user\",\"code\":\"" + code
+                .content("{\"login\":\"Integration.User\",\"code\":\"" + code
                         + "\",\"charteAccepted\":true,\"newPassword\":\"N3wPassw0rd!X\","
                         + "\"confirmPassword\":\"N3wPassw0rd!X\"}"))
                 .andExpect(status().isOk())

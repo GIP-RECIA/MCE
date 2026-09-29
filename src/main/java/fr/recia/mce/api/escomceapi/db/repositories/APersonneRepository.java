@@ -51,6 +51,16 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     APersonne findByUidWithLock(@Param("uid") final String uid);
 
     /**
+     * Équivalent verrouillé de {@link #findByLogin(String)} pour les parcours mot de passe oublié et
+     * reset : accepte l'uid, le login ou un alias. À appeler dans une transaction.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM APersonne a WHERE LOWER(a.uid) = LOWER(:login) " +
+            "OR a IN (SELECT l.aPersonneByAPersonneLogin FROM Login l WHERE LOWER(l.nom) = LOWER(:login)) " +
+            "OR a IN (SELECT l.aPersonneByAPersonneAlias FROM Login l WHERE LOWER(l.nom) = LOWER(:login))")
+    APersonne findByLoginWithLock(@Param("login") final String login);
+
+    /**
      * Recherche précise d'identité pour le parcours {@code recover-uid} : retrouve les personnes
      * (non supprimées) qui correspondent au nom, prénom, catégorie et établissement(s) fournis.
      * <p>

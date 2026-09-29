@@ -541,7 +541,7 @@ class EmailVerificationServiceTest {
         }
 
         private void stubHappyPath(APersonne p) {
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             PersonneDTO dto = connectOkDto();
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -551,7 +551,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Succès : crée une confirmation hashée RESET: et envoie l'email")
         void successCreatesNewConfirmation() {
             APersonne p = validPerson(101L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(101L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(101L)).thenReturn(List.of());
             PersonneDTO dto = connectOkDto();
@@ -583,7 +583,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(102L);
             CerbereConfirmation existing = pendingReset(102L, COOLDOWN_MS + 300_000);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(102L))
                     .thenReturn(List.of(existing));
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(102L))
@@ -609,7 +609,7 @@ class EmailVerificationServiceTest {
             consumed.setLimite(new Date(System.currentTimeMillis() + 3_600_000L));
             consumed.setConfirmation(new Date());
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(103L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(103L))
                     .thenReturn(List.of(consumed));
@@ -628,7 +628,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Échec : email non associé au compte → InvalidCodeException, rien n'est envoyé")
         void unassociatedEmailThrows() {
             APersonne p = validPerson(109L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), "attaquant@evil.fr", null))
                     .isInstanceOf(InvalidCodeException.class)
@@ -644,7 +644,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(110L);
             p.setEmail(null);
             p.setEmailPersonnel(email);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(110L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(110L)).thenReturn(List.of());
             PersonneDTO dto = connectOkDto();
@@ -664,7 +664,7 @@ class EmailVerificationServiceTest {
             CerbereConfirmation confirmed = new CerbereConfirmation();
             confirmed.setMail(email);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(111L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(111L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findConfirmedByPersonId(111L)).thenReturn(List.of(confirmed));
@@ -681,7 +681,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Correspondance d'email insensible à la casse, espaces tolérés")
         void emailMatchCaseInsensitive() {
             APersonne p = validPerson(112L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(112L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(112L)).thenReturn(List.of());
             PersonneDTO dto = connectOkDto();
@@ -701,7 +701,7 @@ class EmailVerificationServiceTest {
             PersonneDTO dto = mock(PersonneDTO.class);
             when(dto.getEnumPublic()).thenReturn(EnumPublic.PARENT_EDUC);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
@@ -720,7 +720,7 @@ class EmailVerificationServiceTest {
             when(dto.getEnumPublic()).thenReturn(EnumPublic.PARENT_EDUC);
             lenient().when(dto.isNtPass()).thenReturn(true);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
@@ -738,7 +738,7 @@ class EmailVerificationServiceTest {
             PersonneDTO dto = mock(PersonneDTO.class);
             when(dto.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
@@ -757,7 +757,7 @@ class EmailVerificationServiceTest {
             when(dto.getEnumPublic()).thenReturn(EnumPublic.EDUCATION);
             when(dto.isNtPass()).thenReturn(true);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(115L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(115L)).thenReturn(List.of());
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
@@ -775,7 +775,7 @@ class EmailVerificationServiceTest {
             PersonneDTO dto = mock(PersonneDTO.class);
             when(dto.getEnumPublic()).thenReturn(EnumPublic.PERSONNEL);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(116L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(116L)).thenReturn(List.of());
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
@@ -790,20 +790,20 @@ class EmailVerificationServiceTest {
         @DisplayName("Le chargement de la personne passe par le verrou pessimiste (anti-course)")
         void loadsPersonWithPessimisticLock() {
             APersonne p = validPerson(117L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), "attaquant@evil.fr", null))
                     .isInstanceOf(InvalidCodeException.class)
                     .hasMessageContaining("n'est pas associée");
 
-            verify(aPersonneRepository).findByUidWithLock(p.getUid());
-            verify(aPersonneRepository, never()).findByUid(p.getUid());
+            verify(aPersonneRepository).findByLoginWithLock(p.getUid());
+            verify(aPersonneRepository, never()).findByLogin(p.getUid());
         }
 
         @Test
         @DisplayName("Échec : uid inconnu → InvalidCodeException, rien n'est persisté ni envoyé")
         void unknownUidThrows() {
-            when(aPersonneRepository.findByUidWithLock(uid)).thenReturn(null);
+            when(aPersonneRepository.findByLoginWithLock(uid)).thenReturn(null);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(uid, email, null))
                     .isInstanceOf(InvalidCodeException.class)
@@ -817,7 +817,7 @@ class EmailVerificationServiceTest {
         void incoherentProfileThrows() {
             APersonne p = validPerson(104L);
             p.setCategorie("Enseignant");
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, "ELEVE"))
                     .isInstanceOf(InvalidCodeException.class)
@@ -831,7 +831,7 @@ class EmailVerificationServiceTest {
         void coherentProfileCaseInsensitive() {
             APersonne p = validPerson(105L);
             p.setCategorie("Eleve");
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(105L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(105L)).thenReturn(List.of());
             PersonneDTO dto = connectOkDto();
@@ -847,7 +847,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Anti-double-clic : demande récente (< cooldown) → ResendCooldownActiveException avec temps restant")
         void antiDoubleClickBlocksRecentRequest() {
             APersonne p = validPerson(106L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(106L))
                     .thenReturn(List.of(pendingReset(106L, 1_000)));
 
@@ -863,7 +863,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Anti-double-clic : demande ancienne (> cooldown) → un nouveau code part")
         void allowsNewCodeAfterCooldown() {
             APersonne p = validPerson(107L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(107L))
                     .thenReturn(List.of(pendingReset(107L, COOLDOWN_MS + 300_000)));
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(107L))
@@ -884,7 +884,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(200L);
             p.setEmail("unique@example.com");
             p.setEmailPersonnel(null);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findConfirmedByPersonId(200L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(200L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(200L)).thenReturn(List.of());
@@ -906,7 +906,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(201L);
             p.setEmail(null);
             p.setEmailPersonnel("perso@example.com");
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findConfirmedByPersonId(201L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(201L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(201L)).thenReturn(List.of());
@@ -929,7 +929,7 @@ class EmailVerificationServiceTest {
             p.setEmailPersonnel(null);
             CerbereConfirmation confirmed = new CerbereConfirmation();
             confirmed.setMail("confirme@example.com");
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findConfirmedByPersonId(202L)).thenReturn(List.of(confirmed));
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(202L)).thenReturn(List.of());
             when(cerbereConfirmationRepository.findLatestPasswordResetByPersonId(202L)).thenReturn(List.of());
@@ -950,7 +950,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(203L);
             p.setEmail(null);
             p.setEmailPersonnel(null);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findConfirmedByPersonId(203L)).thenReturn(List.of());
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), "", null))
@@ -967,7 +967,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(205L);
             p.setEmail(null);
             p.setEmailPersonnel(null);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findConfirmedByPersonId(205L)).thenReturn(List.of());
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), "inconnu@example.com", null))
@@ -984,7 +984,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(204L);
             p.setEmail("a@example.com");
             p.setEmailPersonnel("b@example.com");
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findConfirmedByPersonId(204L)).thenReturn(List.of());
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), "", null))
@@ -1000,7 +1000,7 @@ class EmailVerificationServiceTest {
         void inactiveAccountThrows() {
             APersonne p = validPerson(108L);
             p.setEtat("Supprime");
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(108L)).thenReturn(List.of());
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
@@ -1015,7 +1015,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Échec : profil impossible à charger → InactiveAccountException")
         void profileLoadFailureThrows() {
             APersonne p = validPerson(109L);
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(109L)).thenReturn(List.of());
             when(personneService.getUserByUid(p.getUid())).thenReturn(null);
 
@@ -1084,7 +1084,7 @@ class EmailVerificationServiceTest {
         private CerbereConfirmation stubPending(String uidValue, long personId, boolean charteValide) {
             APersonne p = validPerson(personId);
             p.setUid(uidValue);
-            when(aPersonneRepository.findByUid(uidValue)).thenReturn(p);
+            when(aPersonneRepository.findByLogin(uidValue)).thenReturn(p);
             // Règle du service : validation tracée dans validationcharteservice pour (personne, service).
             lenient().when(validationCharteRepository.findByApersonneIdAndServiceId(eq(personId), anyString()))
                     .thenReturn(charteValide ? new ValidationCharte() : null);
@@ -1149,7 +1149,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Code inconnu ou déjà utilisé → InvalidCodeException")
         void unknownCodeThrows() {
             APersonne p = validPerson(204L);
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLogin(p.getUid())).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(
                     eq(204L), anyString())).thenReturn(Optional.empty());
 
@@ -1177,7 +1177,7 @@ class EmailVerificationServiceTest {
         @DisplayName("Code expiré → CodeExpiredException, suppression de la confirmation et remise à zéro du compteur")
         void expiredCodeDeleted() {
             APersonne p = validPerson(205L);
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLogin(p.getUid())).thenReturn(p);
             CerbereConfirmation confirmation = new CerbereConfirmation();
             confirmation.setCode("RESET:" + sha256("123456"));
             confirmation.setLimite(Date.from(Instant.now().minus(1, ChronoUnit.MINUTES)));
@@ -1197,7 +1197,7 @@ class EmailVerificationServiceTest {
         void counterResetAfterExpiry() {
             mceProperties.getSecurity().getResetPolicy().setMaxAttempts(2);
             APersonne p = validPerson(210L);
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLogin(p.getUid())).thenReturn(p);
 
             // 1re vie du code : 1 tentative puis expiration
             CerbereConfirmation expiree = new CerbereConfirmation();
@@ -1229,7 +1229,7 @@ class EmailVerificationServiceTest {
         void inactiveAccountThrows() {
             APersonne p = validPerson(206L);
             p.setEtat("Bloque");
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLogin(p.getUid())).thenReturn(p);
             CerbereConfirmation confirmation = new CerbereConfirmation();
             confirmation.setCode("RESET:" + sha256("123456"));
             confirmation.setLimite(Date.from(Instant.now().plus(30, ChronoUnit.MINUTES)));
@@ -1298,7 +1298,7 @@ class EmailVerificationServiceTest {
                     (Map<String, AttemptGuardService.ResetChallenge>) ReflectionTestUtils.getField(attemptGuardService, "resetChallenges");
             challenges.put("token", new AttemptGuardService.ResetChallenge("uidless",
                     System.currentTimeMillis() + 30 * 60_000L));
-            when(aPersonneRepository.findByUid("uidless")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("uidless")).thenReturn(p);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonIdAndCodeWithLock(eq(214L), anyString()))
                     .thenAnswer(invocation -> expectedHash.equals(invocation.getArgument(1))
                             ? Optional.of(confirmation)
@@ -1347,7 +1347,7 @@ class EmailVerificationServiceTest {
             APersonne p = validPerson(213L);
             attempts.put(213L, entryWithCount(99));
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             PersonneDTO dto = connectOkDto();
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
             when(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(213L)).thenReturn(List.of());
@@ -1367,7 +1367,7 @@ class EmailVerificationServiceTest {
             when(dto.getEnumPublic()).thenReturn(null);
             lenient().when(dto.isNtPass()).thenReturn(true);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
@@ -1386,7 +1386,7 @@ class EmailVerificationServiceTest {
             when(dto.getEnumPublic()).thenReturn(null);
             when(userDTOFactory.evalPublic(dto)).thenReturn(EnumPublic.PARENT_EDUC);
 
-            when(aPersonneRepository.findByUidWithLock(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLoginWithLock(p.getUid())).thenReturn(p);
             when(personneService.getUserByUid(p.getUid())).thenReturn(dto);
 
             assertThatThrownBy(() -> service.sendPasswordResetCode(p.getUid(), email, null))
@@ -1418,7 +1418,7 @@ class EmailVerificationServiceTest {
         void profileLoadFailureThrows() {
             APersonne p = validPerson(209L);
             p.setEtat("Valide");
-            when(aPersonneRepository.findByUid(p.getUid())).thenReturn(p);
+            when(aPersonneRepository.findByLogin(p.getUid())).thenReturn(p);
             CerbereConfirmation confirmation = new CerbereConfirmation();
             confirmation.setCode("RESET:" + sha256("123456"));
             confirmation.setLimite(Date.from(Instant.now().plus(30, ChronoUnit.MINUTES)));

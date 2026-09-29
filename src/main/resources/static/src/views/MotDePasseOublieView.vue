@@ -29,7 +29,7 @@ const message = ref<string | null>(null);
 const messageError = ref(false);
 const messageBox = ref<HTMLElement | null>(null);
 
-const knownUid = ref('');
+const knownLogin = ref('');
 const knownEmail = ref('');
 const knownProfil = ref('');
 const knownProfils = ref<string[]>([]);
@@ -46,7 +46,7 @@ const recoverVille = ref('');
 const recoverEtab = ref('');
 const typesLoaded = ref(false);
 
-const resetUid = ref('');
+const resetLogin = ref('');
 const resetCode = ref('');
 const resetNewPass = ref('');
 const resetConfirm = ref('');
@@ -59,7 +59,7 @@ const structuresCache = ref<StructuresResponse[]>([]);
 const resetOrigin = ref<'known' | 'recover'>('known');
 const lastSendContext = ref<{
   type: 'known' | 'recover';
-  uid?: string;
+  login?: string;
   email?: string;
   profil?: string;
   payload?: Record<string, unknown>;
@@ -128,11 +128,11 @@ function goResetFromOrigin() {
 
 function onSubmitKnown() {
   clearMessage();
-  const uid = knownUid.value.trim();
+  const login = knownLogin.value.trim();
   const email = knownEmail.value.trim();
   const profil = knownProfil.value;
 
-  if (!uid || !email || !profil) {
+  if (!login || !email || !profil) {
     showMessage('Tous les champs sont obligatoires', true);
     return;
   }
@@ -141,11 +141,11 @@ function onSubmitKnown() {
     return;
   }
 
-  post('/forgot-password', { uid, email, profil })
+  post('/forgot-password', { login, email, profil })
     .then(() => {
-      resetUid.value = uid;
-      lastSendContext.value = { type: 'known', uid, email, profil };
-      resetShowStep(uid, true, null);
+      resetLogin.value = login;
+      lastSendContext.value = { type: 'known', login, email, profil };
+      resetShowStep(login, true, null);
     })
     .catch((err) => showMessage(errorMessage(err), true));
 }
@@ -256,7 +256,7 @@ function onSubmitRecover() {
 function onSubmitReset() {
   clearMessage();
 
-  const uid = resetUid.value.trim();
+  const login = resetLogin.value.trim();
   const resetToken = resetOrigin.value === 'recover' && lastSendContext.value
     ? lastSendContext.value.resetToken
     : null;
@@ -269,7 +269,7 @@ function onSubmitReset() {
     showMessage('Le code est obligatoire', true);
     return;
   }
-  if (!uid && !(resetOrigin.value === 'recover')) {
+  if (!login && !(resetOrigin.value === 'recover')) {
     showMessage("L'identifiant est obligatoire", true);
     return;
   }
@@ -291,7 +291,7 @@ function onSubmitReset() {
   }
 
   post('/reset-password', {
-    uid,
+    login,
     resetToken,
     code,
     newPassword,
@@ -331,7 +331,7 @@ function onResendCode() {
 
   if (lastSendContext.value.type === 'known') {
     post<RecoverUidResult>('/forgot-password', {
-      uid: lastSendContext.value.uid,
+      login: lastSendContext.value.login,
       email: lastSendContext.value.email,
       profil: lastSendContext.value.profil
     }).then(onDone).catch(onError);
@@ -342,14 +342,14 @@ function onResendCode() {
   }
 }
 
-function resetShowStep(uid: string, showUid: boolean, recoverResult: RecoverUidResult | null) {
-  resetOrigin.value = showUid ? 'known' : 'recover';
-  resetUid.value = uid;
-  resetLoadCharteStatus(uid, recoverResult);
+function resetShowStep(login: string, showLogin: boolean, recoverResult: RecoverUidResult | null) {
+  resetOrigin.value = showLogin ? 'known' : 'recover';
+  resetLogin.value = login;
+  resetLoadCharteStatus(login, recoverResult);
   step.value = 'reset';
 }
 
-function resetLoadCharteStatus(uid: string, recoverResult: RecoverUidResult | null) {
+function resetLoadCharteStatus(login: string, recoverResult: RecoverUidResult | null) {
   resetCharteVisible.value = false;
   if (recoverResult && typeof recoverResult.charteRequired === 'boolean') {
     if (recoverResult.charteRequired) {
@@ -358,9 +358,9 @@ function resetLoadCharteStatus(uid: string, recoverResult: RecoverUidResult | nu
     }
     return;
   }
-  if (!uid) return;
+  if (!login) return;
 
-  getJson<CharteStatus>('/charte-status?uid=' + encodeURIComponent(uid))
+  getJson<CharteStatus>('/charte-status?uid=' + encodeURIComponent(login))
     .then((status) => {
       if (status && status.charteRequired) {
         resetCharteUrl.value = status.charteUrl || '#';
@@ -408,10 +408,10 @@ function resetLoadCharteStatus(uid: string, recoverResult: RecoverUidResult | nu
             <div class="field-layout">
               <div class="field-container">
                 <div class="middle">
-                  <label for="known-uid">Identifiant (UID)</label>
+                  <label for="known-login">Identifiant (nom.utilisateur)</label>
                   <input
-                    id="known-uid"
-                    v-model="knownUid"
+                    id="known-login"
+                    v-model="knownLogin"
                     type="text"
                     placeholder=" "
                     autocomplete="username"
@@ -606,10 +606,10 @@ function resetLoadCharteStatus(uid: string, recoverResult: RecoverUidResult | nu
             <div class="field-layout">
               <div class="field-container">
                 <div class="middle">
-                  <label for="reset-uid">Identifiant (UID)</label>
+                  <label for="reset-login">Identifiant (nom.utilisateur)</label>
                   <input
-                    id="reset-uid"
-                    v-model="resetUid"
+                    id="reset-login"
+                    v-model="resetLogin"
                     type="text"
                     placeholder=" "
                     autocomplete="username"

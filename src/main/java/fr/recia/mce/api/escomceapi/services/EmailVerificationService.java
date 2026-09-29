@@ -202,19 +202,20 @@ public class EmailVerificationService {
     }
 
     @Transactional
-    public void sendPasswordResetCode(String uid, String email, String profil) {
-        log.info("[RESET_PASSWORD] Début sendPasswordResetCode uid={}, email={}, profil={}", uid, email, profil);
+    public void sendPasswordResetCode(String login, String email, String profil) {
+        log.info("[RESET_PASSWORD] Début sendPasswordResetCode login={}, email={}, profil={}", login, email, profil);
         if (email != null) {
             email = email.trim();
         }
 
         // Verrou pessimiste sur la ligne personne : deux requêtes simultanées pour le
-        // même uid sont sérialisées ; la seconde retombera sur l'anti-double-clic
+        // même compte sont sérialisées ; la seconde retombera sur l'anti-double-clic
         // au lieu de créer un second code valide.
-        APersonne person = aPersonneRepository.findByUidWithLock(uid);
+        APersonne person = aPersonneRepository.findByLoginWithLock(login);
         if (person == null) {
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
+        String uid = person.getUid();
 
         if (profil != null && !profil.isBlank()) {
             EnumCategorie requested = EnumCategorie.fromProfile(profil);
@@ -497,21 +498,21 @@ public class EmailVerificationService {
     }
 
     @Transactional
-    public void processResetPassword(String uid, String code, String newPassword, String confirmPassword, boolean charteAccepted) {
-        processResetPassword(uid, null, code, newPassword, confirmPassword, charteAccepted);
+    public void processResetPassword(String login, String code, String newPassword, String confirmPassword, boolean charteAccepted) {
+        processResetPassword(login, null, code, newPassword, confirmPassword, charteAccepted);
     }
 
     @Transactional
-    public void processResetPassword(String uid, String resetToken, String code, String newPassword,
+    public void processResetPassword(String login, String resetToken, String code, String newPassword,
             String confirmPassword, boolean charteAccepted) {
-        log.info("[PROCESS_RESET_PASSWORD] Début uid={}", uid);
+        log.info("[PROCESS_RESET_PASSWORD] Début identifiant={}", login);
 
         APersonne person = null;
         CerbereConfirmation confirmation = null;
 
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.PASSWORD_RESET);
 
-        if (uid == null || uid.isBlank()) {
+        if (login == null || login.isBlank()) {
             AttemptGuardService.ResetChallenge challenge = resetToken == null ? null : attemptGuardService.resetChallenge(resetToken);
             if (challenge == null || challenge.expiresAtMs <= System.currentTimeMillis()) {
                 if (challenge != null) {
@@ -519,12 +520,11 @@ public class EmailVerificationService {
                 }
                 throw new InvalidCodeException("Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.");
             }
-            uid = challenge.uid;
+            login = challenge.uid;
         }
 
-        if (uid != null && !uid.isBlank()) {
-            // Cas UID connu : résolution par uid + code
-            APersonne resolvedPerson = aPersonneRepository.findByUid(uid);
+        if (login != null && !login.isBlank()) {
+            APersonne resolvedPerson = aPersonneRepository.findByLogin(login);
             if (resolvedPerson == null) {
                 throw new InvalidCodeException("Aucun compte associé à cet identifiant");
             }

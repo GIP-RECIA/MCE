@@ -23,7 +23,7 @@ import javax.validation.constraints.Pattern;
 @Data
 public class ResetPasswordRequestDTO {
 
-    private String uid;
+    private String login;
 
     private String resetToken;
 
