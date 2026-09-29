@@ -52,14 +52,16 @@ public class CharteProperties implements InitializingBean {
     private Map<String, String> domains = new HashMap<>();
 
     /**
-     * Chemin externe du fichier CSV {@code dom;version} des versions de charte par service
+     * Chemin externe du fichier CSV {@code dom;version} des versions de charte par domaine
      * (ex. {@code /etc/mce/chartes.csv}). Si absent ou introuvable, le fichier
      * {@code charte/chartes.csv} du classpath est utilisé en repli.
      */
     private String csvPath;
 
     /**
-     * Dates de version par service (colonne {@code version}) chargées du CSV au démarrage.
+     * Dates de version par domaine (colonne {@code version}) chargées du CSV au démarrage, la
+     * colonne {@code dom} portant le début de l'URL du site (ex. {@code www.touraine-eschool.fr}),
+     * ou {@code default} pour les domaines non référencés.
      */
     private final Map<String, String> versions = new HashMap<>();
 
@@ -69,7 +71,7 @@ public class CharteProperties implements InitializingBean {
     }
 
     /**
-     * Charge le CSV {@code dom;version} (chemin externe {@code csvPath} puis classpath) dans
+     * Charge le CSV {@code dom;version} (domaine, chemin externe {@code csvPath} puis classpath) dans
      * {@link #versions}. Les lignes vides / {@code #} et une ligne d'en-tête {@code dom;version}
      * sont ignorées ; une 3e colonne éventuelle (nom/fichier) est ignorée.
      *
@@ -121,7 +123,7 @@ public class CharteProperties implements InitializingBean {
         LocalDate currentDate = parseVersion(current);
 
         if (candidateDate == null) {
-            log.warn("[CHARTE][VERSION] date '{}' illisible pour le service '{}' → ligne ignorée (version courante {})", version, dom, current);
+            log.warn("[CHARTE][VERSION] date '{}' illisible pour le domaine '{}' → ligne ignorée (version courante {})", version, dom, current);
             return;
         }
         if (currentDate == null) {
@@ -142,7 +144,7 @@ public class CharteProperties implements InitializingBean {
         if (keepCandidate) {
             target.put(dom, version);
         } else {
-            log.debug("[CHARTE][VERSION] service '{}' : ligne '{}' ignorée, la version '{}' est d'actualité", dom, version, current);
+            log.debug("[CHARTE][VERSION] domaine '{}' : ligne '{}' ignorée, la version '{}' est d'actualité", dom, version, current);
         }
     }
 

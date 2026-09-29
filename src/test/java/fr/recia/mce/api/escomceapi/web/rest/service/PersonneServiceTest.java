@@ -529,7 +529,7 @@ public class PersonneServiceTest {
             APersonne entity = entityInvalide();
             when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
             when(charteService.resolveService(any(APersonne.class))).thenReturn("AC");
-            when(charteService.getCharteVersionDate(anyString())).thenReturn(Date.valueOf("2024-01-02"));
+            when(charteService.getCharteVersionDateFor(any(APersonne.class))).thenReturn(Date.valueOf("2024-01-02"));
             when(validationCharteRepository.findAllByAPersonneId(1L)).thenReturn(List.of(capturedValidation("AC")));
 
             personneService.signCharte(uid);
@@ -554,7 +554,7 @@ public class PersonneServiceTest {
             APersonne entity = entityInvalide();
             when(aPersonneRepository.findByUid(uid)).thenReturn(entity);
             when(charteService.resolveService(any(APersonne.class))).thenReturn("AC");
-            when(charteService.getCharteVersionDate("AC")).thenReturn(Date.valueOf("2024-01-02"));
+            when(charteService.getCharteVersionDateFor(any(APersonne.class))).thenReturn(Date.valueOf("2024-01-02"));
             when(validationCharteRepository.findAllByAPersonneId(1L)).thenReturn(List.of(
                     capturedValidation("AC"),
                     capturedValidation("default")));

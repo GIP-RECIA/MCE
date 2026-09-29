@@ -249,27 +249,45 @@ class CharteServiceTest {
     // ── getCharteVersionDate ────────────────────────────────────────────
 
     @Test
-    @DisplayName("getCharteVersionDate : version fournie par le CSV (map versions)")
+    @DisplayName("getCharteVersionDate : version fournie par le CSV pour le domaine d'arrivée")
     void versionFromCsv() {
-        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of("AC-ORLEANS-TOURS", "2023-09-01")));
+        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of("www.touraine-eschool.fr", "2023-09-01")));
 
-        assertThat(service.getCharteVersionDate("AC-ORLEANS-TOURS"))
+        assertThat(service.getCharteVersionDate("www.touraine-eschool.fr"))
                 .isEqualTo(java.sql.Date.valueOf(java.time.LocalDate.of(2023, 9, 1)));
     }
 
     @Test
-    @DisplayName("getCharteVersionDate : défaut si absent du CSV")
+    @DisplayName("getCharteVersionDate : le préfixe www. est indifférent entre la clé du CSV et le domaine")
+    void versionIgnoresWwwPrefix() {
+        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of("touraine-eschool.fr", "2023-09-01")));
+
+        assertThat(service.getCharteVersionDate("www.touraine-eschool.fr"))
+                .isEqualTo(java.sql.Date.valueOf(java.time.LocalDate.of(2023, 9, 1)));
+    }
+
+    @Test
+    @DisplayName("getCharteVersionDate : domaine absent du CSV → repli sur la ligne 'default'")
+    void versionFallsBackToDefaultRow() {
+        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of("default", "2024-01-02")));
+
+        assertThat(service.getCharteVersionDate("www.domaine-inconnu.fr"))
+                .isEqualTo(java.sql.Date.valueOf(java.time.LocalDate.of(2024, 1, 2)));
+    }
+
+    @Test
+    @DisplayName("getCharteVersionDate : aucune ligne pour le domaine ni 'default' → défaut applicatif")
     void versionFallsBackToDefault() {
-        assertThat(service.getCharteVersionDate("AC-ORLEANS-TOURS"))
+        assertThat(service.getCharteVersionDate("www.touraine-eschool.fr"))
                 .isEqualTo(java.sql.Date.valueOf(CharteService.DEFAULT_CHARTE_VERSION_DATE));
     }
 
     @Test
     @DisplayName("getCharteVersionDate : date invalide → défaut")
     void invalidVersionFallsBackToDefault() {
-        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of("AC-ORLEANS-TOURS", "pas-une-date")));
+        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of("www.touraine-eschool.fr", "pas-une-date")));
 
-        assertThat(service.getCharteVersionDate("AC-ORLEANS-TOURS"))
+        assertThat(service.getCharteVersionDate("www.touraine-eschool.fr"))
                 .isEqualTo(java.sql.Date.valueOf(CharteService.DEFAULT_CHARTE_VERSION_DATE));
     }
 
@@ -359,5 +377,56 @@ class CharteServiceTest {
         when(aPersonneRepository.findByLogin("fio")).thenReturn(p);
 
         assertThat(service.getCharteUrl("fio")).isEqualTo("https://charte/default");
+    }
+
+    // ── Domaine de charte (colonne dom du CSV) ──
+
+    @Test
+    @DisplayName("resolveCharteDomain : hôte d'arrivée rattaché à la personne → l'hôte lui-même")
+    void charteDomainIsArrivalHost() {
+        when(soffitHolder.getArrivalHost()).thenReturn("www.touraine-eschool.fr");
+        APersonne p = personWithDomains("fio", "COLL-37", "touraine-eschool.fr");
+
+        assertThat(service.resolveCharteDomain(p)).isEqualTo("www.touraine-eschool.fr");
+    }
+
+    @Test
+    @DisplayName("resolveCharteDomain : hôte d'arrivée absent des domaines de la personne → 'default'")
+    void charteDomainFallsBackToDefault() {
+        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        APersonne p = personWithDomains("fio", "COLL-45", "www.chercan.fr");
+
+        assertThat(service.resolveCharteDomain(p)).isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
+    }
+
+    @Test
+    @DisplayName("resolveCharteDomain : aucun hôte d'arrivée (hors requête web) → 'default'")
+    void charteDomainWithoutArrivalHost() {
+        assertThat(service.resolveCharteDomain(mockPersonne("COLL-45")))
+                .isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
+    }
+
+    @Test
+    @DisplayName("getCharteVersionDateFor : version du domaine d'arrivée rattaché")
+    void versionForPersonUsesArrivalDomain() {
+        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of(
+                "www.touraine-eschool.fr", "2024-05-01",
+                "default", "2024-01-02")));
+        when(soffitHolder.getArrivalHost()).thenReturn("www.touraine-eschool.fr");
+        APersonne p = personWithDomains("fio", "COLL-37", "touraine-eschool.fr");
+
+        assertThat(service.getCharteVersionDateFor(p))
+                .isEqualTo(java.sql.Date.valueOf(java.time.LocalDate.of(2024, 5, 1)));
+    }
+
+    @Test
+    @DisplayName("getCharteVersionDateFor : hors requête web → version 'default'")
+    void versionForPersonWithoutArrivalHostUsesDefault() {
+        when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of(
+                "www.touraine-eschool.fr", "2024-05-01",
+                "default", "2024-01-02")));
+
+        assertThat(service.getCharteVersionDateFor(mockPersonne("COLL-37")))
+                .isEqualTo(java.sql.Date.valueOf(java.time.LocalDate.of(2024, 1, 2)));
     }
 }

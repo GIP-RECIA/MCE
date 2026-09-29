@@ -48,7 +48,22 @@ public class CharteService {
     public static final String DEFAULT_SERVICE = "default";
 
     /**
-     * Date de version de la charte utilisée si le CSV ne la fournit pas pour le service.
+     * Clé de charte du CSV utilisée quand le domaine d'arrivée n'est pas référencé
+     * (hors requête web, hôte inconnu) : la ligne {@code default} du CSV.
+     */
+    public static final String DEFAULT_CHARTE_DOMAIN = "default";
+
+    /**
+     * Préfixe hôte indifférent à la plateforme : {@code www.touraine-eschool.fr} et
+     * {@code touraine-eschool.fr} désignent le même domaine. Les URL de {@code charte.urls}
+     * et les clés {@code dom} du CSV ne sont pas homogènes sur ce point, la comparaison se
+     * fait donc sur la forme sans {@code www.}.
+     */
+    private static final String WWW_PREFIX = "www.";
+
+    /**
+     * Date de version de la charte utilisée si le CSV ne la fournit ni pour le domaine, ni via sa
+     * ligne {@code default}.
      */
     public static final LocalDate DEFAULT_CHARTE_VERSION_DATE = LocalDate.of(2024, 1, 1);
 
@@ -105,7 +120,7 @@ public class CharteService {
 
     private String resolveServiceForArrival(APersonne person, String host) {
         String key = firstNonNull(
-                charteProperties.getDomains() != null ? charteProperties.getDomains().get(host) : null,
+                lookupHost(charteProperties.getDomains(), host),
                 lookupKeyByUrlHost(host)
         );
         if (key == null) {
@@ -113,19 +128,104 @@ public class CharteService {
                     host, person.getUid());
             return DEFAULT_SERVICE;
         }
-        List<String> personDomains = personDomains(person.getUid());
-        if (personDomains == null) {
-            log.warn("[CHARTE][DOMAINE] domaines (ESCODomaines) indéterminés pour l'uid={} (annuaire indisponible) → charte par défaut pour l'hôte '{}'",
-                    person.getUid(), host);
-            return DEFAULT_SERVICE;
-        }
-        if (!personDomains.contains(host)) {
-            log.warn("[CHARTE][DOMAINE] l'hôte '{}' n'est pas rattaché à l'uid={} (domaines de la personne={}) → charte par défaut (signature non refusée)",
-                    host, person.getUid(), personDomains);
+        if (!isHostRattache(person, host)) {
             return DEFAULT_SERVICE;
         }
         log.info("[CHARTE][DOMAINE] uid={} arrivée depuis l'hôte '{}' → service '{}'", person.getUid(), host, key);
         return key;
+    }
+
+    /**
+     * Domaine de charte d'une personne : l'hôte du site d'arrivée s'il est rattaché à la
+     * personne, sinon {@link #DEFAULT_CHARTE_DOMAIN} (pas d'hôte d'arrivée hors requête web).
+     * C'est cette valeur qui indexe la colonne {@code dom} du CSV des versions.
+     */
+    public String resolveCharteDomain(APersonne person) {
+        if (person == null) {
+            return DEFAULT_CHARTE_DOMAIN;
+        }
+        String host = arrivalHost();
+        if (StringUtils.isBlank(host)) {
+            return DEFAULT_CHARTE_DOMAIN;
+        }
+        String normalized = normalizeHost(host);
+        if (!isHostRattache(person, normalized)) {
+            return DEFAULT_CHARTE_DOMAIN;
+        }
+        return normalized;
+    }
+
+    /**
+     * Règle de rattachement : l'hôte d'arrivée doit figurer parmi les domaines de la personne
+     * ({@code ESCODomaines} en annuaire). L'annuaire indisponible ({@code null}) est traité
+     * comme un rattachement refusé : on retombe alors sur la charte par défaut.
+     */
+    private boolean isHostRattache(APersonne person, String host) {
+        List<String> personDomains = personDomains(person.getUid());
+        if (personDomains == null) {
+            log.warn("[CHARTE][DOMAINE] domaines (ESCODomaines) indéterminés pour l'uid={} (annuaire indisponible) → charte par défaut pour l'hôte '{}'",
+                    person.getUid(), host);
+            return false;
+        }
+        if (!containsHost(personDomains, host)) {
+            log.warn("[CHARTE][DOMAINE] l'hôte '{}' n'est pas rattaché à l'uid={} (domaines de la personne={}) → charte par défaut (signature non refusée)",
+                    host, person.getUid(), personDomains);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Recherche une clé de configuration par hôte, en tolérant le préfixe {@code www.}
+     * et la casse des deux côtés.
+     */
+    private String lookupHost(Map<String, String> mapping, String host) {
+        if (mapping == null || host == null) {
+            return null;
+        }
+        String direct = mapping.get(host);
+        if (direct != null) {
+            return direct;
+        }
+        String needle = withoutWww(host);
+        for (Map.Entry<String, String> entry : mapping.entrySet()) {
+            if (entry.getKey() != null && needle.equals(withoutWww(entry.getKey()))) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Contient un hôte dans une liste de domaines, en tolérant le préfixe {@code www.}
+     * et la casse des deux côtés.
+     */
+    private boolean containsHost(List<String> hosts, String host) {
+        if (hosts == null || host == null) {
+            return false;
+        }
+        String needle = withoutWww(host);
+        for (String candidate : hosts) {
+            if (candidate != null && needle.equals(withoutWww(candidate))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Forme de comparaison d'un hôte : minuscules, sans préfixe {@code www.}.
+     */
+    private String withoutWww(String host) {
+        if (host == null) {
+            return null;
+        }
+        String normalized = host.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith(WWW_PREFIX) ? normalized.substring(WWW_PREFIX.length()) : normalized;
+    }
+
+    private String normalizeHost(String host) {
+        return host == null ? null : host.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -135,7 +235,7 @@ public class CharteService {
         Map<String, String> urls = charteProperties.getUrls() != null ? charteProperties.getUrls() : Map.of();
         for (Map.Entry<String, String> entry : urls.entrySet()) {
             String urlHost = urlHost(entry.getValue());
-            if (host.equalsIgnoreCase(urlHost)) {
+            if (withoutWww(host).equals(withoutWww(urlHost))) {
                 return entry.getKey();
             }
         }
@@ -202,23 +302,62 @@ public class CharteService {
     }
 
     /**
-     * Retourne la date de version de la charte à enregistrer pour un service. Priorité :
-     * CSV du {@code charte.chartes.csv} (colonne {@code version}), puis
+     * Retourne la date de version de la charte à enregistrer pour un domaine (colonne {@code dom}
+     * du CSV, début de l'URL du site). Le préfixe {@code www.} est indifférent : la clé exacte est
+     * essayée en premier, puis la même clé sans {@code www.}. Priorité : CSV
+     * ({@code charte/chartes.csv}), puis ligne {@code default} du CSV, puis
      * {@link #DEFAULT_CHARTE_VERSION_DATE}.
      */
-    public Date getCharteVersionDate(String serviceId) {
+    public Date getCharteVersionDate(String dom) {
         Map<String, String> versions = charteProperties != null ? charteProperties.getVersions() : null;
-        String version = versions != null ? versions.get(serviceId) : null;
+        String version = lookupVersion(versions, dom);
+        if (version == null) {
+            version = lookupVersion(versions, DEFAULT_CHARTE_DOMAIN);
+            if (version != null) {
+                log.info("[CHARTE][VERSION] domaine '{}' absent du CSV → repli sur la version 'default' ({})",
+                        dom, version);
+            }
+        }
         if (version == null || version.isBlank()) {
-            log.warn("[CHARTE][VERSION] version absente du CSV pour le service '{}' → défaut {}", serviceId, DEFAULT_CHARTE_VERSION_DATE);
+            log.warn("[CHARTE][VERSION] version absente du CSV pour le domaine '{}' → défaut {}", dom, DEFAULT_CHARTE_VERSION_DATE);
             return java.sql.Date.valueOf(DEFAULT_CHARTE_VERSION_DATE);
         }
         try {
             return java.sql.Date.valueOf(LocalDate.parse(version));
         } catch (Exception e) {
-            log.warn("[CHARTE][VERSION] date de version invalide '{}' (serviceId={}) → défaut {}", version, serviceId, DEFAULT_CHARTE_VERSION_DATE);
+            log.warn("[CHARTE][VERSION] date de version invalide '{}' (domaine={}) → défaut {}", version, dom, DEFAULT_CHARTE_VERSION_DATE);
             return java.sql.Date.valueOf(DEFAULT_CHARTE_VERSION_DATE);
         }
+    }
+
+    /**
+     * Variante personne : résout le domaine d'arrivée puis délègue à
+     * {@link #getCharteVersionDate(String)}. Les deux points d'appel de la version (signature et
+     * contrôle de re-signature) passent par ici, pour que la version enregistrée et la version
+     * comparée soient toujours résolues de la même façon.
+     */
+    public Date getCharteVersionDateFor(APersonne person) {
+        return getCharteVersionDate(resolveCharteDomain(person));
+    }
+
+    /**
+     * Cherche la version d'un domaine dans le CSV, clé exacte puis clé sans {@code www.}.
+     */
+    private String lookupVersion(Map<String, String> versions, String dom) {
+        if (versions == null || dom == null) {
+            return null;
+        }
+        String direct = versions.get(dom);
+        if (direct != null) {
+            return direct;
+        }
+        String needle = withoutWww(dom);
+        for (Map.Entry<String, String> entry : versions.entrySet()) {
+            if (entry.getKey() != null && needle.equals(withoutWww(entry.getKey()))) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /**
@@ -270,30 +409,32 @@ public class CharteService {
     /**
      * Règle unique du service : la charte est requise tant qu'aucune validation n'est enregistrée
      * pour l'utilisateur et son service courant (table {@code validationcharteservice}), ou lorsque
-     * la version signée ne correspond plus à la version courante du CSV
-     * ({@code charte/chartes.csv}, colonne {@code version}) : une charte mise à jour impose une
-     * re-signature. Ne touche pas la base : l'entité est déjà chargée.
+     * la version signée ne correspond plus à la version courante du domaine d'arrivée
+     * ({@code charte/chartes.csv}, colonne {@code version} indexée par {@code dom}) : une charte
+     * mise à jour impose une re-signature. Ne touche pas la base : l'entité est déjà chargée.
      */
     public boolean isCharteRequired(APersonne person) {
         if (person == null || person.getId() == null) {
             return true;
         }
         String serviceId = resolveService(person);
+        String domain = resolveCharteDomain(person);
         try {
             ValidationCharte validation = validationCharteRepository.findByApersonneIdAndServiceId(person.getId(), serviceId);
             if (validation == null) {
                 return true;
             }
-            Date currentVersion = getCharteVersionDate(serviceId);
+            Date currentVersion = getCharteVersionDate(domain);
             Date signedVersion = validation.getCharterVersionDate();
             if (signedVersion != null && !signedVersion.equals(currentVersion)) {
-                log.info("[CHARTE][VERSION] uid={} service={} : charte signée pour la version {} mais version courante du CSV = {} → re-signature requise",
-                        person.getUid(), serviceId, signedVersion, currentVersion);
+                log.info("[CHARTE][VERSION] uid={} service={} domaine={} : charte signée pour la version {} mais version courante du CSV = {} → re-signature requise",
+                        person.getUid(), serviceId, domain, signedVersion, currentVersion);
                 return true;
             }
             return false;
         } catch (Exception e) {
-            log.warn("Impossible de vérifier la validation de la charte pour l'uid [{}] (service={}) : {}", person.getUid(), serviceId, e.getMessage());
+            log.warn("Impossible de vérifier la validation de la charte pour l'uid [{}] (service={}, domaine={}) : {}",
+                    person.getUid(), serviceId, domain, e.getMessage());
             return true;
         }
     }

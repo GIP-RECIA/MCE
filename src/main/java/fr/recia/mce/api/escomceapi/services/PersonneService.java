@@ -470,7 +470,7 @@ public class PersonneService {
             validation.setAPersonneId(entity.getId());
             validation.setServiceId(serviceId);
         }
-        validation.setCharterVersionDate(charteService.getCharteVersionDate(serviceId));
+        validation.setCharterVersionDate(charteService.getCharteVersionDateFor(entity));
         validation.setValidatedAt(new Date());
         validationCharteRepository.saveAndFlush(validation);
         syncValidationsCharteLdap(uid, entity.getId());

@@ -130,10 +130,13 @@ class ActivationFlowIntegrationTest {
         p = personneRepository.saveAndFlush(p);
         if (charteSignee) {
             // Charte par service : la validation est tracée dans validationcharteservice (service = source).
+            // La version signée est celle de la ligne "default" du CSV des chartes, qui est la
+            // version courante hors requête web (aucun hôte d'arrivée) : au-dessus, la charte est
+            // jugée à jour et n'est pas redemandée.
             ValidationCharte v = new ValidationCharte();
             v.setAPersonneId(p.getId());
             v.setServiceId("test");
-            v.setCharterVersionDate(java.sql.Date.valueOf(LocalDate.of(2024, 1, 1)));
+            v.setCharterVersionDate(java.sql.Date.valueOf(LocalDate.of(2024, 1, 2)));
             v.setValidatedAt(new Date());
             validationCharteRepository.saveAndFlush(v);
         }

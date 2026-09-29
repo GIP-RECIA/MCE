@@ -38,8 +38,11 @@ class ChartePropertiesTest {
         props.loadVersions();
 
         assertThat(props.getVersions())
-                .containsEntry("COLL-37", "2024-01-02")
-                .containsEntry("ENT", "2024-01-02");
+                .containsEntry("www.touraine-eschool.fr", "2024-01-02")
+                .containsEntry("cfa.netocentre.fr", "2024-01-02")
+                .containsEntry("ent.recia.fr", "2024-01-02")
+                .containsEntry("default", "2024-01-02")
+                .doesNotContainKey("COLL-37");
     }
 
     @Test
@@ -48,9 +51,9 @@ class ChartePropertiesTest {
         Files.write(tempDir.resolve("chartes.csv"), List.of(
                 "# commentaire ignoré",
                 "dom;version",
-                "STEST;2025-05-05",
+                "www.touraine-eschool.fr;2025-05-05",
                 "",
-                "AUTRE;2023-11-30;une-3e-colonne-ignorée"
+                "cfa.netocentre.fr;2023-11-30;une-3e-colonne-ignorée"
         ));
         CharteProperties props = new CharteProperties();
         props.setCsvPath(tempDir.resolve("chartes.csv").toString());
@@ -58,8 +61,8 @@ class ChartePropertiesTest {
         props.loadVersions();
 
         assertThat(props.getVersions())
-                .containsEntry("STEST", "2025-05-05")
-                .containsEntry("AUTRE", "2023-11-30");
+                .containsEntry("www.touraine-eschool.fr", "2025-05-05")
+                .containsEntry("cfa.netocentre.fr", "2023-11-30");
     }
 
     @Test
@@ -70,7 +73,7 @@ class ChartePropertiesTest {
 
         props.loadVersions();
 
-        assertThat(props.getVersions()).containsEntry("COLL-37", "2024-01-02");
+        assertThat(props.getVersions()).containsEntry("www.touraine-eschool.fr", "2024-01-02");
     }
 
     @Test
@@ -78,9 +81,9 @@ class ChartePropertiesTest {
     void duplicatedDomainKeepsCurrentVersionOverFutureOne(@TempDir Path tempDir) throws IOException {
         Files.write(tempDir.resolve("chartes.csv"), List.of(
                 "dom;version",
-                "COLL-37;" + LocalDate.now().minusMonths(2),
-                "COLL-37;" + LocalDate.now().plusMonths(2),
-                "COLL-37;" + LocalDate.now().minusDays(1)
+                "www.touraine-eschool.fr;" + LocalDate.now().minusMonths(2),
+                "www.touraine-eschool.fr;" + LocalDate.now().plusMonths(2),
+                "www.touraine-eschool.fr;" + LocalDate.now().minusDays(1)
         ));
         CharteProperties props = new CharteProperties();
         props.setCsvPath(tempDir.resolve("chartes.csv").toString());
@@ -88,7 +91,7 @@ class ChartePropertiesTest {
         props.loadVersions();
 
         assertThat(props.getVersions())
-                .containsEntry("COLL-37", LocalDate.now().minusDays(1).toString())
+                .containsEntry("www.touraine-eschool.fr", LocalDate.now().minusDays(1).toString())
                 .hasSize(1);
     }
 
@@ -97,16 +100,16 @@ class ChartePropertiesTest {
     void duplicatedDomainKeepsMostRecentPastVersion(@TempDir Path tempDir) throws IOException {
         Files.write(tempDir.resolve("chartes.csv"), List.of(
                 "dom;version",
-                "CFA;2024-01-02",
-                "CFA;2025-03-15",
-                "CFA;2099-01-01"
+                "cfa.netocentre.fr;2024-01-02",
+                "cfa.netocentre.fr;2025-03-15",
+                "cfa.netocentre.fr;2099-01-01"
         ));
         CharteProperties props = new CharteProperties();
         props.setCsvPath(tempDir.resolve("chartes.csv").toString());
 
         props.loadVersions();
 
-        assertThat(props.getVersions()).containsEntry("CFA", "2025-03-15");
+        assertThat(props.getVersions()).containsEntry("cfa.netocentre.fr", "2025-03-15");
     }
 
     @Test
@@ -114,15 +117,15 @@ class ChartePropertiesTest {
     void duplicatedDomainKeepsNearestFutureWhenNoneIsEffective(@TempDir Path tempDir) throws IOException {
         Files.write(tempDir.resolve("chartes.csv"), List.of(
                 "dom;version",
-                "ENT;2099-12-31",
-                "ENT;2098-01-01"
+                "ent.recia.fr;2099-12-31",
+                "ent.recia.fr;2098-01-01"
         ));
         CharteProperties props = new CharteProperties();
         props.setCsvPath(tempDir.resolve("chartes.csv").toString());
 
         props.loadVersions();
 
-        assertThat(props.getVersions()).containsEntry("ENT", "2098-01-01");
+        assertThat(props.getVersions()).containsEntry("ent.recia.fr", "2098-01-01");
     }
 
     @Test
@@ -130,14 +133,14 @@ class ChartePropertiesTest {
     void unparsableDateDoesNotOverrideValidOne(@TempDir Path tempDir) throws IOException {
         Files.write(tempDir.resolve("chartes.csv"), List.of(
                 "dom;version",
-                "LYCEE;pas-une-date",
-                "LYCEE;2025-01-05"
+                "lycees.netocentre.fr;pas-une-date",
+                "lycees.netocentre.fr;2025-01-05"
         ));
         CharteProperties props = new CharteProperties();
         props.setCsvPath(tempDir.resolve("chartes.csv").toString());
 
         props.loadVersions();
 
-        assertThat(props.getVersions()).containsEntry("LYCEE", "2025-01-05");
+        assertThat(props.getVersions()).containsEntry("lycees.netocentre.fr", "2025-01-05");
     }
 }
