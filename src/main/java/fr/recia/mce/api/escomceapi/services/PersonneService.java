@@ -604,10 +604,25 @@ public class PersonneService {
                 continue;
             }
             values.add(validation.getServiceId() + ";"
-                    + formatDate(validation.getCharterVersionDate(), "yyyyMMdd") + ";"
+                    + formatVersionDate(validation.getCharterVersionDate()) + ";"
                     + formatDate(validation.getValidatedAt(), "yyyyMMddHHmmss'Z'"));
         }
         return values;
+    }
+
+    /**
+     * Restitue la version de charte signée au format {@code yyyyMMdd}.
+     * <p>C'est un <strong>jour calendaire</strong> (lu dans le CSV des chartes, stocké en colonne
+     * {@code DATE}) et non un instant : il est donc rendu dans le fuseau qui l'a construit, sans
+     * conversion UTC. Forcer UTC le décalait d'un jour vers l'arrière — minuit
+     * Europe/Paris = veille 23:00 (hiver) ou 22:00 (été) UTC — et l'annuaire affichait
+     * {@code 20240101} pour une version signée le {@code 2024-01-02} en base. Seul
+     * {@code validatedAt}, qui est un instant, est rendu en UTC par {@link #formatDate}.</p>
+     */
+    private String formatVersionDate(Date date) {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
+        formatter.setLenient(false);
+        return formatter.format(date);
     }
 
     private String formatDate(Date date, String pattern) {
