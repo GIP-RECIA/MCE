@@ -130,7 +130,7 @@ class PersonneRestControllerSecurityTest {
 
         mockMvc.perform(post("/api/personne/mce/forgot-password")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"uid\":\"user1\",\"email\":\"user1@example.fr\",\"profil\":\"PERSONNEL\"}"))
+                .content("{\"login\":\"user1\",\"email\":\"user1@example.fr\",\"profil\":\"PERSONNEL\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -141,7 +141,7 @@ class PersonneRestControllerSecurityTest {
 
         mockMvc.perform(post("/api/personne/mce/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"uid\":\"user1\",\"code\":\"123456\",\"charteAccepted\":true,"
+                .content("{\"login\":\"user1\",\"code\":\"123456\",\"charteAccepted\":true,"
                         + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}"))
                 .andExpect(status().isOk());
     }
