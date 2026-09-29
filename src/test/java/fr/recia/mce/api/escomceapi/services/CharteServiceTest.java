@@ -31,13 +31,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +66,9 @@ class CharteServiceTest {
 
     @Mock
     private IExternalUserDao externalUserDao;
+
+    @Mock
+    private CacheManager cacheManager;
 
     @InjectMocks
     private CharteService service;
@@ -428,5 +438,150 @@ class CharteServiceTest {
 
         assertThat(service.getCharteVersionDateFor(mockPersonne("COLL-37")))
                 .isEqualTo(java.sql.Date.valueOf(java.time.LocalDate.of(2024, 1, 2)));
+    }
+
+    // ── Replis et garde-fous : l'utilisateur n'est jamais refusé, la charte par défaut s'applique ──
+
+    @Test
+    @DisplayName("resolveService : personne nulle ou sans id → service 'default'")
+    void resolveServiceWithoutPersonFallsBackToDefault() {
+        assertThat(service.resolveService(null)).isEqualTo(CharteService.DEFAULT_SERVICE);
+        assertThat(service.resolveService(new APersonne())).isEqualTo(CharteService.DEFAULT_SERVICE);
+    }
+
+    @Test
+    @DisplayName("resolveCharteDomain : personne nulle → 'default'")
+    void charteDomainWithoutPerson() {
+        assertThat(service.resolveCharteDomain(null)).isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
+    }
+
+    @Test
+    @DisplayName("hors contexte web (pas de holder d'arrivée) → source pour l'URL, 'default' pour la version")
+    void withoutArrivalHostHolderUsesSourceAndDefaultDomain() {
+        CharteService sansHolder = new CharteService();
+        ReflectionTestUtils.setField(sansHolder, "charteProperties", charteProperties);
+        ReflectionTestUtils.setField(sansHolder, "aPersonneRepository", aPersonneRepository);
+        APersonne p = mockPersonne("AC-ORLEANS-TOURS");
+
+        assertThat(sansHolder.resolveService(p)).isEqualTo("AC-ORLEANS-TOURS");
+        assertThat(sansHolder.resolveCharteDomain(p)).isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
+    }
+
+    @Test
+    @DisplayName("annuaire indisponible (personne absente) → charte par défaut, pas de refus")
+    void ldapPersonNotFoundFallsBackToDefault() {
+        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
+        APersonne p = mockPersonne("COLL-45");
+        p.setUid("fio");
+        when(externalUserDao.getUserByUid("fio")).thenReturn(null);
+
+        assertThat(service.resolveService(p)).isEqualTo(CharteService.DEFAULT_SERVICE);
+        assertThat(service.resolveCharteDomain(p)).isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
+    }
+
+    @Test
+    @DisplayName("annuaire en erreur (le DAO lève) → charte par défaut, pas de refus")
+    void ldapFailureFallsBackToDefault() {
+        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        APersonne p = mockPersonne("COLL-45");
+        p.setUid("fio");
+        when(externalUserDao.getUserByUid("fio")).thenThrow(new RuntimeException("LDAP down"));
+
+        assertThat(service.resolveService(p)).isEqualTo(CharteService.DEFAULT_SERVICE);
+        assertThat(service.resolveCharteDomain(p)).isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
+    }
+
+    @Test
+    @DisplayName("personne sans attribut ESCODomaines → pas de rattachement, charte par défaut")
+    void personWithoutDomainAttributeFallsBackToDefault() {
+        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
+        ExternalUser sansDomaines = new ExternalUser();
+        sansDomaines.setAttributes(Map.of());
+        APersonne p = mockPersonne("COLL-45");
+        p.setUid("fio");
+        when(externalUserDao.getUserByUid("fio")).thenReturn(sansDomaines);
+
+        assertThat(service.resolveService(p)).isEqualTo(CharteService.DEFAULT_SERVICE);
+    }
+
+    @Test
+    @DisplayName("ESCODomaines : le cache annuaire évite un second appel à l'annuaire")
+    void ldapDomainsAreCached() {
+        Cache cache = mock(Cache.class);
+        when(cacheManager.getCache(anyString())).thenReturn(cache);
+        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
+        APersonne p = mockPersonne("COLL-45");
+        p.setUid("fio");
+        IExternalUser fromLdap = externalUserWithDomains("lycees.test.recia.dev");
+        when(externalUserDao.getUserByUid("fio")).thenReturn(fromLdap);
+
+        assertThat(service.resolveService(p)).isEqualTo("LYCEE");
+
+        when(cache.get(eq("fio"), eq(IExternalUser.class))).thenReturn(fromLdap);
+
+        assertThat(service.resolveService(p)).isEqualTo("LYCEE");
+        verify(externalUserDao, times(1)).getUserByUid("fio");
+    }
+
+    @Test
+    @DisplayName("isCharteRequired : erreur en base → charte requise par précaution")
+    void databaseFailureRequiresCharte() {
+        APersonne p = mockPersonne("COLL-45");
+        p.setUid("fio");
+        when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "COLL-45"))
+                .thenThrow(new RuntimeException("DB down"));
+
+        assertThat(service.isCharteRequired(p)).isTrue();
+    }
+
+    @Test
+    @DisplayName("isCharteRequired : version signée absente → pas de re-signature")
+    void signedVersionNullDoesNotRequireCharte() {
+        APersonne p = mockPersonne("COLL-45");
+        p.setUid("fio");
+        ValidationCharte sansVersion = new ValidationCharte();
+        sansVersion.setCharterVersionDate(null);
+        when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "COLL-45")).thenReturn(sansVersion);
+
+        assertThat(service.isCharteRequired(p)).isFalse();
+    }
+
+    @Test
+    @DisplayName("getCharteVersionDate : domaine null ou vide → défaut applicatif")
+    void versionForBlankDomainFallsBackToDefault() {
+        java.sql.Date defaut = java.sql.Date.valueOf(CharteService.DEFAULT_CHARTE_VERSION_DATE);
+
+        assertThat(service.getCharteVersionDate(null)).isEqualTo(defaut);
+        assertThat(service.getCharteVersionDate("   ")).isEqualTo(defaut);
+    }
+
+    @Test
+    @DisplayName("getCharteVersionDate : configuration indisponible → défaut applicatif")
+    void versionWithoutPropertiesFallsBackToDefault() {
+        assertThat(new CharteService().getCharteVersionDate("www.touraine-eschool.fr"))
+                .isEqualTo(java.sql.Date.valueOf(CharteService.DEFAULT_CHARTE_VERSION_DATE));
+    }
+
+    @Test
+    @DisplayName("resolveService : URL de configuration illisible → ignorée, service 'default'")
+    void malformedCharteUrlIsIgnored() {
+        urls.put("PISTE", "::::pas-une-url");
+        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        APersonne p = mockPersonne("PISTE");
+        p.setUid("fio");
+
+        assertThat(service.resolveService(p)).isEqualTo(CharteService.DEFAULT_SERVICE);
+    }
+
+    @Test
+    @DisplayName("getCharteUrl : erreur de configuration → URL par défaut")
+    void configurationFailureFallsBackToDefaultUrl() {
+        when(charteProperties.getUrls()).thenThrow(new RuntimeException("config KO"));
+        when(aPersonneRepository.findByLogin("fio")).thenReturn(mockPersonne("AC-ORLEANS-TOURS"));
+
+        assertThat(service.getCharteUrl("fio")).isEqualTo("https://charte/default");
     }
 }

@@ -143,4 +143,129 @@ class ChartePropertiesTest {
 
         assertThat(props.getVersions()).containsEntry("lycees.netocentre.fr", "2025-01-05");
     }
+
+    @Test
+    @DisplayName("ligne sans séparateur → ignorée")
+    void lineWithoutSeparatorIsIgnored(@TempDir Path tempDir) throws IOException {
+        Files.write(tempDir.resolve("chartes.csv"), List.of(
+                "dom;version",
+                "ligne-sans-separateur",
+                "www.touraine-eschool.fr;2025-02-02"
+        ));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath(tempDir.resolve("chartes.csv").toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions())
+                .containsEntry("www.touraine-eschool.fr", "2025-02-02")
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("date illisible après une date valide → la date valide reste d'actualité")
+    void unparsableDateAfterValidOneKeepsValid(@TempDir Path tempDir) throws IOException {
+        Files.write(tempDir.resolve("chartes.csv"), List.of(
+                "dom;version",
+                "cfa.netocentre.fr;2025-01-05",
+                "cfa.netocentre.fr;pas-une-date"
+        ));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath(tempDir.resolve("chartes.csv").toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions())
+                .containsEntry("cfa.netocentre.fr", "2025-01-05")
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("version vide après une date valide → la date valide reste d'actualité")
+    void blankVersionAfterValidOneKeepsValid(@TempDir Path tempDir) throws IOException {
+        Files.write(tempDir.resolve("chartes.csv"), List.of(
+                "dom;version",
+                "lycees.netocentre.fr;2025-01-05",
+                "lycees.netocentre.fr;;colonne-ignoree"
+        ));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath(tempDir.resolve("chartes.csv").toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions())
+                .containsEntry("lycees.netocentre.fr", "2025-01-05")
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("version vide seule → conservée mais inutilisable, le défaut s'applique à la lecture")
+    void blankVersionAloneIsStoredButUnusable(@TempDir Path tempDir) throws IOException {
+        Files.write(tempDir.resolve("chartes.csv"), List.of(
+                "dom;version",
+                "lycees.netocentre.fr;;colonne-ignoree"
+        ));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath(tempDir.resolve("chartes.csv").toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions()).containsEntry("lycees.netocentre.fr", "");
+    }
+
+    @Test
+    @DisplayName("date passée plus ancienne après une date plus récente → ignorée")
+    void olderPastVersionIsIgnored(@TempDir Path tempDir) throws IOException {
+        Files.write(tempDir.resolve("chartes.csv"), List.of(
+                "dom;version",
+                "ent.recia.fr;2025-01-05",
+                "ent.recia.fr;2024-01-02"
+        ));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath(tempDir.resolve("chartes.csv").toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions())
+                .containsEntry("ent.recia.fr", "2025-01-05")
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("fichier illisible → aucune version chargée, pas de plantage")
+    void unreadablePathYieldsNoVersion(@TempDir Path tempDir) throws IOException {
+        Path directory = Files.createDirectory(tempDir.resolve("chartes.csv"));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath(directory.toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("chemin préfixé classpath: → chargé depuis le classpath")
+    void classpathPrefixedPathLoadsFromClasspath() {
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath("classpath:charte/chartes.csv");
+
+        props.loadVersions();
+
+        assertThat(props.getVersions()).containsEntry("www.touraine-eschool.fr", "2024-01-02");
+    }
+
+    @Test
+    @DisplayName("chemin préfixé file: → chargé tel quel, sans préfixe ajouté")
+    void filePrefixedPathIsLoaded(@TempDir Path tempDir) throws IOException {
+        Files.write(tempDir.resolve("chartes.csv"), List.of(
+                "dom;version",
+                "ent.recia.fr;2025-04-01"
+        ));
+        CharteProperties props = new CharteProperties();
+        props.setCsvPath("file:" + tempDir.resolve("chartes.csv").toString());
+
+        props.loadVersions();
+
+        assertThat(props.getVersions()).containsEntry("ent.recia.fr", "2025-04-01");
+    }
 }
