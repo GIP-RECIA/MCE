@@ -318,14 +318,14 @@ public class PersonneRestController {
 
         // Cas authentifié (changement d'email) : l'uid est lu depuis le jeton Soffit,
         // ce qui empêche de vérifier un email pour le compte d'un autre utilisateur.
-        // Cas public (parcours d'activation sans jeton) : l'uid doit être fourni dans le corps.
+        // Cas public (parcours d'activation sans jeton) : l'identifiant (login.nom) doit être fourni dans le corps.
         String uid = getCurrentUidIfPresent();
         if (uid == null) {
-            uid = request.getUid();
+            uid = request.getLogin();
         }
         if (uid == null || uid.isBlank()) {
-            log.warn("[VERIFY_EMAIL] ÉCHEC : aucun uid (jeton absent et champ uid vide)");
-            throw new ChampsObligatoiresException("L'uid est obligatoire");
+            log.warn("[VERIFY_EMAIL] ÉCHEC : aucun identifiant (jeton absent et champ login vide)");
+            throw new ChampsObligatoiresException("L'identifiant est obligatoire");
         }
 
         log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
@@ -390,14 +390,15 @@ public class PersonneRestController {
         return ResponseEntity.ok(new ConnexionActivationResponseDTO(uid));
     }
 
-    /**
+/**
      * Détermine le parcours d'activation du compte (CHARTE → COURRIEL → PASSWORD → FIN) selon le profil.
+     * L'identifiant est le {@code login.nom} saisi par l'utilisateur (ou un uid/alias, insensible à la casse).
      */
     @GetMapping("/activation/status")
-    public ResponseEntity<ActivationStatusResponseDTO> activationStatus(@RequestParam String uid) {
-        log.info("[ACTIVATION][STATUS] Demande uid={}", uid);
-        ActivationStatusResponseDTO status = activationService.getActivationStatus(uid);
-        log.info("[ACTIVATION][STATUS] Succès uid={} etape={}", uid, status.getEtapeSuivante());
+    public ResponseEntity<ActivationStatusResponseDTO> activationStatus(@RequestParam String login) {
+        log.info("[ACTIVATION][STATUS] Demande login={}", login);
+        ActivationStatusResponseDTO status = activationService.getActivationStatus(login);
+        log.info("[ACTIVATION][STATUS] Succès uid={} etape={}", status.getUid(), status.getEtapeSuivante());
         return ResponseEntity.ok(status);
     }
 
@@ -408,7 +409,7 @@ public class PersonneRestController {
     public ResponseEntity<ActivationResultDTO> activerCompte(
             @Valid @RequestBody ActivationRequestDTO request) {
 
-        log.info("[ACTIVATION][PASSWORD] Demande uid={}, charteAccepted={}", request.getUid(), request.isCharteAccepted());
+        log.info("[ACTIVATION][PASSWORD] Demande login={}, charteAccepted={}", request.getLogin(), request.isCharteAccepted());
         ActivationResultDTO result = activationService.activate(request);
         log.info("[ACTIVATION][PASSWORD] Succès uid={} etat={}", result.getUid(), result.getEtat());
         return ResponseEntity.ok(result);
@@ -427,7 +428,7 @@ public class PersonneRestController {
         log.info("[ACTIVATION][SELF] Demande uid={}, charteAccepted={}", uid, request.isCharteAccepted());
 
         ActivationRequestDTO inner = new ActivationRequestDTO();
-        inner.setUid(uid);
+        inner.setLogin(uid);
         inner.setCharteAccepted(request.isCharteAccepted());
         inner.setEmail(request.getEmail());
 

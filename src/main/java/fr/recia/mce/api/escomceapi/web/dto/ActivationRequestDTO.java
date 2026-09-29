@@ -25,7 +25,7 @@ import lombok.Setter;
 public class ActivationRequestDTO {
 
     @NotBlank(message = "L'identifiant est obligatoire")
-    private String uid;
+    private String login;
 
     private boolean charteAccepted;
 

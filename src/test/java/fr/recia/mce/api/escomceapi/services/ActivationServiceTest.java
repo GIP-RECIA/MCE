@@ -118,7 +118,7 @@ class ActivationServiceTest {
     private ActivationRequestDTO request(String uid, boolean charteAccepted, String email,
             String newPassword, String confirmPassword) {
         ActivationRequestDTO r = new ActivationRequestDTO();
-        r.setUid(uid);
+        r.setLogin(uid);
         r.setCharteAccepted(charteAccepted);
         r.setEmail(email);
         r.setNewPassword(newPassword);
@@ -201,7 +201,7 @@ class ActivationServiceTest {
         @DisplayName("PERSONNEL sans charte → CHARTE, email et mdp requis")
         void shouldRouteToCharteWhenCharteMissing() {
             APersonne p = personne("dupontj", "Invalide", "Enseignant", null, null);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
             doReturn(true).when(charteService).isCharteRequired(any(APersonne.class));
@@ -218,7 +218,7 @@ class ActivationServiceTest {
         @DisplayName("PERSONNEL charte signée avec email → PASSWORD")
         void shouldRouteToPasswordWhenEmailPresent() {
             APersonne p = personne("dupontj", "Invalide", "Enseignant", "jean@ac.fr", new Date());
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
 
@@ -234,7 +234,7 @@ class ActivationServiceTest {
         @DisplayName("ELEVE charte signée → COURRIEL avant PASSWORD")
         void shouldRouteEleveToCourriel() {
             APersonne p = personne("eleve1", "Invalide", "Eleve", "eleve@ent.fr", new Date());
-            when(aPersonneRepository.findByUid("eleve1")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("eleve1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.ELEVE);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
             doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
@@ -249,7 +249,7 @@ class ActivationServiceTest {
         @DisplayName("CVDL charte signée → FIN sans mot de passe")
         void shouldRouteCvdlToFin() {
             APersonne p = personne("cvdl1", "Invalide", "Non_enseignant_collectivite_locale", null, new Date());
-            when(aPersonneRepository.findByUid("cvdl1")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("cvdl1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.CVDL);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
             doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
@@ -265,7 +265,7 @@ class ActivationServiceTest {
         @DisplayName("Compte déjà Valide (re-entry SSO) → FIN sans étape")
         void shouldRouteAlreadyActiveToFin() {
             APersonne p = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", new Date());
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(p);
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
 
@@ -280,7 +280,7 @@ class ActivationServiceTest {
         @DisplayName("Compte déjà Valide stocké en minuscules (etat='valide') → FIN, casse indifférente")
         void shouldRouteAlreadyActiveLowercaseToFin() {
             APersonne p = personne("dupontj", "valide", "Enseignant", "jean@ac.fr", new Date());
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(p);
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
 
@@ -295,7 +295,7 @@ class ActivationServiceTest {
         @DisplayName("Compte déjà Valide mais charte non signée → CHARTE (bloc charte seul)")
         void shouldRouteAlreadyActiveToCharteWhenCharteMissing() {
             APersonne p = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(p);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(p);
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("dupontj");
 
@@ -308,9 +308,9 @@ class ActivationServiceTest {
         }
 
         @Test
-        @DisplayName("Uid inconnu → PersonneNotFoundException")
+        @DisplayName("Identifiant inconnu → PersonneNotFoundException")
         void shouldFailWhenUidUnknown() {
-            when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
+            when(aPersonneRepository.findByLogin("ghost")).thenReturn(null);
 
             assertThatThrownBy(() -> activationService.getActivationStatus("ghost"))
                     .isInstanceOf(PersonneNotFoundException.class);
@@ -327,7 +327,7 @@ class ActivationServiceTest {
             APersonne ihm = personne("dupontj", "Invalide", "Enseignant", null, null);
             PersonneDTO dtoSansCharte = new PersonneDTO(ihm);
 
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(dtoSansCharte);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
 
@@ -349,7 +349,7 @@ class ActivationServiceTest {
         @DisplayName("Charte non acceptée → CharteNotAcceptedException")
         void shouldRefuseWhenCharteNotAccepted() {
             APersonne ihm = personne("dupontj", "Invalide", "Enseignant", null, null);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(new PersonneDTO(ihm));
 
             assertThatThrownBy(() -> activationService.activate(
@@ -365,7 +365,7 @@ class ActivationServiceTest {
         void shouldOnlySignCharteForAlreadyValideAccount() {
             APersonne ihm = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
             PersonneDTO dto = new PersonneDTO(ihm);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(dto);
 
             ActivationResultDTO result = activationService.activate(
@@ -385,7 +385,7 @@ class ActivationServiceTest {
         void shouldOnlySignCharteForAlreadyValideAccountLowercase() {
             APersonne ihm = personne("dupontj", "valide", "Enseignant", "jean@ac.fr", null);
             PersonneDTO dto = new PersonneDTO(ihm);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(dto);
 
             ActivationResultDTO result = activationService.activate(
@@ -405,7 +405,7 @@ class ActivationServiceTest {
         void shouldActivateWithoutPasswordForSsoProfile() {
             APersonne ihm = personne("parent1", "Invalide", "Personne_relation_eleve", "parent@x.fr", new Date());
             PersonneDTO dto = new PersonneDTO(ihm);
-            when(aPersonneRepository.findByUid("parent1")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("parent1")).thenReturn(ihm);
             when(personneService.getUserByUid("parent1")).thenReturn(dto);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PARENT_EDUC);
 
@@ -423,7 +423,7 @@ class ActivationServiceTest {
         void shouldRequirePasswordWhenProfileConnectOk() {
             APersonne ihm = personne("dupontj", "Invalide", "Enseignant", null, new Date());
             PersonneDTO dto = new PersonneDTO(ihm);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(dto);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
 
@@ -440,7 +440,7 @@ class ActivationServiceTest {
         void shouldSendVerificationEmailWhenEmailProvided() {
             APersonne ihm = personne("dupontj", "Invalide", "Enseignant", "jean@ac.fr", new Date());
             PersonneDTO dto = new PersonneDTO(ihm);
-            when(aPersonneRepository.findByUid("dupontj")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dupontj")).thenReturn(ihm);
             when(personneService.getUserByUid("dupontj")).thenReturn(dto);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.PERSONNEL);
 
@@ -456,7 +456,7 @@ class ActivationServiceTest {
         @DisplayName("Compte supprimé → refus")
         void shouldRefuseDeletedAccount() {
             APersonne ihm = personne("dead", "Delete", "Enseignant", null, null);
-            when(aPersonneRepository.findByUid("dead")).thenReturn(ihm);
+            when(aPersonneRepository.findByLogin("dead")).thenReturn(ihm);
 
             assertThatThrownBy(() -> activationService.activate(
                     request("dead", true, null, "N3wPassw0rd!X", "N3wPassw0rd!X")))

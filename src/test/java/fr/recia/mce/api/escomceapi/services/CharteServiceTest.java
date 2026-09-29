@@ -108,7 +108,7 @@ class CharteServiceTest {
     @Test
     @DisplayName("isCharteRequired : personne introuvable → requis")
     void unknownPersonRequiresCharte() {
-        when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
+        when(aPersonneRepository.findByLogin("ghost")).thenReturn(null);
 
         assertThat(service.isCharteRequired("ghost")).isTrue();
     }
@@ -118,7 +118,7 @@ class CharteServiceTest {
     void signedCharteNotRequired() {
         APersonne p = mockPersonne("AC-ORLEANS-TOURS");
         p.setUid("alice");
-        when(aPersonneRepository.findByUid("alice")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("alice")).thenReturn(p);
         when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "AC-ORLEANS-TOURS"))
                 .thenReturn(new ValidationCharte());
 
@@ -132,7 +132,7 @@ class CharteServiceTest {
         v.setCharterVersionDate(java.sql.Date.valueOf(CharteService.DEFAULT_CHARTE_VERSION_DATE));
         APersonne p = mockPersonne("AC-ORLEANS-TOURS");
         p.setUid("alice");
-        when(aPersonneRepository.findByUid("alice")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("alice")).thenReturn(p);
         when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "AC-ORLEANS-TOURS")).thenReturn(v);
 
         assertThat(service.isCharteRequired("alice")).isFalse();
@@ -145,7 +145,7 @@ class CharteServiceTest {
         v.setCharterVersionDate(java.sql.Date.valueOf(java.time.LocalDate.of(2023, 1, 1)));
         APersonne p = mockPersonne("AC-ORLEANS-TOURS");
         p.setUid("alice");
-        when(aPersonneRepository.findByUid("alice")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("alice")).thenReturn(p);
         when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "AC-ORLEANS-TOURS")).thenReturn(v);
 
         assertThat(service.isCharteRequired("alice")).isTrue();
@@ -156,7 +156,7 @@ class CharteServiceTest {
     void unsignedCharteRequired() {
         APersonne p = mockPersonne("AC-ORLEANS-TOURS");
         p.setUid("bob");
-        when(aPersonneRepository.findByUid("bob")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("bob")).thenReturn(p);
         when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "AC-ORLEANS-TOURS")).thenReturn(null);
 
         assertThat(service.isCharteRequired("bob")).isTrue();
@@ -168,7 +168,7 @@ class CharteServiceTest {
         APersonne p = new APersonne();
         p.setId(2L);
         p.setUid("carol");
-        when(aPersonneRepository.findByUid("carol")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("carol")).thenReturn(p);
         when(validationCharteRepository.findByApersonneIdAndServiceId(2L, "default")).thenReturn(new ValidationCharte());
 
         assertThat(service.isCharteRequired("carol")).isFalse();
@@ -178,7 +178,7 @@ class CharteServiceTest {
     @Test
     @DisplayName("isCharteRequired : erreur de chargement → requis par précaution")
     void loadErrorRequiresCharte() {
-        when(aPersonneRepository.findByUid("broken")).thenThrow(new RuntimeException("DB down"));
+        when(aPersonneRepository.findByLogin("broken")).thenThrow(new RuntimeException("DB down"));
 
         assertThat(service.isCharteRequired("broken")).isTrue();
     }
@@ -196,7 +196,7 @@ class CharteServiceTest {
     @DisplayName("getCharteUrl : source exacte trouvée dans la map")
     void resolvesExactSource() {
         APersonne p = mockPersonne("AC-ORLEANS-TOURS");
-        when(aPersonneRepository.findByUid("bob")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("bob")).thenReturn(p);
 
         assertThat(service.getCharteUrl("bob")).isEqualTo("https://charte/ac-orleans-tours");
     }
@@ -207,7 +207,7 @@ class CharteServiceTest {
         urls.remove("AC-ORLEANS-TOURS");
         urls.put("AC", "https://charte/ac");
         APersonne p = mockPersonne("AC-ORLEANS-TOURS");
-        when(aPersonneRepository.findByUid("carol")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("carol")).thenReturn(p);
 
         assertThat(service.getCharteUrl("carol")).isEqualTo("https://charte/ac");
     }
@@ -216,7 +216,7 @@ class CharteServiceTest {
     @DisplayName("getCharteUrl : source inconnue → URL par défaut")
     void unknownSourceReturnsDefaultUrl() {
         APersonne p = mockPersonne("INCONNU");
-        when(aPersonneRepository.findByUid("dave")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("dave")).thenReturn(p);
 
         assertThat(service.getCharteUrl("dave")).isEqualTo("https://charte/default");
     }
@@ -225,7 +225,7 @@ class CharteServiceTest {
     @DisplayName("getCharteUrl : source null → URL par défaut")
     void nullSourceReturnsDefaultUrl() {
         APersonne p = mockPersonne(null);
-        when(aPersonneRepository.findByUid("eve")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("eve")).thenReturn(p);
 
         assertThat(service.getCharteUrl("eve")).isEqualTo("https://charte/default");
     }
@@ -233,7 +233,7 @@ class CharteServiceTest {
     @Test
     @DisplayName("getCharteUrl : personne introuvable → URL par défaut")
     void unknownPersonReturnsDefaultUrl() {
-        when(aPersonneRepository.findByUid("ghost")).thenReturn(null);
+        when(aPersonneRepository.findByLogin("ghost")).thenReturn(null);
 
         assertThat(service.getCharteUrl("ghost")).isEqualTo("https://charte/default");
     }
@@ -241,7 +241,7 @@ class CharteServiceTest {
     @Test
     @DisplayName("getCharteUrl : erreur de chargement → URL par défaut")
     void loadErrorReturnsDefaultUrl() {
-        when(aPersonneRepository.findByUid("broken")).thenThrow(new RuntimeException("boom"));
+        when(aPersonneRepository.findByLogin("broken")).thenThrow(new RuntimeException("boom"));
 
         assertThat(service.getCharteUrl("broken")).isEqualTo("https://charte/default");
     }
@@ -345,7 +345,7 @@ class CharteServiceTest {
         when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "lycees.test.recia.dev");
-        when(aPersonneRepository.findByUid("fio")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("fio")).thenReturn(p);
 
         assertThat(service.getCharteUrl("fio")).isEqualTo("https://charte/lycee");
     }
@@ -356,7 +356,7 @@ class CharteServiceTest {
         when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "www.chercan.fr");
-        when(aPersonneRepository.findByUid("fio")).thenReturn(p);
+        when(aPersonneRepository.findByLogin("fio")).thenReturn(p);
 
         assertThat(service.getCharteUrl("fio")).isEqualTo("https://charte/default");
     }

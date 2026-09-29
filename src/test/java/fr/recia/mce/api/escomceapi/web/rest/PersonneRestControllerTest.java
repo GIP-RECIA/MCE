@@ -702,7 +702,7 @@ class PersonneRestControllerTest {
         @DisplayName("Vérification d'email réussie → retourne SUCCESS")
         void shouldVerifyEmailSuccessfully() throws Exception {
             VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
-            request.setUid(USER);
+            request.setLogin(USER);
             request.setCode("123456");
 
             mockMvc.perform(post(BASE_URL + "verify-email")
@@ -719,7 +719,7 @@ class PersonneRestControllerTest {
         @DisplayName("Échec : code invalide → retourne 400")
         void shouldFailWhenCodeInvalid() throws Exception {
             VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
-            request.setUid(USER);
+            request.setLogin(USER);
             request.setCode("000000");
 
             doThrow(new InvalidCodeException("Code de verification invalide ou deja utilise"))
@@ -737,7 +737,7 @@ class PersonneRestControllerTest {
         @DisplayName("Échec : code non conforme (pas 6 chiffres) → 400")
         void shouldFailWhenCodeNot6Digits() throws Exception {
             VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
-            request.setUid(USER);
+            request.setLogin(USER);
             request.setCode("abc");
 
             mockMvc.perform(post(BASE_URL + "verify-email")
@@ -750,7 +750,7 @@ class PersonneRestControllerTest {
         @DisplayName("Échec : code expiré → 400 CODE_EXPIRED")
         void shouldFailWhenCodeExpired() throws Exception {
             VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
-            request.setUid(USER);
+            request.setLogin(USER);
             request.setCode("123456");
 
             doThrow(new CodeExpiredException("Le code de vérification a expiré. Veuillez en demander un nouveau."))
@@ -767,7 +767,7 @@ class PersonneRestControllerTest {
         @DisplayName("Échec : trop de tentatives → 429 MAX_ATTEMPTS_EXCEEDED")
         void shouldFailWhenMaxAttemptsExceeded() throws Exception {
             VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
-            request.setUid(USER);
+            request.setLogin(USER);
             request.setCode("123456");
 
             doThrow(new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de vérification."))
@@ -1311,7 +1311,7 @@ class PersonneRestControllerTest {
                     .build();
             when(activationService.getActivationStatus("dupontj")).thenReturn(status);
 
-            mockMvc.perform(get(STATUS_URL).param("uid", "dupontj"))
+            mockMvc.perform(get(STATUS_URL).param("login", "dupontj"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.uid").value("dupontj"))
                     .andExpect(jsonPath("$.charteRequise").value(true))
@@ -1328,7 +1328,7 @@ class PersonneRestControllerTest {
 
             mockMvc.perform(post(ACTIVATE_URL)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"uid\":\"dupontj\",\"charteAccepted\":true,"
+                            .content("{\"login\":\"dupontj\",\"charteAccepted\":true,"
                                     + "\"newPassword\":\"N3wPassw0rd!X\",\"confirmPassword\":\"N3wPassw0rd!X\"}"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.uid").value("dupontj"))
@@ -1336,7 +1336,7 @@ class PersonneRestControllerTest {
 
             ArgumentCaptor<ActivationRequestDTO> captor = ArgumentCaptor.forClass(ActivationRequestDTO.class);
             verify(activationService).activate(captor.capture());
-            assertThat(captor.getValue().getUid()).isEqualTo("dupontj");
+            assertThat(captor.getValue().getLogin()).isEqualTo("dupontj");
             assertThat(captor.getValue().isCharteAccepted()).isTrue();
         }
 

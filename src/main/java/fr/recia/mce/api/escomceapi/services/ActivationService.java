@@ -114,22 +114,25 @@ public class ActivationService {
 
     /**
      * Détermine le parcours d'activation applicable au compte, par transposition des règles historiques de Cerbère.
+     *
+     * @param login
+     *            identifiant de connexion (uid, login ou alias)
      */
     @Transactional(readOnly = true)
-    public ActivationStatusResponseDTO getActivationStatus(String uid) {
-        if (StringUtils.isBlank(uid)) {
+    public ActivationStatusResponseDTO getActivationStatus(String login) {
+        if (StringUtils.isBlank(login)) {
             throw new IllegalArgumentException("L'identifiant est obligatoire");
         }
-        APersonne personne = aPersonneRepository.findByUid(uid.trim());
+        APersonne personne = aPersonneRepository.findByLogin(login.trim());
         if (personne == null) {
-            throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
+            throw new PersonneNotFoundException("Utilisateur introuvable : " + login);
         }
         if (AccountState.same(personne.getEtat(), AccountState.VALIDE)) {
             // Compte déjà actif mais charte non signée (ex. arrivée via le redirect du CharteInterceptor) :
             // seul le bloc charte doit s'afficher, sans redemander mot de passe ni email, sinon l'écran
             // « Compte activé » reboucle en boucle avec l'auto-redirect returnTo.
             if (charteService.isCharteRequired(personne)) {
-                log.info("[ACTIVATION][STATUS] uid={} déjà Valide mais charte non signée, étape CHARTE", uid);
+                log.info("[ACTIVATION][STATUS] uid={} déjà Valide mais charte non signée, étape CHARTE", personne.getUid());
                 return ActivationStatusResponseDTO.builder()
                         .uid(personne.getUid())
                         .etat(personne.getEtat())
@@ -141,7 +144,7 @@ public class ActivationService {
                         .build();
             }
             // Re-entry SSO : compte déjà activé — le parcours est terminé, on ne re-sert pas les étapes.
-            log.info("[ACTIVATION][STATUS] uid={} déjà Valide, parcours terminé (FIN)", uid);
+            log.info("[ACTIVATION][STATUS] uid={} déjà Valide, parcours terminé (FIN)", personne.getUid());
             return ActivationStatusResponseDTO.builder()
                     .uid(personne.getUid())
                     .etat(personne.getEtat())
@@ -178,7 +181,7 @@ public class ActivationService {
         }
 
         log.info("[ACTIVATION][STATUS] uid={}, profil={}, etat={}, charteValide={}, passwordRequise={}, emailRequise={}, etape={}",
-                uid, pub, personne.getEtat(), charteValide, passwordRequise, emailRequise, etape);
+                personne.getUid(), pub, personne.getEtat(), charteValide, passwordRequise, emailRequise, etape);
 
         return ActivationStatusResponseDTO.builder()
                 .uid(personne.getUid())
@@ -197,19 +200,20 @@ public class ActivationService {
      */
     @Transactional
     public ActivationResultDTO activate(ActivationRequestDTO request) {
-        if (request == null || StringUtils.isBlank(request.getUid())) {
+        if (request == null || StringUtils.isBlank(request.getLogin())) {
             throw new IllegalArgumentException("L'identifiant est obligatoire");
         }
-        String uid = request.getUid().trim();
+        String login = request.getLogin().trim();
 
-        APersonne personne = aPersonneRepository.findByUid(uid);
+        APersonne personne = aPersonneRepository.findByLogin(login);
         if (personne == null) {
-            throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
+            throw new PersonneNotFoundException("Utilisateur introuvable : " + login);
         }
         if (AccountState.same(personne.getEtat(), AccountState.DELETE)) {
-            throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + uid);
+            throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + login);
         }
 
+        String uid = personne.getUid();
         PersonneDTO personneDTO = personneService.getUserByUid(uid);
         if (personneDTO == null) {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");

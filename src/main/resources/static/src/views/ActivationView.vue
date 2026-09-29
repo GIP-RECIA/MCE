@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
 import {
-  getJson, getText, post, type ActivationConnexionResult, type ActivationStatus, type CharteStatus
+  getJson, getText, post, type ActivationStatus, type CharteStatus
 } from '../api';
 import { EMAIL_RE, CODE_RE, passwordStrength } from '../utils';
 
@@ -68,7 +68,7 @@ const formTitle = ref("Finaliser l'activation");
 const successTitle = ref('Compte activé');
 const successText = ref('Votre compte a été activé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.');
 
-const activationUid = ref<string | null>(null);
+const activationLogin = ref<string | null>(null);
 const lastPayload = ref<Record<string, unknown> | null>(null);
 /** Endpoint de finalisation selon le parcours (mot de passe local vs SSO). */
 const activationEndpoint = ref<string>('/activation/password');
@@ -96,9 +96,9 @@ async function autoDetectSso() {
     const uidText = (await getText('/debug-id')).trim();
     if (uidText && uidText !== 'guest') {
       isSso.value = true;
-      activationUid.value = uidText;
+      activationLogin.value = uidText;
       activationEndpoint.value = '/activation/self';
-      const status = await getJson<ActivationStatus>('/activation/status?uid=' + encodeURIComponent(activationUid.value));
+      const status = await getJson<ActivationStatus>('/activation/status?login=' + encodeURIComponent(activationLogin.value));
       if (status.etapeSuivante === 'FIN') {
         showSuccess();
         return;
@@ -125,9 +125,9 @@ function clearMessage() {
   message.value = null;
 }
 
-async function loadCharteUrl(uid: string): Promise<string> {
+async function loadCharteUrl(identifiant: string): Promise<string> {
   try {
-    const status = await getJson<CharteStatus>('/charte-status?uid=' + encodeURIComponent(uid));
+    const status = await getJson<CharteStatus>('/charte-status?uid=' + encodeURIComponent(identifiant));
     return status && status.charteUrl ? status.charteUrl : '#';
   } catch {
     return '#';
@@ -146,9 +146,9 @@ async function onSubmitConnexion() {
 
   isLoading.value = true;
   try {
-    const res = await post<ActivationConnexionResult>('/activation/connexion', { login, password: mdp });
-    activationUid.value = res.uid;
-    const status = await getJson<ActivationStatus>('/activation/status?uid=' + encodeURIComponent(res.uid));
+    await post('/activation/connexion', { login, password: mdp });
+    activationLogin.value = login;
+    const status = await getJson<ActivationStatus>('/activation/status?login=' + encodeURIComponent(login));
     if (status.etapeSuivante === 'FIN') {
       step.value = 'success';
       return;
@@ -168,7 +168,7 @@ function prepareForm(status: ActivationStatus) {
   charteBlockVisible.value = !!status.charteRequise;
   if (status.charteRequise) {
     charteAccepted.value = false;
-    loadCharteUrl(activationUid.value as string).then((c) => { charteUrl.value = c; });
+    loadCharteUrl(activationLogin.value as string).then((c) => { charteUrl.value = c; });
     shown.push('charte');
   }
 
@@ -196,7 +196,7 @@ function prepareForm(status: ActivationStatus) {
 async function onSubmitActivation() {
   clearMessage();
 
-  if (!activationUid.value) {
+  if (!activationLogin.value) {
     showMessage('Veuillez d\'abord vous identifier', true);
     step.value = 'connexion';
     return;
@@ -238,7 +238,7 @@ async function onSubmitActivation() {
   }
 
   const payload: Record<string, unknown> = {
-    uid: activationUid.value,
+    login: activationLogin.value,
     charteAccepted: charteBlockVisible.value ? charteAccepted.value : true,
     email: emailPayload,
     newPassword: newPasswordPayload,
@@ -288,7 +288,7 @@ async function onSubmitVerify() {
 
   isLoading.value = true;
   try {
-    await post('/verify-email', { uid: activationUid.value, code });
+    await post('/verify-email', { login: activationLogin.value, code });
     successTitle.value = 'Adresse email vérifiée';
     successText.value = 'Votre adresse email a été vérifiée et votre compte est activé. Vous pouvez vous connecter.';
     step.value = 'success';
@@ -349,7 +349,7 @@ function onSubmitStep() {
           <div class="field-layout">
             <div class="field-container">
               <div class="middle">
-                <label for="connexion-login">Identifiant (UID)</label>
+                <label for="connexion-login">Identifiant (nom.utilisateur)</label>
                 <input
                   id="connexion-login"
                   v-model="connexionLogin"

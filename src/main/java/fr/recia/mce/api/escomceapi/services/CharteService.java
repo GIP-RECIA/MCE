@@ -330,11 +330,11 @@ public class CharteService {
      * Factorise le chargement partagé par {@link #getCharteUrl(String)} et
      * {@link #isCharteRequired(String)}.
      */
-    private APersonne findPerson(String uid) {
+    private APersonne findPerson(String identifiant) {
         try {
-            return aPersonneRepository.findByUid(uid);
+            return aPersonneRepository.findByLogin(identifiant);
         } catch (Exception e) {
-            log.warn("Impossible de charger la personne pour l'uid [{}] : {}", uid, e.getMessage());
+            log.warn("Impossible de charger la personne pour l'identifiant [{}] : {}", identifiant, e.getMessage());
             return null;
         }
     }

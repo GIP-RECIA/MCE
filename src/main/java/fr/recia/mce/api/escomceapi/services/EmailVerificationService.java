@@ -168,7 +168,7 @@ public class EmailVerificationService {
 
     @Transactional
     public void sendVerificationEmail(String uid, String email) {
-        APersonne person = aPersonneRepository.findByUid(uid);
+        APersonne person = aPersonneRepository.findByLogin(uid);
         if (person == null) {
             throw new InactiveAccountException("Aucun compte associé à cet identifiant");
         }
@@ -441,7 +441,7 @@ public class EmailVerificationService {
 
     @Transactional
     public void verifyEmail(String uid, String code) {
-        APersonne person = aPersonneRepository.findByUid(uid);
+        APersonne person = aPersonneRepository.findByLogin(uid);
         if (person == null) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : utilisateur introuvable", uid);
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");

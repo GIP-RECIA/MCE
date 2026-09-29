@@ -239,7 +239,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Succès : envoie l'email et sauvegarde la confirmation")
         void success() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendVerificationEmail(uid, email);
@@ -267,7 +267,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Anti-double-clic : demande récente (< cooldown) → ResendCooldownActiveException")
         void antiDoubleClickBlocksRecentVerification() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(42L))
                     .thenReturn(List.of(pendingReset(42L, 1_000)));
 
@@ -283,7 +283,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Échec : utilisateur introuvable")
         void userNotFound() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(null);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(null);
 
             assertThatThrownBy(() -> service.sendVerificationEmail(uid, email))
                     .isInstanceOf(InactiveAccountException.class)
@@ -295,7 +295,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Échec : MailException transformé en RuntimeException")
         void mailException() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             doThrow(new MailException("SMTP error") {}).when(mailSender).send(any(SimpleMailMessage.class));
 
             assertThatThrownBy(() -> service.sendVerificationEmail(uid, email))
@@ -320,7 +320,7 @@ class EmailVerificationServiceTest {
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
 
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedCode))
                     .thenReturn(Optional.of(confirmation));
 
@@ -334,7 +334,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Test unitaire : la synchronisation diffère l'email jusqu'au commit")
         void verificationEmailDeferredUntilAfterCommit() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             TransactionSynchronizationManager.initSynchronization();
@@ -356,7 +356,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Échec : utilisateur introuvable")
         void userNotFound() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(null);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(null);
 
             assertThatThrownBy(() -> service.verifyEmail(uid, "code"))
                     .isInstanceOf(InvalidCodeException.class)
@@ -371,7 +371,7 @@ class EmailVerificationServiceTest {
             String badCode = "999999";
             String hashedBadCode = "VERIFY:" + sha256(badCode);
 
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedBadCode))
                     .thenReturn(Optional.empty());
 
@@ -392,7 +392,7 @@ class EmailVerificationServiceTest {
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().minus(1, ChronoUnit.HOURS)));
 
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedCode))
                     .thenReturn(Optional.of(confirmation));
 
@@ -409,7 +409,7 @@ class EmailVerificationServiceTest {
         void locksAfterMaxWrongCodes() {
             mceProperties.getSecurity().getResetPolicy().setMaxAttempts(2);
             String hashedBad = "VERIFY:" + sha256("999999");
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L, hashedBad))
                     .thenReturn(Optional.empty());
 
@@ -433,7 +433,7 @@ class EmailVerificationServiceTest {
                     "verificationAttempts");
             attempts.put(42L, entryWithCount(2));
 
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
 
             assertThatThrownBy(() -> service.verifyEmail(uid, "123456"))
                     .isInstanceOf(MaxAttemptsExceededException.class);
@@ -456,7 +456,7 @@ class EmailVerificationServiceTest {
             confirmation.setCode("VERIFY:" + sha256(code));
             confirmation.setMail(email);
             confirmation.setLimite(Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(42L,
                     "VERIFY:" + sha256(code))).thenReturn(Optional.of(confirmation));
 
@@ -485,7 +485,7 @@ class EmailVerificationServiceTest {
             Map<Long, AttemptGuardService.AttemptEntry> attempts = (Map<Long, AttemptGuardService.AttemptEntry>) ReflectionTestUtils.getField(attemptGuardService,
                     "verificationAttempts");
             attempts.put(42L, entryWithCount(99));
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
             service.sendVerificationEmail(uid, email);
@@ -1510,7 +1510,7 @@ class EmailVerificationServiceTest {
         @Test
         @DisplayName("Une tentative récente n'est pas purgée : le compteur reste pertinent")
         void recentWrongCodeAttemptsAreNotPurged() {
-            when(aPersonneRepository.findByUid(uid)).thenReturn(person);
+            when(aPersonneRepository.findByLogin(uid)).thenReturn(person);
             when(cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(eq(42L), anyString()))
                     .thenReturn(Optional.empty());
 

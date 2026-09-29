@@ -186,7 +186,7 @@ class ActivationFlowIntegrationTest {
         connexionOk("act-a");
 
         // ② statut → CHARTE
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-a"))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "act-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etapeSuivante").value("CHARTE"))
                 .andExpect(jsonPath("$.charteRequise").value(true))
@@ -195,7 +195,7 @@ class ActivationFlowIntegrationTest {
         // ③ activation
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-a\",\"charteAccepted\":true,"
+                        .content("{\"login\":\"act-a\",\"charteAccepted\":true,"
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"" + NEW_PASSWORD + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etat").value("Valide"))
@@ -223,7 +223,7 @@ class ActivationFlowIntegrationTest {
                 .andExpect(jsonPath("$.uid").value("act-b"));
 
         // ② statut → COURRIEL (élève, email vide)
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-b"))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "act-b"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etapeSuivante").value("COURRIEL"))
                 .andExpect(jsonPath("$.emailRequise").value(true))
@@ -232,7 +232,7 @@ class ActivationFlowIntegrationTest {
         // ③ activation : email ET mot de passe (le profil élève se connecte par mot de passe local)
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-b\",\"charteAccepted\":true,"
+                        .content("{\"login\":\"act-b\",\"charteAccepted\":true,"
                                 + "\"email\":\"b@exemple.fr\","
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"" + NEW_PASSWORD + "\"}"))
                 .andExpect(status().isOk())
@@ -248,7 +248,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/verify-email")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-b\",\"code\":\"" + code + "\"}"))
+                        .content("{\"login\":\"act-b\",\"code\":\"" + code + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"));
     }
@@ -269,7 +269,7 @@ class ActivationFlowIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Ce compte ne peut pas être activé avec un mot de passe"));
 
         // statut → FIN
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-c"))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "act-c"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etapeSuivante").value("FIN"))
                 .andExpect(jsonPath("$.passwordRequise").value(false))
@@ -286,7 +286,7 @@ class ActivationFlowIntegrationTest {
 
         connexionOk("act-d");
 
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-d"))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "act-d"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etapeSuivante").value("PASSWORD"))
                 .andExpect(jsonPath("$.passwordRequise").value(true))
@@ -294,7 +294,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-d\",\"charteAccepted\":true,"
+                        .content("{\"login\":\"act-d\",\"charteAccepted\":true,"
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"" + NEW_PASSWORD + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etat").value("Valide"));
@@ -305,7 +305,7 @@ class ActivationFlowIntegrationTest {
     void scenarioDbis_compteDejaValide() throws Exception {
         savePersonne("act-d2", "Valide", "d2@exemple.fr", true, TEMP_PASSWORD);
 
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "act-d2"))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "act-d2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etat").value("Valide"))
                 .andExpect(jsonPath("$.etapeSuivante").value("FIN"))
@@ -355,11 +355,11 @@ class ActivationFlowIntegrationTest {
     @Test
     @DisplayName("E3 - statut uid inconnu : 404 NOT_FOUND ; uid vide : 400 BAD_REQUEST")
     void erreurE3_uidInconnu() throws Exception {
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "inconnu"))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "inconnu"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
-        mockMvc.perform(get("/api/personne/mce/activation/status").param("uid", "  "))
+        mockMvc.perform(get("/api/personne/mce/activation/status").param("login", "  "))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }
@@ -369,7 +369,7 @@ class ActivationFlowIntegrationTest {
     void erreurE4_activationUidInconnu() throws Exception {
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"inconnu\",\"charteAccepted\":true}"))
+                        .content("{\"login\":\"inconnu\",\"charteAccepted\":true}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
@@ -383,7 +383,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-e5\",\"charteAccepted\":false,"
+                        .content("{\"login\":\"act-e5\",\"charteAccepted\":false,"
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"" + NEW_PASSWORD + "\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("CHARTE_REQUIRED"));
@@ -398,7 +398,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-e6\",\"charteAccepted\":true}"))
+                        .content("{\"login\":\"act-e6\",\"charteAccepted\":true}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
                 .andExpect(jsonPath("$.message").value("Le nouveau mot de passe est obligatoire pour ce compte"));
@@ -413,7 +413,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-e7\",\"charteAccepted\":true,"
+                        .content("{\"login\":\"act-e7\",\"charteAccepted\":true,"
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"AutreMdp!2026\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
@@ -429,7 +429,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-e8\",\"charteAccepted\":true,"
+                        .content("{\"login\":\"act-e8\",\"charteAccepted\":true,"
                                 + "\"newPassword\":\"short\",\"confirmPassword\":\"short\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
@@ -447,7 +447,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-e9\",\"charteAccepted\":true,"
+                        .content("{\"login\":\"act-e9\",\"charteAccepted\":true,"
                                 + "\"email\":\"email-invalide\","
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"" + NEW_PASSWORD + "\"}"))
                 .andExpect(status().isBadRequest())
@@ -464,7 +464,7 @@ class ActivationFlowIntegrationTest {
 
         mockMvc.perform(post("/api/personne/mce/activation/password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"uid\":\"act-e0\",\"charteAccepted\":false,"
+                        .content("{\"login\":\"act-e0\",\"charteAccepted\":false,"
                                 + "\"newPassword\":\"" + NEW_PASSWORD + "\",\"confirmPassword\":\"" + NEW_PASSWORD + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.etat").value("Valide"));
