@@ -489,12 +489,19 @@ public class EmailVerificationService {
         String email = confirmation.getMail();
         personneService.updateEmail(uid, email);
 
+        // Le mail vient d'être confirmé : on le reporte sur le mail personnel de la personne
+        // (apersonne.emailPersonnel), jusqu'ici jamais renseigné par ce flux. L'entité est
+        // managée et la méthode est transactionnelle : le dirty checking suffit à persister.
+        // resolveEmailPersonnel (UserDTOFactoryImpl) continue de prioriser la confirmation,
+        // donc ce changement n'altère pas l'affichage des comptes déjà confirmés.
+        person.setEmailPersonnel(email);
+
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
 
         attemptGuardService.clearVerificationAttempt(person.getId());
 
-        log.info("Email vérifié avec succès pour l'utilisateur [uid={}] -> {}", uid, email);
+        log.info("Email vérifié avec succès pour l'utilisateur [uid={}] -> {} (mail personnel enregistré)", uid, email);
     }
 
     @Transactional
