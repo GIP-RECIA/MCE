@@ -131,6 +131,9 @@ public class ActivationService {
             // Compte déjà actif mais charte non signée (ex. arrivée via le redirect du CharteInterceptor) :
             // seul le bloc charte doit s'afficher, sans redemander mot de passe ni email, sinon l'écran
             // « Compte activé » reboucle en boucle avec l'auto-redirect returnTo.
+            // NEUTRALISÉ (charte) : l'étape CHARTE n'est plus proposée.
+            // Réactivation : retirer ce commentaire pour rétablir le contrôle.
+            /*
             if (charteService.isCharteRequired(personne)) {
                 log.info("[ACTIVATION][STATUS] uid={} déjà Valide mais charte non signée, étape CHARTE", personne.getUid());
                 return ActivationStatusResponseDTO.builder()
@@ -143,6 +146,7 @@ public class ActivationService {
                         .etapeSuivante(STEP_CHARTE)
                         .build();
             }
+            */
             // Re-entry SSO : compte déjà activé — le parcours est terminé, on ne re-sert pas les étapes.
             log.info("[ACTIVATION][STATUS] uid={} déjà Valide, parcours terminé (FIN)", personne.getUid());
             return ActivationStatusResponseDTO.builder()
@@ -158,7 +162,10 @@ public class ActivationService {
 
         EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
 
-        boolean charteValide = !charteService.isCharteRequired(personne);
+        // NEUTRALISÉ (charte) : la charte est toujours considérée comme valide.
+        // Réactivation : restaurer `!charteService.isCharteRequired(personne)`.
+        // boolean charteValide = !charteService.isCharteRequired(personne);
+        boolean charteValide = true;
         boolean passwordRequise = pub != null && pub.isConnectOk();
         // Règle métier : toute personne pouvant modifier son mail (élèves, sans mail fixe, ou mail personnel déjà présent)
         // doit renseigner son mail personnel à l'activation tant qu'elle n'en a pas fourni. S'applique aussi aux profils SSO (ex. ELEVE_EDUC).
@@ -219,6 +226,9 @@ public class ActivationService {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
 
+        // NEUTRALISÉ (charte) : la signature n'est plus exigée pour activer un compte.
+        // Réactivation : retirer ce commentaire pour rétablir le contrôle.
+        /*
         if (charteService.isCharteRequired(personne)) {
             if (!request.isCharteAccepted()) {
                 throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de poursuivre l'activation");
@@ -228,6 +238,7 @@ public class ActivationService {
             // pour éviter un 2ᵉ chargement complet (DB + LDAP) après l'éviction du cache.
             personneDTO.setDateValideCharte(new Date());
         }
+        */
 
         // Re-entry d'un compte déjà actif (ex. charte à (re)signer, arrivée via le redirect du CharteInterceptor) :
         // seule la charte manquait — on ne redemande ni mot de passe ni email et on ne réécrit pas l'état du compte.

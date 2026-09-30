@@ -29,6 +29,7 @@ import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -198,6 +199,7 @@ class ActivationServiceTest {
         }
 
         @Test
+        @Disabled("NEUTRALISÉ (charte) : tester le routage vers l'étape CHARTE")
         @DisplayName("PERSONNEL sans charte → CHARTE, email et mdp requis")
         void shouldRouteToCharteWhenCharteMissing() {
             APersonne p = personne("dupontj", "Invalide", "Enseignant", null, null);
@@ -237,7 +239,8 @@ class ActivationServiceTest {
             when(aPersonneRepository.findByLogin("eleve1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.ELEVE);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(true);
-            doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
+            // NEUTRALISÉ (charte) : charteService n'est plus sollicité par getActivationStatus.
+            // doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("eleve1");
 
@@ -252,7 +255,8 @@ class ActivationServiceTest {
             when(aPersonneRepository.findByLogin("cvdl1")).thenReturn(p);
             when(userDTOFactory.evalPublic(any(PersonneDTO.class))).thenReturn(EnumPublic.CVDL);
             when(userDTOFactory.canEditEmail(any(EnumPublic.class), any(APersonne.class))).thenReturn(false);
-            doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
+            // NEUTRALISÉ (charte) : charteService n'est plus sollicité par getActivationStatus.
+            // doReturn(false).when(charteService).isCharteRequired(any(APersonne.class));
 
             ActivationStatusResponseDTO s = activationService.getActivationStatus("cvdl1");
 
@@ -292,6 +296,7 @@ class ActivationServiceTest {
         }
 
         @Test
+        @Disabled("NEUTRALISÉ (charte) : tester le routage CHARTE d'un compte déjà Valide")
         @DisplayName("Compte déjà Valide mais charte non signée → CHARTE (bloc charte seul)")
         void shouldRouteAlreadyActiveToCharteWhenCharteMissing() {
             APersonne p = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
@@ -322,6 +327,7 @@ class ActivationServiceTest {
     class ActivateTests {
 
         @Test
+        @Disabled("NEUTRALISÉ (charte) : tester l'enchaînement signCharte + resetPassword")
         @DisplayName("Charte non signée + acceptée → signCharte puis resetPassword puis Valide")
         void shouldSignCharteAndSetPassword() {
             APersonne ihm = personne("dupontj", "Invalide", "Enseignant", null, null);
@@ -346,6 +352,7 @@ class ActivationServiceTest {
         }
 
         @Test
+        @Disabled("NEUTRALISÉ (charte) : tester le refus sans acceptation de charte")
         @DisplayName("Charte non acceptée → CharteNotAcceptedException")
         void shouldRefuseWhenCharteNotAccepted() {
             APersonne ihm = personne("dupontj", "Invalide", "Enseignant", null, null);
@@ -361,6 +368,7 @@ class ActivationServiceTest {
         }
 
         @Test
+        @Disabled("NEUTRALISÉ (charte) : tester la signature charte seule en re-entry")
         @DisplayName("Re-entry compte déjà Valide + charte acceptée → seule la charte est signée, ni mot de passe ni état")
         void shouldOnlySignCharteForAlreadyValideAccount() {
             APersonne ihm = personne("dupontj", "Valide", "Enseignant", "jean@ac.fr", null);
@@ -381,6 +389,7 @@ class ActivationServiceTest {
         }
 
         @Test
+        @Disabled("NEUTRALISÉ (charte) : tester la signature charte seule en re-entry (casse minuscule)")
         @DisplayName("Re-entry compte déjà Valide stocké en minuscules (etat='valide') → seule la charte est signée, casse indifférente")
         void shouldOnlySignCharteForAlreadyValideAccountLowercase() {
             APersonne ihm = personne("dupontj", "valide", "Enseignant", "jean@ac.fr", null);

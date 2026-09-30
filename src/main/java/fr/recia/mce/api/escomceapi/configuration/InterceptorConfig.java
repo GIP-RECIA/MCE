@@ -45,7 +45,10 @@ public class InterceptorConfig implements WebMvcConfigurer {
         // L'ordre est important : SoffitInterceptor doit s'exécuter en premier pour
         // renseigner le SoffitHolder.sub, que CharteInterceptor consomme ensuite.
         registry.addInterceptor(soffitInterceptor());
-        registry.addInterceptor(charteInterceptor());
+        // NEUTRALISÉ (charte) : le CharteInterceptor n'est plus enregistré, donc aucune
+        // API n'est bloquée tant que la charte n'est pas signée.
+        // Réactivation : retirer ce commentaire pour rétablir le contrôle.
+        // registry.addInterceptor(charteInterceptor());
     }
 
     @Bean

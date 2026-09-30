@@ -28,6 +28,7 @@ import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -178,6 +179,7 @@ class ActivationFlowIntegrationTest {
     // ---------------------------------------------------------------
 
     @Test
+    @Disabled("NEUTRALISÉ (charte) : scénario d'activation avec étape CHARTE")
     @DisplayName("A - CHARTE puis PASSWORD : profil local, charte non signée, activation complète")
     void scenarioA_completChartePassword() throws Exception {
         savePersonne("act-a", "Invalide", "a@exemple.fr", false, TEMP_PASSWORD);
@@ -378,6 +380,7 @@ class ActivationFlowIntegrationTest {
     }
 
     @Test
+    @Disabled("NEUTRALISÉ (charte) : scénario d'erreur CHARTE_REQUIRED")
     @DisplayName("E5 - charte non signée et non acceptée : 400 CHARTE_REQUIRED")
     void erreurE5_charteNonAcceptee() throws Exception {
         savePersonne("act-e5", "Invalide", "e5@exemple.fr", false, TEMP_PASSWORD);
