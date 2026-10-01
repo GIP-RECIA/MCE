@@ -25,7 +25,6 @@ import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.StringUtils;
 
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -95,9 +94,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private PersonneDTO personneDTO;
 
     private final ServiceProperties serviceProperties;
-
-    @Autowired
-    private SoffitHolder soffitHolder;
 
     @Autowired
     private IStructureService structureService;
@@ -462,19 +458,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     @Override
     public InfoGeneralDTO showGeneralInfo() {
 
-        if (personneDTO == null) {
-            log.warn("Tentative d'affichage des informations générales mais le contexte PersonneDTO global est nul (sub : {}).", soffitHolder.getSub());
-            return null;
-        }
-
         APersonne base = personneDTO.getAPersonneBase();
-        if (base == null) {
-            log.warn("Données de base absentes pour les informations générales (sub : {}).", soffitHolder.getSub());
-            return null;
-        }
-
         InfoGeneralDTO infoGeneral = null;
-
         List<FonctionDTO> listFonctions;
 
         Long id = base.getId();
@@ -493,34 +478,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return infoGeneral;
     }
 
-    private boolean isSubInvalid() {
-
-        final boolean isNotOk = soffitHolder.getSub() == null || soffitHolder.getSub().startsWith(GUEST_USER_PREFIX);
-        if (isNotOk)
-            log.info("Requête refusée : l'utilisateur est un invité ou n'a pas de réclamation 'sub' (sub : {})", soffitHolder.getSub());
-
-        return isNotOk;
-    }
-
-    @Override
-    public UserDTO getCurrentUser() {
-
-        if (isSubInvalid())
-            return null;
-        final UserDTO user = from(soffitHolder.getSub());
-
-        if (user == null)
-            log.warn("Utilisateur authentifié non trouvé dans le système pour le sub Soffit : {}", soffitHolder.getSub());
-
-        return user;
-    }
-
     @Override
     public void changePassword(String uid, PasswordChangeRequestDTO req) {
-
-        if (isSubInvalid()) {
-            throw new SecurityException("No authorization");
-        }
 
         PersonneDTO user = personneService.retrievePersonnebyUid(uid);
         if (user == null) {

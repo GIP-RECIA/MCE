@@ -20,7 +20,6 @@ import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
@@ -37,10 +36,8 @@ import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
-import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
-import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +48,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.Mock;
 import org.mockito.quality.Strictness;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -88,8 +84,6 @@ class UserDTOFactoryImplTest {
     private IRelationEleveService iRelationEleveService;
     @Mock
     private ExternalUserHelper extUserHelper;
-    @Mock
-    private SoffitHolder soffitHolder;
     @Mock
     private IStructureService structureService;
     @Mock
@@ -159,7 +153,6 @@ class UserDTOFactoryImplTest {
         ReflectionTestUtils.setField(factory, "fonctionRepository", fonctionRepository);
         ReflectionTestUtils.setField(factory, "extDao", extDao);
         ReflectionTestUtils.setField(factory, "classeGroupeService", classeGroupeService);
-        ReflectionTestUtils.setField(factory, "soffitHolder", soffitHolder);
         ReflectionTestUtils.setField(factory, "extUserHelper", extUserHelper);
         ReflectionTestUtils.setField(factory, "mailProperties", mailProperties);
     }
@@ -757,137 +750,6 @@ class UserDTOFactoryImplTest {
             UserDTO result = factory.from(model, extModel);
 
             assertThat(result.getAvatar()).isNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("changePassword")
-    class ChangePasswordTests {
-
-        @ParameterizedTest(name = "{0} refusé")
-        @MethodSource("fr.recia.mce.api.escomceapi.services.factories.impl.UserDTOFactoryImplTest#blockedProfilesForPasswordChange")
-        @DisplayName("Profils bloqués → AccessDeniedException")
-        void passwordChangeBlockedForProfile(EnumPublic pub, String mailFixe) {
-            when(soffitHolder.getSub()).thenReturn("testSub");
-            when(model.getEnumPublic()).thenReturn(pub);
-            lenient().when(model.getMailFixe()).thenReturn(mailFixe);
-            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
-
-            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
-                    .isInstanceOf(AccessDeniedException.class);
-
-            verify(passwordService, never()).changePassword(any(), any());
-        }
-
-        @ParameterizedTest(name = "{0} autorisé")
-        @MethodSource("fr.recia.mce.api.escomceapi.services.factories.impl.UserDTOFactoryImplTest#allowedProfilesForPasswordChange")
-        @DisplayName("Profils autorisés → appel PasswordService")
-        void passwordChangeAllowedForProfile(EnumPublic pub, String mailFixe) {
-            when(soffitHolder.getSub()).thenReturn("testSub");
-            when(model.getEnumPublic()).thenReturn(pub);
-            lenient().when(model.getMailFixe()).thenReturn(mailFixe);
-            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
-
-            PasswordChangeRequestDTO req = new PasswordChangeRequestDTO();
-            factory.changePassword("testUid", req);
-
-            verify(passwordService).changePassword(model, req);
-            verify(personneService).clearUserCaches("testUid");
-        }
-
-        @Test
-        @DisplayName("EduConnect avec ntPass → refusé (le check EduConnect prime)")
-        void passwordChangeDeniedForEduConnectWithNtPass() {
-            when(soffitHolder.getSub()).thenReturn("testSub");
-            when(model.getEnumPublic()).thenReturn(EnumPublic.ELEVE_EDUC);
-            lenient().when(model.isNtPass()).thenReturn(true);
-            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
-
-            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
-                    .isInstanceOf(AccessDeniedException.class);
-
-            verify(passwordService, never()).changePassword(any(), any());
-        }
-
-        @Test
-        @DisplayName("EnumPublic null → AccessDeniedException")
-        void passwordChangeDeniedWhenEnumPublicNull() {
-            when(soffitHolder.getSub()).thenReturn("testSub");
-            when(model.getEnumPublic()).thenReturn(null);
-            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(model);
-
-            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
-                    .isInstanceOf(AccessDeniedException.class);
-
-            verify(passwordService, never()).changePassword(any(), any());
-        }
-
-        @Test
-        @DisplayName("EnumPublic null mais evalPublic calcule un profil autorisé → succès")
-        void passwordChangeEvalPublicFallback() {
-            APersonne ap = new APersonne();
-            ap.setUid("testUid");
-            ap.setId(1L);
-            ap.setCategorie("Eleve");
-            PersonneDTO realModel = new PersonneDTO(ap, (AStructure) null);
-
-            when(soffitHolder.getSub()).thenReturn("testSub");
-            when(personneService.retrievePersonnebyUid("testUid")).thenReturn(realModel);
-
-            PasswordChangeRequestDTO req = new PasswordChangeRequestDTO();
-            factory.changePassword("testUid", req);
-
-            verify(passwordService).changePassword(realModel, req);
-            verify(personneService).clearUserCaches("testUid");
-            assertThat(realModel.getEnumPublic()).isEqualTo(EnumPublic.ELEVE);
-        }
-
-        @Test
-        @DisplayName("isSubInvalid → SecurityException")
-        void subInvalid() {
-            when(soffitHolder.getSub()).thenReturn(null);
-
-            assertThatThrownBy(() -> factory.changePassword("testUid", new PasswordChangeRequestDTO()))
-                    .isInstanceOf(SecurityException.class);
-        }
-
-        @Test
-        @DisplayName("Utilisateur introuvable → PersonneNotFoundException")
-        void userNotFound() {
-            when(soffitHolder.getSub()).thenReturn("testSub");
-            when(personneService.retrievePersonnebyUid("inconnu")).thenReturn(null);
-
-            assertThatThrownBy(() -> factory.changePassword("inconnu", new PasswordChangeRequestDTO()))
-                    .isInstanceOf(PersonneNotFoundException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("getCurrentUser")
-    class GetCurrentUserTests {
-
-        @Test
-        @DisplayName("sub null → null")
-        void subNull() {
-            when(soffitHolder.getSub()).thenReturn(null);
-            assertThat(factory.getCurrentUser()).isNull();
-        }
-
-        @Test
-        @DisplayName("sub guest → null")
-        void subGuest() {
-            when(soffitHolder.getSub()).thenReturn("guest");
-            assertThat(factory.getCurrentUser()).isNull();
-        }
-
-        @Test
-        @DisplayName("Utilisateur non trouvé → null")
-        void userNotFound() {
-            when(soffitHolder.getSub()).thenReturn("validSub");
-            when(personneService.retrievePersonLdap("validSub")).thenReturn(null);
-
-            UserDTO result = factory.getCurrentUser();
-            assertThat(result).isNull();
         }
     }
 

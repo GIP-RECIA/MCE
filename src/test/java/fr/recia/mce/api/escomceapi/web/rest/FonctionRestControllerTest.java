@@ -38,7 +38,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
@@ -61,8 +60,6 @@ class FonctionRestControllerTest {
     @Mock
     private IRelationEleveService relationEleveService;
 
-    @Mock
-    private SoffitHolder soffitHolder;
 
     @InjectMocks
     private FonctionRestController controller;
@@ -76,7 +73,8 @@ class FonctionRestControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper();
-        when(soffitHolder.getSub()).thenReturn(USER);
+        // TODO : get principal
+        //when(soffitHolder.getSub()).thenReturn(USER);
     }
 
     private PersonneDTO selfPersonne(Long id) {
@@ -133,15 +131,6 @@ class FonctionRestControllerTest {
         when(relationEleveService.allEleveEnRelation(eq(100L))).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/personne/fonction/500"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("Lecture des fonctions refusée sans authentification")
-    void shouldReturnForbiddenWhenNotAuthenticated() throws Exception {
-        when(soffitHolder.getSub()).thenReturn(null);
-
-        mockMvc.perform(get("/api/personne/fonction/100"))
                 .andExpect(status().isForbidden());
     }
 

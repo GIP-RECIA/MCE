@@ -16,8 +16,6 @@
 package fr.recia.mce.api.escomceapi.web.rest;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.SoffitInterceptor;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.CharteService;
@@ -66,12 +64,6 @@ class PersonneRestControllerSecurityTest {
 
     @MockBean
     private IUserDTOFactory userDTOFactory;
-
-    @MockBean
-    private SoffitHolder soffitHolder;
-
-    @MockBean
-    private SoffitInterceptor soffitInterceptor;
 
     @MockBean
     private LdapTemplate ldapTemplate;

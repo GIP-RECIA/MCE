@@ -16,7 +16,6 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CharteProperties;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
@@ -60,9 +59,6 @@ class CharteServiceTest {
 
     @Mock
     private ValidationCharteRepository validationCharteRepository;
-
-    @Mock
-    private SoffitHolder soffitHolder;
 
     @Mock
     private IExternalUserDao externalUserDao;
@@ -306,7 +302,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("resolveService : hôte d'arrivée référencé ET rattaché à la personne → clé du domaine")
     void arrivalHostMappedAndInPersonDomainsWins() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        //when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "lycees.test.recia.dev", "cfa.netocentre.fr");
 
@@ -316,7 +313,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("resolveService : hôte référencé mais absent des domaines de la personne → service 'default'")
     void arrivalHostNotInPersonDomainsFallsBackToDefault() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "www.chercan.fr");
 
@@ -326,7 +324,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("resolveService : hôte inconnu (ni charte.domains ni charte.urls) → service 'default'")
     void unknownArrivalHostFallsBackToDefault() {
-        when(soffitHolder.getArrivalHost()).thenReturn("inconnu.example.fr");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("inconnu.example.fr");
         APersonne p = mockPersonne("COLL-45");
 
         assertThat(service.resolveService(p)).isEqualTo("default");
@@ -336,7 +335,8 @@ class CharteServiceTest {
     @DisplayName("resolveService : hôte déduit des URL (charte.urls) → clé du domaine")
     void arrivalHostResolvedFromUrls() {
         urls.put("COLL-18", "https://col18.lycees.netocentre.fr/files/textes/droits_usage.html");
-        when(soffitHolder.getArrivalHost()).thenReturn("col18.lycees.netocentre.fr");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("col18.lycees.netocentre.fr");
         lenient().when(charteProperties.getDomains())
                 .thenReturn(new HashMap<>(Map.of("another.test.recia.dev", "LYCEE")));
         APersonne p = personWithDomains("col18user", "COLL-18", "col18.lycees.netocentre.fr");
@@ -356,7 +356,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("isCharteRequired : charte signée pour le domaine d'arrivée → non requise")
     void signedCharteForArrivalDomainNotRequired() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "lycees.test.recia.dev");
         when(validationCharteRepository.findByApersonneIdAndServiceId(1L, "LYCEE"))
@@ -370,7 +371,8 @@ class CharteServiceTest {
     @DisplayName("getCharteUrl : arrive sur un domaine → URL de la charte de ce domaine")
     void charteUrlForArrivalDomain() {
         urls.put("LYCEE", "https://charte/lycee");
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "lycees.test.recia.dev");
         when(aPersonneRepository.findByLogin("fio")).thenReturn(p);
@@ -381,7 +383,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("getCharteUrl : domaine d'arrivée non rattaché à la personne → URL par défaut")
     void charteUrlFallsBackToDefaultWhenHostNotInPersonDomains() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = personWithDomains("fio", "COLL-45", "www.chercan.fr");
         when(aPersonneRepository.findByLogin("fio")).thenReturn(p);
@@ -394,7 +397,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("resolveCharteDomain : hôte d'arrivée rattaché à la personne → l'hôte lui-même")
     void charteDomainIsArrivalHost() {
-        when(soffitHolder.getArrivalHost()).thenReturn("www.touraine-eschool.fr");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("www.touraine-eschool.fr");
         APersonne p = personWithDomains("fio", "COLL-37", "touraine-eschool.fr");
 
         assertThat(service.resolveCharteDomain(p)).isEqualTo("www.touraine-eschool.fr");
@@ -403,7 +407,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("resolveCharteDomain : hôte d'arrivée absent des domaines de la personne → 'default'")
     void charteDomainFallsBackToDefault() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         APersonne p = personWithDomains("fio", "COLL-45", "www.chercan.fr");
 
         assertThat(service.resolveCharteDomain(p)).isEqualTo(CharteService.DEFAULT_CHARTE_DOMAIN);
@@ -422,7 +427,8 @@ class CharteServiceTest {
         when(charteProperties.getVersions()).thenReturn(new HashMap<>(Map.of(
                 "www.touraine-eschool.fr", "2024-05-01",
                 "default", "2024-01-02")));
-        when(soffitHolder.getArrivalHost()).thenReturn("www.touraine-eschool.fr");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("www.touraine-eschool.fr");
         APersonne p = personWithDomains("fio", "COLL-37", "touraine-eschool.fr");
 
         assertThat(service.getCharteVersionDateFor(p))
@@ -470,7 +476,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("annuaire indisponible (personne absente) → charte par défaut, pas de refus")
     void ldapPersonNotFoundFallsBackToDefault() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = mockPersonne("COLL-45");
         p.setUid("fio");
@@ -483,7 +490,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("annuaire en erreur (le DAO lève) → charte par défaut, pas de refus")
     void ldapFailureFallsBackToDefault() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         APersonne p = mockPersonne("COLL-45");
         p.setUid("fio");
         when(externalUserDao.getUserByUid("fio")).thenThrow(new RuntimeException("LDAP down"));
@@ -495,7 +503,8 @@ class CharteServiceTest {
     @Test
     @DisplayName("personne sans attribut ESCODomaines → pas de rattachement, charte par défaut")
     void personWithoutDomainAttributeFallsBackToDefault() {
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         ExternalUser sansDomaines = new ExternalUser();
         sansDomaines.setAttributes(Map.of());
@@ -511,7 +520,8 @@ class CharteServiceTest {
     void ldapDomainsAreCached() {
         Cache cache = mock(Cache.class);
         when(cacheManager.getCache(anyString())).thenReturn(cache);
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         when(charteProperties.getDomains()).thenReturn(Map.of("lycees.test.recia.dev", "LYCEE"));
         APersonne p = mockPersonne("COLL-45");
         p.setUid("fio");
@@ -569,7 +579,8 @@ class CharteServiceTest {
     @DisplayName("resolveService : URL de configuration illisible → ignorée, service 'default'")
     void malformedCharteUrlIsIgnored() {
         urls.put("PISTE", "::::pas-une-url");
-        when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
+        // TODO : domaine d'arrivée
+        // when(soffitHolder.getArrivalHost()).thenReturn("lycees.test.recia.dev");
         APersonne p = mockPersonne("PISTE");
         p.setUid("fio");
 

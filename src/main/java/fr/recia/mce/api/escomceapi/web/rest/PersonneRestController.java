@@ -15,10 +15,10 @@
  */
 package fr.recia.mce.api.escomceapi.web.rest;
 
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.security.AppUser;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -78,7 +79,6 @@ public class PersonneRestController {
 
     private final PersonneService personneService;
     private final IUserDTOFactory userDTOFactory;
-    private final SoffitHolder soffitHolder;
     private final EmailVerificationService emailVerificationService;
     private final CharteService charteService;
     private final ActivationService activationService;
@@ -87,15 +87,10 @@ public class PersonneRestController {
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
-    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory,
-            SoffitHolder soffitHolder, EmailVerificationService emailVerificationService,
-            CharteService charteService,
-            ActivationService activationService,
-            IStructureService structureService,
-            IRelationEleveService relationEleveService) {
+    public PersonneRestController(PersonneService personneService, IUserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService,
+            CharteService charteService, ActivationService activationService, IStructureService structureService, IRelationEleveService relationEleveService) {
         this.personneService = personneService;
         this.userDTOFactory = userDTOFactory;
-        this.soffitHolder = soffitHolder;
         this.emailVerificationService = emailVerificationService;
         this.charteService = charteService;
         this.activationService = activationService;
@@ -103,14 +98,9 @@ public class PersonneRestController {
         this.relationEleveService = relationEleveService;
     }
 
-    @GetMapping("/debug-id")
-    public ResponseEntity<String> getCurrentUserId() {
-        return ResponseEntity.ok(getCurrentUid());
-    }
-
     @GetMapping("/getuser")
-    public ResponseEntity<PersonneDTO> getPersonneByUid() {
-        String uid = getCurrentUid();
+    public ResponseEntity<PersonneDTO> getPersonneByUid(@AuthenticationPrincipal AppUser principal) {
+        String uid = principal.getUid();
         PersonneDTO personne = personneService.retrievePersonnebyUid(uid);
 
         if (personne == null) {
@@ -121,8 +111,8 @@ public class PersonneRestController {
     }
 
     @GetMapping("/ldap")
-    public ResponseEntity<IExternalUser> getPersonLdap() {
-        String uid = getCurrentUid();
+    public ResponseEntity<IExternalUser> getPersonLdap(@AuthenticationPrincipal AppUser principal) {
+        String uid = principal.getUid();
         IExternalUser user = personneService.retrievePersonLdap(uid);
 
         if (user == null) {
@@ -133,8 +123,8 @@ public class PersonneRestController {
     }
 
     @GetMapping("/")
-    public ResponseEntity<UserDTO> getMCE() {
-        String uid = getCurrentUid();
+    public ResponseEntity<UserDTO> getMCE(@AuthenticationPrincipal AppUser principal) {
+        String uid = principal.getUid();
         UserDTO user = userDTOFactory.from(uid);
 
         if (user == null) {
@@ -147,9 +137,10 @@ public class PersonneRestController {
     // Le path variable est un UID (sub LDAP/relation), PAS un id numérique de la base
     // personne. La vérification d'accès et la résolution du profil utilisent la même
     // sémantique d'uid (cf. canAccessRelationProfile et UserDTOFactory.from).
+    // TODO : uid dans la route c'est bizarre
     @GetMapping("/{uid}")
-    public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String uid) {
-        String currentUid = getCurrentUid();
+    public ResponseEntity<UserDTO> getDetailEnfant(@PathVariable String uid, @AuthenticationPrincipal AppUser principal) {
+        String currentUid = principal.getUid();
         if (!canAccessRelationProfile(currentUid, uid)) {
             specialLog.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", uid, currentUid);
             throw new AccessDeniedException("Vous ne pouvez consulter que votre profil ou celui des personnes en relation avec vous");
@@ -164,19 +155,17 @@ public class PersonneRestController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<Void> changePass(
-            @Valid @RequestBody PasswordChangeRequestDTO request) {
+    public ResponseEntity<Void> changePass(@Valid @RequestBody PasswordChangeRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
-        String uid = getCurrentUid();
+        String uid = principal.getUid();
         userDTOFactory.changePassword(uid, request);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/update-email")
-    public ResponseEntity<?> updateEmail(
-            @Valid @RequestBody EmailUpdateRequestDTO request) {
+    public ResponseEntity<?> updateEmail(@Valid @RequestBody EmailUpdateRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
-        String uid = getCurrentUid();
+        String uid = principal.getUid();
 
         if (!request.getEmail().equals(request.getConfirmEmail())) {
             log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
@@ -285,10 +274,9 @@ public class PersonneRestController {
      * le mot de passe réseau d'un autre compte.
      */
     @PostMapping("/network-password/reset")
-    public ResponseEntity<?> networkPasswordReset(
-            @Valid @RequestBody NetworkPasswordResetRequestDTO request) {
+    public ResponseEntity<?> networkPasswordReset(@Valid @RequestBody NetworkPasswordResetRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
-        String uid = getCurrentUid();
+        String uid = principal.getUid();
         log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
 
         emailVerificationService.changeNetworkPassword(
@@ -305,21 +293,20 @@ public class PersonneRestController {
      * dans le jeton OIDC). Permet au portail d'afficher le bon écran.
      */
     @GetMapping("/network-password/status")
-    public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus() {
-        String uid = getCurrentUid();
+    public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus(@AuthenticationPrincipal AppUser principal) {
+        String uid = principal.getUid();
         NetworkPasswordResetStatusDTO status = emailVerificationService.getNetworkPasswordResetStatus(uid);
         log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
         return ResponseEntity.ok(status);
     }
 
     @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(
-            @Valid @RequestBody VerifyEmailRequestDTO request) {
+    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
         // Cas authentifié (changement d'email) : l'uid est lu depuis le jeton Soffit,
         // ce qui empêche de vérifier un email pour le compte d'un autre utilisateur.
         // Cas public (parcours d'activation sans jeton) : l'identifiant (login.nom) doit être fourni dans le corps.
-        String uid = getCurrentUidIfPresent();
+        String uid = principal.getUid();
         if (uid == null) {
             uid = request.getLogin();
         }
@@ -354,8 +341,8 @@ public class PersonneRestController {
      * utilisateur ne puisse signer que sa propre charte.
      */
     @PostMapping("/charte/accept")
-    public ResponseEntity<CharteStatusResponse> accepterCharte(@Valid @RequestBody CharteAcceptRequest request) {
-        String uid = getCurrentUid();
+    public ResponseEntity<CharteStatusResponse> accepterCharte(@Valid @RequestBody CharteAcceptRequest request, @AuthenticationPrincipal AppUser principal) {
+        String uid = principal.getUid();
 
         if (!request.isCharteAccepted()) {
             throw new IllegalArgumentException("Vous devez accepter la charte d'utilisation avant de poursuivre");
@@ -406,8 +393,7 @@ public class PersonneRestController {
      * Point d'entrée PASSWORD du parcours d'activation : charte + mot de passe (et éventuellement email) puis activation du compte.
      */
     @PostMapping("/activation/password")
-    public ResponseEntity<ActivationResultDTO> activerCompte(
-            @Valid @RequestBody ActivationRequestDTO request) {
+    public ResponseEntity<ActivationResultDTO> activerCompte(@Valid @RequestBody ActivationRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
         log.info("[ACTIVATION][PASSWORD] Demande login={}, charteAccepted={}", request.getLogin(), request.isCharteAccepted());
         ActivationResultDTO result = activationService.activate(request);
@@ -417,14 +403,12 @@ public class PersonneRestController {
 
     /**
      * Point d'entrée d'activation dédié aux profils SSO déjà authentifiés (EDUCATION, AGRI, CVDL, ELEVE_EDUC, ...) :
-     * le uid est résolu côté serveur à partir du jeton Soffit ({@link #getCurrentUid()}), jamais confié au client.
      * Aucun mot de passe n'est requis (ces profils ne se connectent pas par mot de passe local).
      */
     @PostMapping("/activation/self")
-    public ResponseEntity<ActivationResultDTO> activerCompteCourant(
-            @Valid @RequestBody ActivationSelfRequestDTO request) {
+    public ResponseEntity<ActivationResultDTO> activerCompteCourant(@Valid @RequestBody ActivationSelfRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
-        String uid = getCurrentUid();
+        String uid = principal.getUid();
         log.info("[ACTIVATION][SELF] Demande uid={}, charteAccepted={}", uid, request.isCharteAccepted());
 
         ActivationRequestDTO inner = new ActivationRequestDTO();
@@ -438,10 +422,9 @@ public class PersonneRestController {
     }
 
     @PostMapping("/avatar")
-    public ResponseEntity<Void> updateAvatar(
-            @RequestParam("file") MultipartFile file) throws Exception {
+    public ResponseEntity<Void> updateAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal AppUser principal) throws Exception {
 
-        String uid = getCurrentUid();
+        String uid = principal.getUid();
         personneService.updateAvatar(uid, file.getBytes());
         return ResponseEntity.noContent().build();
     }
@@ -529,22 +512,6 @@ public class PersonneRestController {
         return ResponseEntity.ok()
                 .header("Content-Type", "image/jpeg")
                 .body(image);
-    }
-
-    private String getCurrentUid() {
-        String sub = getCurrentUidIfPresent();
-        if (sub == null) {
-            throw new AccessDeniedException("Utilisateur non authentifié");
-        }
-        return sub;
-    }
-
-    private String getCurrentUidIfPresent() {
-        String sub = soffitHolder.getSub();
-        if (sub == null || sub.isBlank() || GUEST_USER.equals(sub)) {
-            return null;
-        }
-        return sub;
     }
 
     private boolean canAccessRelationProfile(String currentUid, String uid) {

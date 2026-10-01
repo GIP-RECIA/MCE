@@ -4,9 +4,6 @@ server:
         context-path: /
     error:
         path: /error
-    # Derrière un reverse proxy : getRemoteAddr() renvoie l'IP client depuis X-Forwarded-For,
-    # mais SEULEMENT si le pair direct est un proxy interne (RFC1918/loopback par défaut).
-    # Proxy sur IP publique → étendre server.tomcat.remoteip.internal-proxies.
     forward-headers-strategy: native
 
 spring:

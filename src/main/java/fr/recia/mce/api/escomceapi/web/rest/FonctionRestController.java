@@ -19,14 +19,15 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import fr.recia.mce.api.escomceapi.security.AppUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
@@ -56,12 +57,9 @@ public class FonctionRestController {
     @Autowired
     private IRelationEleveService relationEleveService;
 
-    @Autowired
-    private SoffitHolder soffitHolder;
-
     @GetMapping("/fonction/{id}")
-    public ResponseEntity<Collection<FonctionDTO>> getFonctionsOfPerson(@PathVariable Long id) {
-        String currentUid = getCurrentUid();
+    public ResponseEntity<Collection<FonctionDTO>> getFonctionsOfPerson(@PathVariable Long id, @AuthenticationPrincipal AppUser principal) {
+        String currentUid = principal.getUid();
         if (!canAccessFunctionProfile(currentUid, id)) {
             log.warn("Audit [GET_FONCTIONS] : Tentative d'accès non autorisé aux fonctions de la personne id={} par [{}]", id, currentUid);
             throw new AccessDeniedException("Vous ne pouvez consulter que vos fonctions ou celles des personnes en relation avec vous");
@@ -73,8 +71,8 @@ public class FonctionRestController {
     }
 
     @PutMapping("/fonction/{id}/dateFin")
-    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody boolean active) {
-        String currentUid = getCurrentUid();
+    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody boolean active, @AuthenticationPrincipal AppUser principal) {
+        String currentUid = principal.getUid();
         if (!canEditFunction(currentUid, id)) {
             log.warn("Audit [UPDATE_DATEFIN] : Tentative de modification non autorisée de la fonction id={} par [{}]", id, currentUid);
             throw new AccessDeniedException("Vous ne pouvez modifier que vos propres fonctions");
@@ -82,14 +80,6 @@ public class FonctionRestController {
         log.debug("Mise à jour de l'état (active={}) de la fonction [id={}]", active, id);
         fonctionService.updateDateFin(id, active);
         return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-    private String getCurrentUid() {
-        String sub = soffitHolder.getSub();
-        if (sub == null || sub.isBlank() || GUEST_USER.equals(sub)) {
-            throw new AccessDeniedException("Utilisateur non authentifié");
-        }
-        return sub;
     }
 
     /**

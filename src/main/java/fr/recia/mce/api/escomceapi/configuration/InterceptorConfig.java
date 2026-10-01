@@ -15,56 +15,19 @@
  */
 package fr.recia.mce.api.escomceapi.configuration;
 
-import fr.recia.mce.api.escomceapi.configuration.interceptor.CharteInterceptor;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.SoffitInterceptor;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.services.CharteService;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Scope;
-import org.springframework.context.annotation.ScopedProxyMode;
-import org.springframework.web.context.WebApplicationContext;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class InterceptorConfig implements WebMvcConfigurer {
 
-    private final SoffitHolder soffitHolder;
     private final CharteService charteService;
     private final MCEProperties mceProperties;
 
-    public InterceptorConfig(SoffitHolder soffitHolder, CharteService charteService, MCEProperties mceProperties) {
-        this.soffitHolder = soffitHolder;
+    public InterceptorConfig(CharteService charteService, MCEProperties mceProperties) {
         this.charteService = charteService;
         this.mceProperties = mceProperties;
-    }
-
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        // L'ordre est important : SoffitInterceptor doit s'exécuter en premier pour
-        // renseigner le SoffitHolder.sub, que CharteInterceptor consomme ensuite.
-        registry.addInterceptor(soffitInterceptor());
-        // NEUTRALISÉ (charte) : le CharteInterceptor n'est plus enregistré, donc aucune
-        // API n'est bloquée tant que la charte n'est pas signée.
-        // Réactivation : retirer ce commentaire pour rétablir le contrôle.
-        // registry.addInterceptor(charteInterceptor());
-    }
-
-    @Bean
-    public SoffitInterceptor soffitInterceptor() {
-        return new SoffitInterceptor(soffitHolder, mceProperties.getSoffit().isRequireAuthenticatedPrincipal());
-    }
-
-    @Bean
-    public CharteInterceptor charteInterceptor() {
-        return new CharteInterceptor(soffitHolder, charteService);
-    }
-
-    @Bean
-    @Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
-    public SoffitHolder soffitHolder() {
-        return new SoffitHolder();
     }
 
 }

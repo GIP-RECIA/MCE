@@ -16,7 +16,6 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CharteProperties;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
@@ -83,8 +82,6 @@ public class CharteService {
     @Autowired
     private ValidationCharteRepository validationCharteRepository;
 
-    @Autowired
-    private SoffitHolder soffitHolder;
 
     @Autowired
     private IExternalUserDao externalUserDao;
@@ -93,10 +90,6 @@ public class CharteService {
     private CacheManager cacheManager;
 
     /**
-     * Résout le service de charte d'une personne : le domaine du site d'où elle arrive
-     * (hôte de l'URL, cf. {@link SoffitHolder#getArrivalHost()}), sinon — hors requête web —
-     * sa source (ex. COLL-37), sinon {@link #DEFAULT_SERVICE}.
-     *
      * <p>Règle du domaine d'arrivée (faill-open) : l'hôte doit être référencé dans la
      * configuration ({@code charte.domains} puis repli sur {@code charte.urls}) ET figuré
      * parmi les domaines de la personne ({@code ESCODomaines} en annuaire). Dans le cas
@@ -107,7 +100,7 @@ public class CharteService {
         if (person == null || person.getId() == null) {
             return DEFAULT_SERVICE;
         }
-        String arrivalHost = soffitHolder != null ? soffitHolder.getArrivalHost() : null;
+        String arrivalHost = arrivalHost();
         if (StringUtils.isNotBlank(arrivalHost)) {
             return resolveServiceForArrival(person, arrivalHost.trim().toLowerCase(Locale.ROOT));
         }
@@ -461,8 +454,9 @@ public class CharteService {
         return required;
     }
 
+    // TODO : anciennement soffit
     private String arrivalHost() {
-        return soffitHolder != null ? soffitHolder.getArrivalHost() : null;
+        return "lycees.netocentre.fr";
     }
 
     /**

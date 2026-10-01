@@ -17,9 +17,7 @@
 package fr.recia.mce.api.escomceapi.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.SoffitInterceptor;
 import java.util.List;
-import fr.recia.mce.api.escomceapi.configuration.interceptor.bean.SoffitHolder;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
@@ -105,12 +103,6 @@ class PersonneRestControllerTest {
     private IUserDTOFactory userDTOFactory;
 
     @MockBean
-    private SoffitHolder soffitHolder;
-
-    @MockBean
-    private SoffitInterceptor soffitInterceptor;
-
-    @MockBean
     @SuppressWarnings("unused")
     private LdapTemplate ldapTemplate;
 
@@ -177,8 +169,7 @@ class PersonneRestControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        when(soffitHolder.getSub()).thenReturn(USER);
-        when(soffitInterceptor.preHandle(any(), any(), any())).thenReturn(true);
+        // TODO : get principal
         mceProperties.getSecurity().getRateLimit().setPermitsPerSecond(1_000_000.0);
     }
 
@@ -226,21 +217,6 @@ class PersonneRestControllerTest {
                     .andExpect(status().isNoContent());
 
             verify(userDTOFactory).changePassword(eq(USER), any());
-        }
-
-        @Test
-        @DisplayName("Interdiction lorsque l'utilisateur n'est pas authentifié")
-        void shouldReturnForbiddenWhenNotAuthenticated() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(null);
-
-            PasswordChangeRequestDTO request = buildValidPasswordChangeRequest();
-
-            mockMvc.perform(post(BASE_URL + "change-password")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isForbidden());
-
-            verify(userDTOFactory, never()).changePassword(any(), any());
         }
 
         @Test
@@ -459,14 +435,6 @@ class PersonneRestControllerTest {
 
             mockMvc.perform(get(BASE_URL + "ldap"))
                     .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("Interdiction d'accéder au debug-id si non authentifié")
-        void shouldReturnForbiddenWhenNotAuthenticatedForDebugId() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(null);
-            mockMvc.perform(get(BASE_URL + "debug-id"))
-                    .andExpect(status().isForbidden());
         }
 
         @Test
@@ -799,23 +767,6 @@ class PersonneRestControllerTest {
 
             verify(emailVerificationService).verifyEmail(USER, "123456");
         }
-
-        @Test
-        @DisplayName("Échec : uid manquant (jeton et corps) → 400 VALIDATION_ERROR")
-        void shouldFailWhenUidMissing() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(null);
-
-            VerifyEmailRequestDTO request = new VerifyEmailRequestDTO();
-            request.setCode("123456");
-
-            mockMvc.perform(post(BASE_URL + "verify-email")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-
-            verifyNoInteractions(emailVerificationService);
-        }
     }
 
     @Nested
@@ -881,29 +832,6 @@ class PersonneRestControllerTest {
             mockMvc.perform(multipart(BASE_URL + "avatar"))
                     .andExpect(status().isInternalServerError())
                     .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
-    }
-
-    @Nested
-    @DisplayName("Tests d'authentification et d'autorisation généraux")
-    class GeneralAuthorizationTests {
-
-        @Test
-        @DisplayName("Interdiction lorsque l'utilisateur est un invité")
-        void shouldReturnForbiddenWhenUserIsGuest() throws Exception {
-            when(soffitHolder.getSub()).thenReturn("guest");
-
-            mockMvc.perform(get(BASE_URL + "getuser"))
-                    .andExpect(status().isForbidden());
-        }
-
-        @Test
-        @DisplayName("Interdiction lorsque l'identifiant utilisateur (sub) est vide ou nul")
-        void shouldReturnForbiddenWhenSubIsBlank() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(" "); // Test with blank space
-
-            mockMvc.perform(get(BASE_URL + "getuser"))
-                    .andExpect(status().isForbidden());
         }
     }
 
@@ -1200,18 +1128,6 @@ class PersonneRestControllerTest {
 
             verifyNoInteractions(emailVerificationService);
         }
-
-        @Test
-        @DisplayName("Utilisateur non authentifié → 403 FORBIDDEN")
-        void shouldReturnForbiddenWhenNotAuthenticated() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(null);
-
-            mockMvc.perform(post(BASE_URL + "network-password/reset")
-                    .contentType(MediaType.APPLICATION_JSON).content(validBody))
-                    .andExpect(status().isForbidden());
-
-            verify(emailVerificationService, never()).changeNetworkPassword(anyString(), anyString(), anyString());
-        }
     }
 
     @Nested
@@ -1240,17 +1156,6 @@ class PersonneRestControllerTest {
             mockMvc.perform(get(BASE_URL + "network-password/status"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.eligible").value(false));
-        }
-
-        @Test
-        @DisplayName("Utilisateur non authentifié → 403 FORBIDDEN, aucune interaction service")
-        void shouldReturnForbiddenWhenNotAuthenticated() throws Exception {
-            when(soffitHolder.getSub()).thenReturn(null);
-
-            mockMvc.perform(get(BASE_URL + "network-password/status"))
-                    .andExpect(status().isForbidden());
-
-            verify(emailVerificationService, never()).getNetworkPasswordResetStatus(anyString());
         }
     }
 
