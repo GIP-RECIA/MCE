@@ -137,21 +137,6 @@ class ConfigBeanPropertiesTest {
         m2.setDomainesConfiance("diff");
         assertThat(m).isNotEqualTo(m2);
     }
-
-    @Test
-    void soffitProperties() {
-        SoffitProperties s = new SoffitProperties();
-        s.setJwtSignatureKey("key");
-        assertThat(s.getJwtSignatureKey()).isEqualTo("key");
-        assertThat(s.toString()).contains("SoffitProperties").contains("key");
-
-        SoffitProperties s2 = new SoffitProperties();
-        s2.setJwtSignatureKey("key");
-        assertThat(s).isEqualTo(s2).hasSameHashCodeAs(s2);
-        s2.setJwtSignatureKey("other");
-        assertThat(s).isNotEqualTo(s2);
-    }
-
     @Test
     void serviceProperties() {
         ClasseCalculatorProperties classe = new ClasseCalculatorProperties();
@@ -359,19 +344,16 @@ class ConfigBeanPropertiesTest {
         AvatarProperties avatar = new AvatarProperties();
         CustomLdapProperties ldap = new CustomLdapProperties();
         ServiceProperties service = new ServiceProperties();
-        SoffitProperties soffit = new SoffitProperties();
 
         props.setCors(cors);
         props.setAvatar(avatar);
         props.setLdap(ldap);
         props.setService(service);
-        props.setSoffit(soffit);
 
         assertThat(props.getCors()).isSameAs(cors);
         assertThat(props.getAvatar()).isSameAs(avatar);
         assertThat(props.getLdap()).isSameAs(ldap);
         assertThat(props.getService()).isSameAs(service);
-        assertThat(props.getSoffit()).isSameAs(soffit);
         assertThat(props.toString()).contains("MCEProperties");
 
         fr.recia.mce.api.escomceapi.configuration.MCEProperties props2 = new fr.recia.mce.api.escomceapi.configuration.MCEProperties();
@@ -379,7 +361,6 @@ class ConfigBeanPropertiesTest {
         props2.setAvatar(avatar);
         props2.setLdap(ldap);
         props2.setService(service);
-        props2.setSoffit(soffit);
         assertThat(props).isEqualTo(props2).hasSameHashCodeAs(props2);
         assertThat(props).isNotEqualTo(null);
     }

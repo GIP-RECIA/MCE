@@ -15,21 +15,16 @@
  */
 package fr.recia.mce.api.escomceapi.configuration;
 
-import org.apereo.portal.soffit.security.SoffitApiAuthenticationManager;
-import org.apereo.portal.soffit.security.SoffitApiPreAuthenticatedProcessingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
 
 import javax.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
@@ -45,11 +40,6 @@ public class SecurityConfiguration {
 
     public SecurityConfiguration(MCEProperties mceProperties) {
         this.mceProperties = mceProperties;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager() {
-        return new SoffitApiAuthenticationManager();
     }
 
     // Swagger ne doit être accessible qu'hors production (documentation complète des
@@ -83,10 +73,6 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, Environment environment) throws Exception {
-        final AbstractPreAuthenticatedProcessingFilter filter = new SoffitApiPreAuthenticatedProcessingFilter(mceProperties.getSoffit().getJwtSignatureKey());
-        filter.setAuthenticationManager(authenticationManager());
-
-        http.addFilter(filter);
         http.csrf(AbstractHttpConfigurer::disable);
         http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(authz -> {

@@ -22,11 +22,7 @@ import javax.validation.constraints.Pattern;
 
 @Data
 public class VerifyEmailRequestDTO {
-
-    // Optionnel : en cas de requête authentifiée (jeton Soffit), le contrôleur lit l'identifiant depuis le jeton.
-    // Seul le parcours public d'activation (sans jeton) doit fournir le login.nom dans le corps.
     private String login;
-
     @NotBlank(message = "Le code de verification est obligatoire")
     @Pattern(regexp = "\\d{6}", message = "Le code de verification doit comporter 6 chiffres")
     private String code;

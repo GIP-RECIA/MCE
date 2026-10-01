@@ -20,15 +20,11 @@ import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.SecurityProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
-import fr.recia.mce.api.escomceapi.configuration.bean.SoffitProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
-
-import javax.annotation.PostConstruct;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 @Configuration
 @ConfigurationProperties(prefix = "app", ignoreUnknownFields = false)
@@ -41,13 +37,6 @@ public class MCEProperties {
     private AvatarProperties avatar = new AvatarProperties();
     private CustomLdapProperties ldap = new CustomLdapProperties();
     private ServiceProperties service = new ServiceProperties();
-    private SoffitProperties soffit = new SoffitProperties();
     private SecurityProperties security = new SecurityProperties();
-
-    @PostConstruct
-    private void init() throws JsonProcessingException {
-
-        log.debug("Propriétés de l'application MCE initialisées avec succès : {}", this);
-    }
 
 }

@@ -270,8 +270,7 @@ public class PersonneRestController {
 
     /**
      * Applique le changement direct du mot de passe réseau (conforme à l'ancienne application : pas
-     * d'ancien mot de passe, pas de code). L'uid est lu depuis le jeton Soffit : impossible de changer
-     * le mot de passe réseau d'un autre compte.
+     * d'ancien mot de passe, pas de code).
      */
     @PostMapping("/network-password/reset")
     public ResponseEntity<?> networkPasswordReset(@Valid @RequestBody NetworkPasswordResetRequestDTO request, @AuthenticationPrincipal AppUser principal) {
@@ -303,8 +302,6 @@ public class PersonneRestController {
     @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
-        // Cas authentifié (changement d'email) : l'uid est lu depuis le jeton Soffit,
-        // ce qui empêche de vérifier un email pour le compte d'un autre utilisateur.
         // Cas public (parcours d'activation sans jeton) : l'identifiant (login.nom) doit être fourni dans le corps.
         String uid = principal.getUid();
         if (uid == null) {
@@ -337,8 +334,6 @@ public class PersonneRestController {
      * Accessible à TOUT utilisateur valide, y compris les profils EduConnect/agri/CVDL
      * qui n'ont ni activation ni réinitialisation de mot de passe locale (donc aucun autre
      * point d'entrée pour signer leur charte).
-     * L'uid n'est PAS lu dans le corps de la requête mais depuis le jeton Soffit, afin qu'un
-     * utilisateur ne puisse signer que sa propre charte.
      */
     @PostMapping("/charte/accept")
     public ResponseEntity<CharteStatusResponse> accepterCharte(@Valid @RequestBody CharteAcceptRequest request, @AuthenticationPrincipal AppUser principal) {

@@ -659,8 +659,7 @@ public class EmailVerificationService {
     }
 
     /**
-     * Parcours « mot de passe réseau » pour un compte déjà authentifié dans Mon Compte (uid issu du jeton
-     * Soffit, jamais du corps de requête). Conforme à l'ancienne application Cerbère : un compte CVDL ntPass
+     * Parcours « mot de passe réseau » pour un compte déjà authentifié dans Mon Compte. Conforme à l'ancienne application Cerbère : un compte CVDL ntPass
      * sans mot de passe local stocké ({@code noOldPass}) ne fournit ni ancien mot de passe ni code de
      * vérification — il change directement son mot de passe réseau (nouveau + confirmation). L'état du compte
      * doit être Valide ; la charte n'est pas re-demandée (l'ancien écran ne la redemandait pas non plus).
