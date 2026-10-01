@@ -91,8 +91,8 @@ public class SecurityConfiguration {
     private static final String[] PUBLIC_PAGES = {
             "/mot-de-passe-oublie",
             "/activation",
-            "/index.html",
-            "/",
+            "/cerbere/index.html",
+            "/cerbere",
             "/favicon.ico",
             "/assets/**",
             "/css/**",
@@ -156,10 +156,10 @@ public class SecurityConfiguration {
             final Assertion assertion = token.getAssertion();
             final Map<String, Object> attributes = assertion.getPrincipal().getAttributes();
             // TODO : attributs en dur pour tester
-            final String uid = attributes.get("uid").toString();
-            final String domaine = attributes.get("domaine").toString();
+            final String uid = assertion.getPrincipal().getName();
+            final String domaine = "TODO";
             final String username = assertion.getPrincipal().getName();
-            log.debug("User {} logged in with rights {} and {} and source {}", username, uid, domaine);
+            log.debug("User {} logged in with rights {} and {}", username, uid, domaine);
             return new AppUser(username, "", new ArrayList<>(), "", "");
         };
     }
@@ -252,6 +252,7 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, Environment environment) throws Exception {
+        // TODO : enable CSRF
         http.csrf(AbstractHttpConfigurer::disable);
         http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(authz -> {
@@ -262,14 +263,14 @@ public class SecurityConfiguration {
                     .antMatchers(PUBLIC_ENDPOINTS).permitAll()
                     .antMatchers(PUBLIC_PAGES).permitAll()
                     .antMatchers("/api/**").authenticated()
+                    .antMatchers("/", "/ui/**").authenticated()
+                    // Cet endpoint doit être accessible car c'est le callback du CAS vers l'appli spring pour faire valider le ticket
+                    .antMatchers(casProperties.getCasTicketCallback()).permitAll()
                     .anyRequest().denyAll();
         });
-        http.sessionManagement(session -> session.sessionFixation().newSession());
-        http.exceptionHandling(exception -> exception.authenticationEntryPoint((req, res, ex) -> {
-            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            res.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        }));
+        http.exceptionHandling(e -> e
+            .authenticationEntryPoint(casAuthenticationEntryPoint(serviceProperties()))
+        );
 
         return http.build();
     }

@@ -41,7 +41,7 @@ public class CustomCasAuthenticationEntryPoint extends CasAuthenticationEntryPoi
         if(casProperties.getAuthorizedDomains().contains(domain)){
             return domain + casProperties.getCasServiceId();
         } else {
-            throw new InvalidDomainException("Domain is not authorized !");
+            throw new InvalidDomainException("Domain " + domain + " is not authorized !");
         }
     }
 

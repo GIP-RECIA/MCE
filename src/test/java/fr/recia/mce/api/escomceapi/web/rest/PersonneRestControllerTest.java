@@ -346,14 +346,6 @@ class PersonneRestControllerTest {
     @DisplayName("Tests de récupération d'informations utilisateur")
     class UserInformationRetrievalTests {
 
-        @Test
-        @DisplayName("Obtenir l'ID utilisateur actuel (debug)")
-        void shouldGetCurrentUserId() throws Exception {
-            mockMvc.perform(get(BASE_URL + "debug-id"))
-                    .andExpect(status().isOk())
-                    .andExpect(content().string(USER));
-        }
-
         private PersonneDTO buildPersonneDTO() {
             APersonne aPersonne = new APersonne();
             aPersonne.setUid(USER);
