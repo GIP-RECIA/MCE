@@ -79,8 +79,7 @@ public class SecurityConfiguration {
             "/js/**"
     };
 
-    private static final String UNAUTHORIZED_JSON_BODY =
-            "{\"code\":\"UNAUTHORIZED\",\"message\":\"Jeton manquant ou invalide\"}";
+    private static final String UNAUTHORIZED_JSON_BODY = "{\"code\":\"UNAUTHORIZED\",\"message\":\"Jeton manquant ou invalide\"}";
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, Environment environment) throws Exception {
@@ -101,11 +100,6 @@ public class SecurityConfiguration {
                     .anyRequest().denyAll();
         });
         http.sessionManagement(session -> session.sessionFixation().newSession());
-        http.headers(headers -> headers
-                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-                .contentTypeOptions(Customizer.withDefaults())
-                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
-                .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'")));
         http.exceptionHandling(exception -> exception.authenticationEntryPoint((req, res, ex) -> {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             res.setContentType(MediaType.APPLICATION_JSON_VALUE);

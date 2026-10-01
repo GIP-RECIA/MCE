@@ -24,6 +24,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+// TODO : il y a des choses en dur, cette classe est-elle vraiment utile ?
 public class SwaggerConfig {
 
     @Bean

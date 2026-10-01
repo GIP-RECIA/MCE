@@ -33,13 +33,9 @@ public class Personne {
     private String mail;
     private boolean mailForward;
     private boolean charteValide;
-    // private EnumEtat etat;
-    // private Structure structure;
     private String domaineDeConnexion;
     private EnumPublic enumPublic;
-    // private InternetAddress internetAddress;
     private String codeConfirmation;
-    // private EnumTypeConfirmation typeCode;
 
     private boolean isCfa;
     private boolean isSSHAPass;
@@ -56,8 +52,6 @@ public class Personne {
     private Date naissance;
 
     private String avatarUrl;
-
-    // private List<ReponseSecrete> reponseSecreteList;
 
     public String typeOfParent() {
         return null;

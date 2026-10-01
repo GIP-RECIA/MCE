@@ -20,19 +20,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
+@Data
 public class ExternalUser implements IExternalUser {
 
     private String id;
-
     private String displayName;
-
     private String email;
-
     private Map<String, List<String>> attributes = new HashMap<>();
 
     @Override
@@ -42,11 +37,6 @@ public class ExternalUser implements IExternalUser {
         else if (attributes.containsKey(attr.toLowerCase()))
             return attributes.get(attr.toLowerCase());
         return Collections.emptyList();
-    }
-
-    public String toString() {
-        return "ExternalUser(id=" + this.id + ", displayName=" + this.displayName + ", email=" + this.email
-                + ", attributes=" + this.attributes + ")";
     }
 
 }

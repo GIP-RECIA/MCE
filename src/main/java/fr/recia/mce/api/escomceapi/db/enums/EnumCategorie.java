@@ -26,7 +26,7 @@ public enum EnumCategorie {
 
     private String dbname;
 
-    private EnumCategorie(String dbname) {
+    EnumCategorie(String dbname) {
         this.dbname = dbname.intern();
     }
 

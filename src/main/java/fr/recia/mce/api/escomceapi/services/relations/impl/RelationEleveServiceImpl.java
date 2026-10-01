@@ -75,10 +75,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     private final Pattern patternRelation;
     private final int grpUid;
     private final int grpTypRel;
-    private final int grpRespFinance;
-    private final int grpRespLegal;
-    private final int grpCodeContact;
-    private final int grpCodePaiement;
+
 
     public RelationEleveServiceImpl(MCEProperties mceProperties) {
         RelationProperties relProps = mceProperties.getService().getRelationProperties();
@@ -87,10 +84,6 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         this.patternRelation = Pattern.compile(relProps.getRegexRelation());
         this.grpUid = relProps.getGroupUid();
         this.grpTypRel = relProps.getGroupTypRel();
-        this.grpRespFinance = relProps.getGroupRespFinance();
-        this.grpRespLegal = relProps.getGroupRespLegal();
-        this.grpCodeContact = relProps.getGroupCodeContact();
-        this.grpCodePaiement = relProps.getGroupCodePaiement();
     }
 
     private void analyseMaitre(final IExternalUser personne, final String ldapAttr,
@@ -160,7 +153,6 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
                         if (re == null) {
                             re = new RelationEleveContact(SensRel.ELEVE2CONTACT);
-                            // re.setEleve(eleve);
                             re.setUidRelation(uid);
                             uid2relation.put(uid, re);
                         }

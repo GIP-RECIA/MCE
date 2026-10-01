@@ -27,9 +27,7 @@ public class Structure implements Comparable<Structure> {
 
     private boolean open4Ent;
     private String nom;
-
     private String displayName;
-
     private String uai;
     private String skin;
     private String ville;
@@ -37,51 +35,6 @@ public class Structure implements Comparable<Structure> {
     private String[] domaines;
     private String type;
     private String source;
-
-    public void setNom(final String nom) {
-        if (nom != null) {
-            this.nom = nom.intern();
-        }
-    }
-
-    public void setDisplayName(final String displayName) {
-        if (displayName != null) {
-            this.displayName = displayName.intern();
-        }
-    }
-
-    public void setUai(final String uai) {
-        if (uai != null) {
-            this.uai = uai.intern();
-        }
-    }
-
-    public void setSkin(final String skin) {
-        if (skin != null) {
-            this.skin = skin.intern();
-        }
-    }
-
-    public void setSiren(final String siren) {
-        if (siren != null) {
-            this.siren = siren.intern();
-        }
-    }
-
-    public void setDomaines(final String[] domaines) {
-        if (domaines != null) {
-            this.domaines = new String[domaines.length];
-            for (int i = 0; i < domaines.length; i++) {
-                this.domaines[i] = domaines[i].intern();
-            }
-        }
-    }
-
-    public void setType(final String type) {
-        if (type != null) {
-            this.type = type.intern();
-        }
-    }
 
     @Override
     public int compareTo(final @NonNull Structure arg0) {

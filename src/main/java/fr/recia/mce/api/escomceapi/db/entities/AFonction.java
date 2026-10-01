@@ -34,13 +34,13 @@ import javax.persistence.Version;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "afonction")
-@Getter
-@Setter
+@Data
 public class AFonction implements Serializable {
 
     @Id
@@ -92,20 +92,5 @@ public class AFonction implements Serializable {
         this.dateModification = new Date();
     }
 
-    public AFonction() {
-
-    }
-
-    public AFonction(APersonne aPersonne, Date dateAcquittement, Date dateCreation, Date dateModification,
-            String categorie, String source, Date dateFin, Date dateDebut) {
-        this.aPersonne = aPersonne;
-        this.dateAcquittement = dateAcquittement;
-        this.dateCreation = dateCreation;
-        this.dateModification = dateModification;
-        this.categorie = categorie;
-        this.source = source;
-        this.dateFin = dateFin;
-        this.dateDebut = dateDebut;
-    }
 
 }

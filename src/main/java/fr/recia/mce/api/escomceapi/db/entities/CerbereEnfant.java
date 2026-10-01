@@ -27,17 +27,16 @@ import javax.persistence.Table;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
 @Table(name = "cerbere_enfant")
-@Getter
-@Setter
+@Data
 public class CerbereEnfant implements Serializable {
 
     @Id
     @Column(name = "id", unique = true, nullable = false)
+    // TODO : pourquoi un byte[] ?
     private byte[] id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -55,20 +54,5 @@ public class CerbereEnfant implements Serializable {
     @Column(name = "lienParente")
     private String lienParente;
 
-    public CerbereEnfant() {
-    }
-
-    public CerbereEnfant(final byte[] id) {
-        this.id = id;
-    }
-
-    public CerbereEnfant(final byte[] id, final APersonne aPersonneByIdParent,
-            final APersonne aPersonneByIdEnfant, final String typeRelation, final String lienParente) {
-        this.id = id;
-        this.aPersonneByIdParent = aPersonneByIdParent;
-        this.aPersonneByIdEnfant = aPersonneByIdEnfant;
-        this.typeRelation = typeRelation;
-        this.lienParente = lienParente;
-    }
 
 }

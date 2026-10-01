@@ -32,14 +32,14 @@ import javax.persistence.TemporalType;
 import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "login", uniqueConstraints = {@UniqueConstraint(columnNames = "apersonne_alias"),
         @UniqueConstraint(columnNames = "apersonne_login"), @UniqueConstraint(columnNames = "nom")})
-@Getter
-@Setter
+@Data
 public class Login implements Serializable {
 
     @Id
@@ -77,25 +77,5 @@ public class Login implements Serializable {
 
     @Column(name = "nom", unique = true, nullable = false)
     private String nom;
-
-    public Login() {
-    }
-
-    public Login(String nom) {
-        this.nom = nom;
-    }
-
-    public Login(APersonne aPersonneByAPersonneOldAlias,
-            APersonne aPersonneByAPersonneLogin,
-            APersonne aPersonneByAPersonneAlias, Date dateAcquittement,
-            Date dateCreation, Date dateModification, String nom) {
-        this.aPersonneByAPersonneOldAlias = aPersonneByAPersonneOldAlias;
-        this.aPersonneByAPersonneLogin = aPersonneByAPersonneLogin;
-        this.aPersonneByAPersonneAlias = aPersonneByAPersonneAlias;
-        this.dateAcquittement = dateAcquittement;
-        this.dateCreation = dateCreation;
-        this.dateModification = dateModification;
-        this.nom = nom;
-    }
 
 }

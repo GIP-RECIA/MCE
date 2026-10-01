@@ -28,25 +28,16 @@ import lombok.NoArgsConstructor;
 public class ExternalStructHelper {
 
     private String structIdAttribute;
-
     private String structNameAttribute;
-
     private String structDisplayNameAttribute;
-
     private String structTypeAttribute;
-
     private String structDomainesAttribute;
-
     private String structJointureAttribute;
-
     private String structUaiAttribute;
-
     private String structVilleAttribute;
-
     private String structDNSubPath;
 
     public Set<String> getAttributes() {
-
         Set<String> set = new HashSet<>();
         set.add(structIdAttribute);
         set.add(structNameAttribute);
@@ -56,7 +47,6 @@ public class ExternalStructHelper {
         set.add(structJointureAttribute);
         set.add(structUaiAttribute);
         set.add(structVilleAttribute);
-
         return set;
     }
 

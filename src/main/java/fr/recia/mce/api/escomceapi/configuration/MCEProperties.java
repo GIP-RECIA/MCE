@@ -50,16 +50,4 @@ public class MCEProperties {
         log.debug("Propriétés de l'application MCE initialisées avec succès : {}", this);
     }
 
-    @Override
-    public String toString() {
-        return "{\n\"MCEProperties\":{"
-                + ",\n\t \"cors\":" + cors
-                + ",\n\t \"avatar\":" + avatar
-                + ",\n\t \"ldap\":" + ldap
-                + ",\n\t \"service\":" + service
-                + ",\n\t \"soffit\":" + soffit
-                + ",\n\t \"security\":" + security
-                + "\n\t}\n}";
-    }
-
 }

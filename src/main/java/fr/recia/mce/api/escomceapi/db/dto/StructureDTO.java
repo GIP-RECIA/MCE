@@ -51,6 +51,7 @@ public class StructureDTO extends Structure {
     public String getNom() {
         String nom = aStructure.getNom();
         if (nom != null) {
+            // TODO : constante pour le caractère séparateur $
             nom = nom.replace('$', ' ');
             return nom.intern();
         }

@@ -39,16 +39,14 @@ import javax.persistence.Version;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
 @Table(name = "apersonne", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"source", "cle"}),
         @UniqueConstraint(columnNames = "uid")})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-@Getter
-@Setter
+@Data
 public class APersonne implements Serializable {
 
     @Id
@@ -203,67 +201,5 @@ public class APersonne implements Serializable {
     @JsonIgnore
     private Set<AStructure> astructuresForResponsableId_1 = new HashSet<>(0);
 
-    public APersonne() {
-    }
-
-    public APersonne(boolean doForward) {
-        this.doForward = doForward;
-    }
-
-    public APersonne(AStructure astructure, Date dateAcquittement,
-            Date dateCreation, Date dateModification, Date anneeScolaire,
-            String categorie, String civilite, String cle, String source,
-            String cn, Date dateNaissance, String displayName, String email,
-            String emailPersonnel, String etat, String givenName,
-            String password, String sn, String titre, String uid,
-            Date validationCharte, boolean doForward, String sambaLmpassword,
-            String sambaNtpassword,
-            String photo,
-            Set<Login> loginsForApersonneLogin,
-            Set<Login> loginsForApersonneAlias,
-            Set<CerbereEnfant> cerbereEnfantsForIdParent,
-            Set<CerbereEnfant> cerbereEnfantsForIdEnfant,
-            Set<CerbereConfirmation> cerbereConfirmations,
-            Set<Login> loginsForApersonneOldAlias,
-            Set<AStructure> astructuresForResponsableId,
-            Set<AStructure> astructuresForContactId,
-            Set<AStructure> astructuresForContactId_1,
-            Set<AStructure> astructuresForResponsableId_1) {
-        this.aStructure = astructure;
-        this.dateAcquittement = dateAcquittement;
-        this.dateCreation = dateCreation;
-        this.dateModification = dateModification;
-        this.anneeScolaire = anneeScolaire;
-        this.categorie = categorie;
-        this.civilite = civilite;
-        this.cle = cle;
-        this.source = source;
-        this.cn = cn;
-        this.dateNaissance = dateNaissance;
-        this.displayName = displayName;
-        this.email = email;
-        this.emailPersonnel = emailPersonnel;
-        this.etat = etat;
-        this.givenName = givenName;
-        this.password = password;
-        this.sn = sn;
-        this.titre = titre;
-        this.uid = uid;
-        this.validationCharte = validationCharte;
-        this.doForward = doForward;
-        this.sambaLmpassword = sambaLmpassword;
-        this.sambaNtpassword = sambaNtpassword;
-        this.photo = photo;
-        this.loginsForApersonneLogin = loginsForApersonneLogin;
-        this.loginsForApersonneAlias = loginsForApersonneAlias;
-        this.cerbereEnfantsForIdParent = cerbereEnfantsForIdParent;
-        this.cerbereEnfantsForIdEnfant = cerbereEnfantsForIdEnfant;
-        this.cerbereConfirmations = cerbereConfirmations;
-        this.loginsForApersonneOldAlias = loginsForApersonneOldAlias;
-        this.astructuresForResponsableId = astructuresForResponsableId;
-        this.astructuresForContactId = astructuresForContactId;
-        this.astructuresForContactId_1 = astructuresForContactId_1;
-        this.astructuresForResponsableId_1 = astructuresForResponsableId_1;
-    }
 
 }

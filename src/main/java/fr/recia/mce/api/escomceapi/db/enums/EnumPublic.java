@@ -48,6 +48,7 @@ import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
  * </p>
  */
 @Getter
+// TODO : à revoir
 public enum EnumPublic {
 
     /**

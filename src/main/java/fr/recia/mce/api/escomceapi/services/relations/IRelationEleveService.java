@@ -30,13 +30,13 @@ public interface IRelationEleveService {
      * @param eleve
      * @return La collection des relations de l'eleve.
      */
-    public Collection<RelationEleveContact> allRelationEleves(String eleve);
+    Collection<RelationEleveContact> allRelationEleves(String eleve);
 
     /**
      * Même que {@link #allRelationEleves(String)} mais avec l'objet LDAP déjà chargé. Évite un appel LDAP redondant quand l'appelant a déjà
      * l'{@link IExternalUser}.
      */
-    public Collection<RelationEleveContact> allRelationEleves(IExternalUser personne);
+     Collection<RelationEleveContact> allRelationEleves(IExternalUser personne);
 
     /**
      * Donne tous les élèves en relation avec un parent. Si la personne donnée n'est pas un parent renvoie null ou vide.
@@ -44,7 +44,7 @@ public interface IRelationEleveService {
      * @param parent
      * @return La collection des relations du parent
      */
-    public Collection<RelationEleveContact> allEleveEnRelation(Long parent);
+     Collection<RelationEleveContact> allEleveEnRelation(Long parent);
 
     /**
      * Donne tous les apprentis d'un maitre d'apprentissage. Si la personne n'est pas un maitre d'apprentissage ou n'a pas d'apprenti renvoie null ou vide.

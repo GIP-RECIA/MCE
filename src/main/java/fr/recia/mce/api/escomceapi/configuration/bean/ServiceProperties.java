@@ -35,13 +35,9 @@ public class ServiceProperties {
     public static class ClasseCalculatorProperties {
 
         private String ldapAttributsClasse;
-
         private String regexSirenAndClasse;
-
         private int groupSiren;
-
         private int groupClasse;
-
         private int groupMatiere;
 
     }
@@ -66,19 +62,12 @@ public class ServiceProperties {
     public static class RelationProperties {
 
         private String regexUid;
-
         private String regexRelation;
-
         private int groupUid;
-
         private int groupTypRel;
-
         private int groupRespFinance;
-
         private int groupRespLegal;
-
         private int groupCodeContact;
-
         private int groupCodePaiement;
 
     }
@@ -95,14 +84,5 @@ public class ServiceProperties {
 
     }
 
-    @Override
-    public String toString() {
-        return "{\n\"ServiceProperties\":{"
-                + ",\n \"classeProperties\":" + classeProperties
-                + ",\n \"grpPedagoProperties\":" + grpPedagoProperties
-                + ",\n \"relationProperties\":" + relationProperties
-                + ",\n \"CustomParams\":" + customParams
-                + "\n}\n}";
-    }
 
 }

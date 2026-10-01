@@ -16,6 +16,7 @@
 package fr.recia.mce.api.escomceapi.configuration;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.SecurityProperties;
+import fr.recia.mce.api.escomceapi.configuration.interceptor.RateLimitInterceptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

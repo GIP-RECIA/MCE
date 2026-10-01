@@ -30,6 +30,5 @@ import lombok.NoArgsConstructor;
 public class ValidationCharteId implements Serializable {
 
     private Long aPersonneId;
-
     private String serviceId;
 }

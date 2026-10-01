@@ -26,13 +26,13 @@ import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "enseignement")
-@Getter
-@Setter
+@Data
 public class Enseignement {
 
     @Id
@@ -51,20 +51,6 @@ public class Enseignement {
 
     @Temporal(TemporalType.DATE)
     @Column(name = "anneeScolaire", length = 10)
-    private Date anneScolaire;
+    private Date anneeScolaire;
 
-    public Enseignement() {
-
-    }
-
-    public Enseignement(final String matiere, final String source) {
-        this.matiere = matiere;
-        this.source = source;
-    }
-
-    public Enseignement(final String matiere, final String source, final String code) {
-        this.matiere = matiere;
-        this.source = source;
-        this.code = code;
-    }
 }

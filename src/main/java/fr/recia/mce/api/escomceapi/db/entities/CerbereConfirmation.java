@@ -31,13 +31,13 @@ import javax.persistence.TemporalType;
 import javax.persistence.Transient;
 
 import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "cerbere_confirmation")
-@Getter
-@Setter
+@Data
 public class CerbereConfirmation {
 
     @Id
@@ -64,27 +64,8 @@ public class CerbereConfirmation {
     private Date confirmation;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "idEditor", nullable = true)
+    @JoinColumn(name = "idEditor")
     private APersonne editor;
-
-    public CerbereConfirmation() {
-    }
-
-    public CerbereConfirmation(APersonne apersonne, Date limite, APersonne editor) {
-        this.aPersonne = apersonne;
-        this.limite = limite;
-        this.editor = editor;
-    }
-
-    public CerbereConfirmation(APersonne apersonne, String code, String mail,
-            Date limite, Date confirmation, APersonne editor) {
-        this.aPersonne = apersonne;
-        this.code = code;
-        this.mail = mail;
-        this.limite = limite;
-        this.confirmation = confirmation;
-        this.editor = editor;
-    }
 
     /**
      * Type dérivé du préfixe du code hashé (VERIFY: ou RESET:). Pas de colonne en base — le type est déterminé dynamiquement depuis {@code code}.

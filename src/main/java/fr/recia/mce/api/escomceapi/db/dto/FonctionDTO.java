@@ -37,14 +37,6 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
     private String source;
     private IExternalStructure struct;
 
-    // public String getStructureName() {
-    // String name = structure.getDisplayName();
-    // if (StringUtils.isBlank(name)) {
-    // name = structure.getNom();
-    // }
-    // return name.intern();
-    // }
-
     @Override
     public int compareTo(@NonNull FonctionDTO arg0) {
         if (this == arg0)
@@ -63,12 +55,9 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result
-                + ((discipline == null) ? 0 : discipline.hashCode());
-        result = prime * result
-                + ((fonction == null) ? 0 : fonction.hashCode());
-        result = prime * result
-                + ((structure == null) ? 0 : structure.hashCode());
+        result = prime * result + ((discipline == null) ? 0 : discipline.hashCode());
+        result = prime * result + ((fonction == null) ? 0 : fonction.hashCode());
+        result = prime * result + ((structure == null) ? 0 : structure.hashCode());
         return result;
     }
 
@@ -97,17 +86,6 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
             return structure.equals(other.structure);
     }
 
-    // public FonctionDTO(final AFonction af, final Fonction f, final
-    // Discipline d, final TypeFonctionFiliere t,
-    // final String siren) {
-    // this.aPersonne = af.getAPersonne();
-    // this.idFonction = f.getId();
-    // this.discipline = d.getId();
-    // this.filiere = t.getId();
-    // this.siren = siren;
-
-    // }
-
     public FonctionDTO(String disciplinePoste, String fonction, String source, String structure) {
         this.discipline = disciplinePoste;
         this.fonction = fonction;
@@ -115,8 +93,7 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
         this.siren = structure;
     }
 
-    public FonctionDTO(Long idFonction, String fonction, String disciplinePoste, String siren, String codeD,
-            String codeF, boolean active) {
+    public FonctionDTO(Long idFonction, String fonction, String disciplinePoste, String siren, String codeD, String codeF, boolean active) {
         this.idFonction = idFonction;
         this.discipline = disciplinePoste;
         this.fonction = fonction;

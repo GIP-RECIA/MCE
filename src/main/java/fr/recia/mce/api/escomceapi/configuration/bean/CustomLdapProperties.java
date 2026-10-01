@@ -100,6 +100,7 @@ public class CustomLdapProperties {
 
         private String ville;
 
+        // TODO : valeurs en dur
         public StructureBranchProperties() {
             this.setBaseDN("ou=structures");
             this.setGroupAttribute("member");
@@ -107,23 +108,7 @@ public class CustomLdapProperties {
             this.setDisplayNameAttribute("ESCOStructureNomCourt");
         }
 
-        @Override
-        public String toString() {
-            return "StructureBranchProperties [domaines=" + domaines + ", nameStruct=" + nameStruct
-                    + ", structureJointure=" + structureJointure + ", skin=" + skin + ", typeStruct=" + typeStruct
-                    + ", uai=" + uai + ", ville=" + ville + ", getBaseDN()=" + getBaseDN()
-                    + ", getDisplayNameAttribute()=" + getDisplayNameAttribute() + ", getGroupAttribute()="
-                    + getGroupAttribute() + ", getIdAttribute()=" + getIdAttribute() + "]";
-        }
-
     }
 
-    @Override
-    public String toString() {
-        return "{\n\"CustomLdapProperties\":{"
-                + ",\n \"userBranch\":" + userBranch
-                + ",\n \"structBranch\":" + structBranch
-                + "\n}\n}";
-    }
 
 }

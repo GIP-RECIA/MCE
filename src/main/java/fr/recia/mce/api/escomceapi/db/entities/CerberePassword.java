@@ -17,15 +17,14 @@ package fr.recia.mce.api.escomceapi.db.entities;
 
 import java.util.Date;
 import javax.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "cerbere_password", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"idPersonne", "debut"})
-})
-@Getter
-@Setter
+@Table(name = "cerbere_password", uniqueConstraints = {@UniqueConstraint(columnNames = {"idPersonne", "debut"})})
+@Data
+@NoArgsConstructor
 public class CerberePassword {
 
     @Id
@@ -47,9 +46,6 @@ public class CerberePassword {
     @Temporal(TemporalType.DATE)
     @Column(name = "fin")
     private Date fin;
-
-    public CerberePassword() {
-    }
 
     public CerberePassword(APersonne aPersonne, String password, Date debut) {
         this.aPersonne = aPersonne;

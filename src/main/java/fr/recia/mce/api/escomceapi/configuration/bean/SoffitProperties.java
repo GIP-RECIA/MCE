@@ -21,22 +21,7 @@ import lombok.Data;
 public class SoffitProperties {
 
     private String jwtSignatureKey;
-
-    /**
-     * Mode strict (recommandé en production) : le `sub` n'est lu que depuis le
-     * SecurityContext (principal HMAC vérifié par le filtre Soffit). Quand `false`
-     * (valeur par défaut, rétro-compatible), le SoffitInterceptor retombe sur le
-     * décodage tolérant du payload pour les déploiements dont le reverse proxy
-     * injecte un JWT non signé avec la clé configurée.
-     */
+    // TODO : on a toujours besoin que la personne soit authentifée ????
     private boolean requireAuthenticatedPrincipal;
-
-    @Override
-    public String toString() {
-        return "\"SoffitProperties\": {" +
-                "\n\t\"jwtSignatureKey\": \"" + jwtSignatureKey + "\"" +
-                ",\n\t\"requireAuthenticatedPrincipal\": " + requireAuthenticatedPrincipal +
-                "\n}";
-    }
 
 }

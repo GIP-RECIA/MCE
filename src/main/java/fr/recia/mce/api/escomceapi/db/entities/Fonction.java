@@ -25,13 +25,16 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
 @Table(name = "fonction")
-@Getter
-@Setter
+@Data
+@NoArgsConstructor
 public class Fonction implements Serializable {
 
     @Id
@@ -50,15 +53,7 @@ public class Fonction implements Serializable {
     @JoinColumn(name = "astructure_fk")
     private AStructure aStructure;
 
-    public Fonction() {
-    }
-
-    public Fonction(long id) {
-        this.id = id;
-    }
-
-    public Fonction(long id, Discipline discipline,
-            TypeFonctionFiliere typeFonctionFiliere, AStructure aStructure) {
+    public Fonction(long id, Discipline discipline, TypeFonctionFiliere typeFonctionFiliere, AStructure aStructure) {
         this.id = id;
         this.discipline = discipline;
         this.typeFonctionFiliere = typeFonctionFiliere;

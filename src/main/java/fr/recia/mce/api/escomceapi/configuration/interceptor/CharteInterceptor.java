@@ -92,11 +92,10 @@ public class CharteInterceptor implements HandlerInterceptor {
 
         String path = request.getRequestURI();
         String contextPath = request.getContextPath();
-        String requestPath = (contextPath != null && !contextPath.isEmpty())
-                ? path.substring(contextPath.length())
-                : path;
+        String requestPath = (contextPath != null && !contextPath.isEmpty()) ? path.substring(contextPath.length()) : path;
 
         // Chemins exclus : pas de contrôle de charte.
+        // TODO : à refaire, c'est au niveau du filtre spring security qu'on doit dire que certains path sont en permitAll
         if (isExcluded(requestPath)) {
             log.debug("[CHARTE][INTERCEPTOR] chemin exclu, aucune vérification pour uid={} path={}", uid, requestPath);
             return true;
@@ -126,6 +125,7 @@ public class CharteInterceptor implements HandlerInterceptor {
                 return false;
             }
             // Clients API/XHR : réponse JSON (gérée côté portlet frontend qui redirige vers /activation).
+            // TODO : qu'est ce que ça fait ici ?
             String charteUrl = charteService.getCharteUrl(uid);
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType("application/json;charset=UTF-8");

@@ -28,35 +28,20 @@ import lombok.NoArgsConstructor;
 public class ExternalUserHelper {
 
     private String userIdAttribute;
-
     private String userDisplayNameAttribute;
-
     private String userEmailAttribute;
-
     private String userSearchAttribute;
-
     private String userGroupAttribute;
-
     private String userEleveRelationAttribute;
-
     private String userEleveTuteurAttribute;
-
     private String userTuteurEleveAttribute;
-
     private String userEleveEnseignement;
-
     private String userCodeMatiereEnseignement;
-
     private String userAvatarAttribute;
-
     private String userEtatCompteAttribute;
-
     private String userValidationCharteAttribute;
-
     private Set<String> otherUserAttributes;
-
     private Set<String> otherUserDisplayedAttributes;
-
     private String userDNSubPath;
 
     public Set<String> getAttributes() {

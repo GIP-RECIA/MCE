@@ -28,13 +28,13 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "discipline", uniqueConstraints = @UniqueConstraint(columnNames = "code"))
-@Getter
-@Setter
+@Data
 public class Discipline {
 
     @Id
@@ -54,14 +54,4 @@ public class Discipline {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "discipline")
     private Set<Fonction> fonctions = new HashSet<>(0);
 
-    public Discipline() {
-    }
-
-    public Discipline(String code, String disciplinePoste, String source,
-            Set<Fonction> fonctions) {
-        this.code = code;
-        this.disciplinePoste = disciplinePoste;
-        this.source = source;
-        this.fonctions = fonctions;
-    }
 }

@@ -25,6 +25,7 @@ import java.util.Collection;
 @Repository
 public interface FonctionRepository extends AbstractRepository<Fonction, Long> {
 
+    // TODO : revoir la query
     @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.FonctionDTO(a.id, t.libelleFiliere, d.disciplinePoste, s.siren, d.code, t.codeFiliere, case when (a.dateDebut is null or a.dateDebut <= current_timestamp) and (a.dateFin is null or a.dateFin > current_timestamp) and (a.dateFinSource is null or a.dateFinSource > current_timestamp) then true else false end as active) "
         +
         "from AFonction a, Fonction f, AStructure s , Discipline d, TypeFonctionFiliere t " +

@@ -29,21 +29,13 @@ import lombok.Setter;
 public class ExternalStructure implements IExternalStructure {
 
     private String id;
-
     private String name;
-
     private String displayName;
-
     private String uai;
-
     private String type;
-
     private String ville;
-
     private String[] domaines;
-
     private String source;
-
     private Map<String, List<String>> attributes = new HashMap<>();
 
     @Override

@@ -36,13 +36,9 @@ import lombok.extern.slf4j.Slf4j;
 public class PersonneDTO extends Personne {
 
     private APersonne aPersonneBase;
-
     private CerbereEnfant cerbereEnfant;
-
     private Login loginBase;
-
     private StructureDTO structureDto;
-
     private String mailFromLdap;
 
     @JsonIgnore
@@ -74,8 +70,7 @@ public class PersonneDTO extends Personne {
         this(login.getAPersonneByAPersonneLogin());
     }
 
-    public PersonneDTO(final APersonne aPersonne, final CerbereEnfant enfant, final AStructure aStructure,
-            final Login login) {
+    public PersonneDTO(final APersonne aPersonne, final CerbereEnfant enfant, final AStructure aStructure, final Login login) {
         super();
         aPersonneBase = aPersonne;
         structureDto = new StructureDTO(aStructure);
@@ -115,8 +110,7 @@ public class PersonneDTO extends Personne {
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
-        result = prime * result
-                + ((getUid() == null) ? 0 : getUid().hashCode());
+        result = prime * result + ((getUid() == null) ? 0 : getUid().hashCode());
         return result;
     }
 

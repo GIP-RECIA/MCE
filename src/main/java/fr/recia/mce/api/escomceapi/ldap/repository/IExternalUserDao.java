@@ -45,8 +45,7 @@ public interface IExternalUserDao {
      * @param sambaLm hash Samba LM, {@code null} = ne pas écrire
      * @param sambaNt hash Samba NT, {@code null} = ne pas écrire
      */
-    void modifEtatLdapPassword(final String uid, final String ldapHash, final String etatCompte, final String sambaLm,
-            final String sambaNt);
+    void modifEtatLdapPassword(final String uid, final String ldapHash, final String etatCompte, final String sambaLm, final String sambaNt);
 
     void updateEmail(final String uid, final String newEmail);
 

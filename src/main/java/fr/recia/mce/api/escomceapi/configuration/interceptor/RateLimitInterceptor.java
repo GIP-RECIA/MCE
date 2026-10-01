@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.configuration;
+package fr.recia.mce.api.escomceapi.configuration.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.RateLimiter;
+import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -32,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+// TODO : à vérifier
 public class RateLimitInterceptor implements HandlerInterceptor {
 
     private final Map<String, RateLimiter> limiters = new ConcurrentHashMap<>();

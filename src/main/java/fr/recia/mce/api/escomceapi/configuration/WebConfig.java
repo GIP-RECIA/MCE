@@ -16,6 +16,7 @@
 package fr.recia.mce.api.escomceapi.configuration;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
+import fr.recia.mce.api.escomceapi.configuration.interceptor.RateLimitInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -37,6 +38,7 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     @Override
+    // TODO : il faut se resservir de la liste statique des excluded path qui avait été faite
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns(
@@ -61,11 +63,7 @@ public class WebConfig implements WebMvcConfigurer {
         config.setAllowedMethods(cors.getAllowedMethods());
         config.setAllowedHeaders(cors.getAllowedHeaders());
         config.setExposedHeaders(cors.getExposedHeaders());
-        config.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Sécurité par défaut : si CORS désactivé, on n'enregistre qu'une config vide
-        // (aucune origine autorisée → aucun header CORS émis → requêtes cross-origin bloquées).
         if (cors.isEnable()) {
             source.registerCorsConfiguration("/api/**", config);
         } else {
@@ -75,6 +73,7 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     @Override
+    // TODO : pourquoi c'est nécéssaire ????
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Réactive le service des ressources statiques (spécifiquement pour les pages
         // publiques servies par la SPA Vue/TS) alors que spring.web.resources.add-mappings=false.

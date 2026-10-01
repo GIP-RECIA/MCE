@@ -85,10 +85,10 @@ public class CharteProperties implements InitializingBean {
         if (resource == null) {
             return;
         }
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             versions.clear();
             LocalDate today = LocalDate.now();
+            // TODO : ignorer l'entête en dur à changer
             reader.lines()
                     .map(String::trim)
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
@@ -161,8 +161,8 @@ public class CharteProperties implements InitializingBean {
 
     private Resource resolveCsv() {
         if (StringUtils.isNotBlank(csvPath)) {
-            String normalized = (csvPath.startsWith("classpath:") || csvPath.startsWith("file:"))
-                    ? csvPath : "file:" + csvPath;
+            // TODO : pourquoi rajouter file ? java se débrouille déjà très bien tout seul
+            String normalized = (csvPath.startsWith("classpath:") || csvPath.startsWith("file:")) ? csvPath : "file:" + csvPath;
             Resource external = new DefaultResourceLoader().getResource(normalized);
             if (external.exists()) {
                 return external;

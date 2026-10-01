@@ -36,16 +36,14 @@ import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
 @Table(name = "astructure", uniqueConstraints = {
         @UniqueConstraint(columnNames = "siren"),
         @UniqueConstraint(columnNames = {"source", "cle"}),
         @UniqueConstraint(columnNames = "nom")})
-@Getter
-@Setter
+@Data
 public class AStructure implements Serializable {
 
     @Id
@@ -111,33 +109,4 @@ public class AStructure implements Serializable {
     @JsonIgnore
     private Set<APersonne> aPersonnes = new HashSet<>(0);
 
-    // @OneToMany(fetch = FetchType.LAZY, mappedBy = "astructure")
-    // private Set<APersonne> aPersonnes_1 = new HashSet<>(0);
-
-    public AStructure() {
-    }
-
-    public AStructure(final APersonne apersonneByContactId,
-            final APersonne apersonneByResponsableId, final Date dateAcquittement,
-            final Date dateCreation, final Date dateModification, final String categorie,
-            final String cle, final String source, final String etat, final String modeleLogin,
-            final String nom, final String siren, final String siteWeb, final Long typeStructureFk,
-            final Date anneeScolaire, final Set<APersonne> apersonnes) {
-        this.aPersonneByContactId = apersonneByContactId;
-        this.aPersonneByResponsableId = apersonneByResponsableId;
-        this.dateAcquittement = dateAcquittement;
-        this.dateCreation = dateCreation;
-        this.dateModification = dateModification;
-        this.categorie = categorie;
-        this.cle = cle;
-        this.source = source;
-        this.etat = etat;
-        this.nom = nom;
-        this.siren = siren;
-        this.siteWeb = siteWeb;
-        this.typeStructureFk = typeStructureFk;
-        this.anneeScolaire = anneeScolaire;
-        this.aPersonnes = apersonnes;
-
-    }
 }

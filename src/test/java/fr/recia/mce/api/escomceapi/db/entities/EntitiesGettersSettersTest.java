@@ -204,13 +204,13 @@ class EntitiesGettersSettersTest {
         e.setMatiere("math");
         e.setSource("src");
         e.setCode("code");
-        e.setAnneScolaire(d);
+        e.setAnneeScolaire(d);
 
         assertThat(e.getId()).isEqualTo(1L);
         assertThat(e.getMatiere()).isEqualTo("math");
         assertThat(e.getSource()).isEqualTo("src");
         assertThat(e.getCode()).isEqualTo("code");
-        assertThat(e.getAnneScolaire()).isEqualTo(d);
+        assertThat(e.getAnneeScolaire()).isEqualTo(d);
     }
 
     @Test

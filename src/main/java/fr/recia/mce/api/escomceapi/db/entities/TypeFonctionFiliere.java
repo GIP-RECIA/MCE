@@ -28,14 +28,11 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {
-        "codeFiliere", "source"}))
-@Getter
-@Setter
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"codeFiliere", "source"}))
+@Data
 public class TypeFonctionFiliere {
 
     @Id
@@ -54,22 +51,5 @@ public class TypeFonctionFiliere {
 
     @OneToMany(fetch = FetchType.LAZY)
     private Set<Fonction> fonctions = new HashSet<>(0);
-
-    public TypeFonctionFiliere() {
-
-    }
-
-    public TypeFonctionFiliere(String codeFiliere, String source) {
-        this.codeFiliere = codeFiliere;
-        this.source = source;
-    }
-
-    public TypeFonctionFiliere(String codeFiliere, String libelleFiliere,
-            String source, Set<Fonction> fonctions) {
-        this.codeFiliere = codeFiliere;
-        this.libelleFiliere = libelleFiliere;
-        this.source = source;
-        this.fonctions = fonctions;
-    }
 
 }

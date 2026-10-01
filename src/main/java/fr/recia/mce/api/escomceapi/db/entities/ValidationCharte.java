@@ -27,6 +27,7 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.persistence.UniqueConstraint;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -43,11 +44,9 @@ import lombok.Setter;
  * {@code apersonne.validationCharte} n'est plus utilisée comme source de vérité.
  */
 @Entity
-@Table(name = "validationcharteservice", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"APersonne_id", "serviceId"})})
+@Table(name = "validationcharteservice", uniqueConstraints = {@UniqueConstraint(columnNames = {"APersonne_id", "serviceId"})})
 @IdClass(ValidationCharteId.class)
-@Getter
-@Setter
+@Data
 public class ValidationCharte implements Serializable {
 
     /** Identifiant de la personne {@code apersonne} signataire. */

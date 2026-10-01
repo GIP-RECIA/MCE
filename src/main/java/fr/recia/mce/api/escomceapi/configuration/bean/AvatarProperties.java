@@ -17,6 +17,9 @@ package fr.recia.mce.api.escomceapi.configuration.bean;
 
 import lombok.Data;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Propriétés de configuration pour la gestion des avatars.
  */
@@ -30,7 +33,7 @@ public class AvatarProperties {
     /**
      * Types MIME autorisés.
      */
-    private java.util.List<String> allowedTypes = java.util.Arrays.asList("image/jpeg", "image/png");
+    private List<String> allowedTypes = Arrays.asList("image/jpeg", "image/png");
 
     /**
      * URL de base utilisée pour construire les liens publics d'accès aux avatars.
