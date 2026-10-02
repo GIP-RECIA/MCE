@@ -35,6 +35,7 @@ const configuration = ref({
         componentPath: '/resource-server/webjars/gip-recia__ui-webcomponents/dist/r-header.js',
         props: {
           'template-api-url': '/commun/portal_template_api.tpl.json',
+          'navigation-drawer-visible': '',
         },
       },
       footer: {
