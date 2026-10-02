@@ -82,23 +82,6 @@ public class SecurityConfiguration {
             "/webjars/**"
     };
 
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/personne/mce/**",
-            "/api/password/**",
-            "/api/personne/fonction/**"
-    };
-
-    private static final String[] PUBLIC_PAGES = {
-            "/mot-de-passe-oublie",
-            "/activation",
-            "/cerbere/index.html",
-            "/cerbere",
-            "/favicon.ico",
-            "/assets/**",
-            "/css/**",
-            "/js/**"
-    };
-
     /**
      * Propriétés du service CAS, avec notamment serviceID associé côté CAS
      */
@@ -259,14 +242,12 @@ public class SecurityConfiguration {
             if (!environment.acceptsProfiles(Profiles.of("prod"))) {
                 authz.antMatchers(SWAGGER_WHITELIST).permitAll();
             }
-            authz.antMatchers("/health-check").permitAll()
-                    .antMatchers(PUBLIC_ENDPOINTS).permitAll()
-                    .antMatchers(PUBLIC_PAGES).permitAll()
-                    .antMatchers("/api/**").authenticated()
-                    .antMatchers("/", "/ui/**").authenticated()
-                    // Cet endpoint doit être accessible car c'est le callback du CAS vers l'appli spring pour faire valider le ticket
-                    .antMatchers(casProperties.getCasTicketCallback()).permitAll()
-                    .anyRequest().denyAll();
+            authz
+                .antMatchers("/health-check", "/", "/ui/**").permitAll()
+                .antMatchers("/api/**").authenticated()
+                // Cet endpoint doit être accessible car c'est le callback du CAS vers l'appli spring pour faire valider le ticket
+                .antMatchers(casProperties.getCasTicketCallback()).permitAll()
+                .anyRequest().denyAll();
         });
         http.exceptionHandling(e -> e
             .authenticationEntryPoint(casAuthenticationEntryPoint(serviceProperties()))

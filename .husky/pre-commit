@@ -1,0 +1,27 @@
+error=false
+
+# Vérification de la notice
+if ./mvnw notice:check; then
+  echo "Notice OK"
+else
+  error=true
+  echo "Fix notice"
+  ./mvnw notice:generate
+fi
+
+# Vérification de la licence
+if ./scripts/license.sh 1; then
+  echo "License OK"
+else
+  error=true
+  echo "Fix license"
+  ./scripts/license.sh 2
+fi
+
+yarn run test:unit run
+yarn exec lint-staged
+
+# Vérification des erreurs
+if $error; then
+  exit 1;
+fi

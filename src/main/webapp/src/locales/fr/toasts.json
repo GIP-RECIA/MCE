@@ -1,0 +1,12 @@
+{
+  "toast": {
+    "error": {
+      "401": "Vous n'êtes pas autorisé à consulter la ressource",
+      "404": "La ressource demandé n'as pas pu être trouvée",
+      "500": "Une erreur interne au serveur est survenue",
+      "unmanaged": "Une erreur non géré est survenue",
+      "stock": "Une erreur est survenue",
+      "unknown": "Une erreur inconnue est survenue"
+    }
+  }
+}

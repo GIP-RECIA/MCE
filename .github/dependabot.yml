@@ -5,8 +5,21 @@
 
 version: 2
 updates:
-  - package-ecosystem: "maven"
-    directory: "/"
+  - package-ecosystem: npm
+    directory: /
     schedule:
-      interval: "weekly"
+      interval: monthly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Paris
+    open-pull-requests-limit: 20
+    versioning-strategy: increase
+
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Paris
     open-pull-requests-limit: 20

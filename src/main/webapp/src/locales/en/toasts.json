@@ -1,0 +1,12 @@
+{
+  "toast": {
+    "error": {
+      "401": "You are not allowed to access this ressource",
+      "404": "Ressource can not be found",
+      "500": "An internal server error has occurred",
+      "unmanaged": "An unmanaged error has occurred",
+      "stock": "An error has occurred",
+      "unknown": "An unknown error has occurred"
+    }
+  }
+}

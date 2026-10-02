@@ -1,0 +1,111 @@
+/**
+ * Copyright (C) 2023 GIP-RECIA, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use 'sass:map';
+
+@use 'ress/dist/ress.min.css';
+
+@use '@gip-recia/ui/core' as *;
+@use '@gip-recia/ui/functions' as *;
+@use '@gip-recia/ui/mixins' as *;
+@use '@gip-recia/ui/global';
+@use '@gip-recia/ui/components/buttons';
+@use '@gip-recia/ui/components/fields';
+@use '@gip-recia/ui/components/tags';
+@use '@gip-recia/ui/layouts';
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+html {
+  > body {
+    > #app {
+      background-color: var(--#{$prefix}body-bg);
+      font-family: $dm-sans;
+      font-style: normal;
+      font-weight: normal;
+      font-size: var(--#{$prefix}body-font-size);
+      letter-spacing: 0;
+      color: var(--#{$prefix}body);
+
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      grid-template-areas:
+        'header'
+        'alert'
+        'main'
+        'footer';
+
+      > header {
+        grid-area: header;
+        height: var(--#{$prefix}header-height, 68px);
+      }
+
+      > .alert {
+        grid-area: alert;
+      }
+
+      > main {
+        grid-area: main;
+        padding-top: 32px;
+        // padding-top: 40px;
+        padding-bottom: 40px;
+        display: grid;
+        grid-auto-rows: min-content;
+        row-gap: 40px;
+
+        > * {
+          min-width: 0;
+        }
+      }
+
+      > footer {
+        grid-area: footer;
+      }
+
+      @media (width >= map.get($grid-breakpoints, md)) {
+        > main {
+          // padding-top: 60px;
+          padding-bottom: 60px;
+          row-gap: 60px;
+        }
+      }
+    }
+
+    > .Toastify {
+      > .Toastify {
+        &__toast-container {
+          &--top-right {
+            top: calc(var(--#{$prefix}header-height) + 1em);
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
