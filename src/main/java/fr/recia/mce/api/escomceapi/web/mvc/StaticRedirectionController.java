@@ -19,15 +19,11 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-public class MotDePasseOublieController {
+public class StaticRedirectionController {
 
-    @GetMapping("/mot-de-passe-oublie")
-    public String pageMotDePasseOublie() {
+    @GetMapping({"/ui", "/ui/**"})
+    public String forward() {
         return "forward:/index.html";
     }
 
-    @GetMapping("/activation")
-    public String pageActivation() {
-        return "forward:/index.html";
-    }
 }
