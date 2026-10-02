@@ -2249,6 +2249,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/regenerator-runtime@npm:^0":
+  version: 0.13.8
+  resolution: "@types/regenerator-runtime@npm:0.13.8"
+  checksum: 10/85df9036f6fb6e966907b94d70bad490232c64e7d4a4ee792f7e8da8085d4800b543e6afab80adc51376399d876287f29ebbc0d4ef40c1b1c7287a19520d6ec5
+  languageName: node
+  linkType: hard
+
 "@types/tinycolor2@npm:^1.4.0":
   version: 1.4.6
   resolution: "@types/tinycolor2@npm:1.4.6"
@@ -2639,6 +2646,15 @@ __metadata:
   version: 7.0.2
   resolution: "@typescript/typescript-win32-x64@npm:7.0.2"
   conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@uportal/open-id-connect@npm:^1.40.2":
+  version: 1.40.2
+  resolution: "@uportal/open-id-connect@npm:1.40.2"
+  dependencies:
+    jwt-decode: "npm:^3.0.0"
+  checksum: 10/0e16ad2b0725e0eb1340ba30b0f2d3b7580e7a494364bfc4fab736431616738073d9125a8c6b83544c6f49974928756e2130d04932dc1e78fc81ac629c334519
   languageName: node
   linkType: hard
 
@@ -3487,6 +3503,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"classnames@npm:^2.2.6":
+  version: 2.5.1
+  resolution: "classnames@npm:2.5.1"
+  checksum: 10/58eb394e8817021b153bb6e7d782cfb667e4ab390cb2e9dac2fc7c6b979d1cc2b2a733093955fc5c94aa79ef5c8c89f11ab77780894509be6afbb91dddd79d15
+  languageName: node
+  linkType: hard
+
 "cli-cursor@npm:^3.1.0":
   version: 3.1.0
   resolution: "cli-cursor@npm:3.1.0"
@@ -3824,6 +3847,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cropperjs@npm:^1.6.2":
+  version: 1.6.3
+  resolution: "cropperjs@npm:1.6.3"
+  checksum: 10/eb6e4154fbe45cdd3fd730fc21dbae81597a2fbdac56d60d6b74fe62ef1eaaba1ca4fffd2a727bd728daff0f51178952dff423371c6e64348903a80450452447
+  languageName: node
+  linkType: hard
+
 "cross-spawn@npm:^7.0.6":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
@@ -3875,6 +3905,13 @@ __metadata:
   version: 4.4.0
   resolution: "date-fns@npm:4.4.0"
   checksum: 10/ae702acea42fb8452abe74f6d133c2360de9a14f00985645684b0df9c12280276649e95b52298a4fd7dabcc3b38799eb111107da99320d1cd94ba1d8a3d1c174
+  languageName: node
+  linkType: hard
+
+"debounce@npm:^1.2.0":
+  version: 1.2.1
+  resolution: "debounce@npm:1.2.1"
+  checksum: 10/0b95b2a9d80ed69117d890f8dab8c0f2d6066f8d20edd1d810ae51f8f366a6d4c8b1d56e97dcb9304e93d57de4d5db440d34a03def7dad50403fc3f22bf16808
   languageName: node
   linkType: hard
 
@@ -4047,6 +4084,13 @@ __metadata:
     es-errors: "npm:^1.3.0"
     gopd: "npm:^1.2.0"
   checksum: 10/5add88a3d68d42d6e6130a0cac450b7c2edbe73364bbd2fc334564418569bea97c6943a8fcd70e27130bf32afc236f30982fc4905039b703f23e9e0433c29934
+  languageName: node
+  linkType: hard
+
+"easy-bem@npm:^1.0.2":
+  version: 1.1.1
+  resolution: "easy-bem@npm:1.1.1"
+  checksum: 10/5afbb8a73b524b491c6fb49dea80992ba723301a80719d4d36f6a2e98aa2f0ec36e915e42e5d6b52a376d8f7009238b628e4a7dfbcc0e43e4bf114efe32b3015
   languageName: node
   linkType: hard
 
@@ -5880,6 +5924,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jwt-decode@npm:^3.0.0":
+  version: 3.1.2
+  resolution: "jwt-decode@npm:3.1.2"
+  checksum: 10/20a4b072d44ce3479f42d0d2c8d3dabeb353081ba4982e40b83a779f2459a70be26441be6c160bfc8c3c6eadf9f6380a036fbb06ac5406b5674e35d8c4205eeb
+  languageName: node
+  linkType: hard
+
 "katex@npm:^0.16.0":
   version: 0.16.47
   resolution: "katex@npm:0.16.47"
@@ -6212,8 +6263,10 @@ __metadata:
     "@types/jsdom": "npm:^30"
     "@types/lodash-es": "npm:^4"
     "@types/node": "npm:^24"
+    "@types/regenerator-runtime": "npm:^0"
     "@types/xml2js": "npm:^0"
     "@typescript/native": "npm:typescript@^7.0.2"
+    "@uportal/open-id-connect": "npm:^1.40.2"
     "@vitejs/plugin-vue": "npm:^6.0.9"
     "@vue/compiler-dom": "npm:^3.5.40"
     "@vue/devtools-api": "npm:^8.2.1"
@@ -6222,6 +6275,7 @@ __metadata:
     "@vueuse/core": "npm:^15.0.0"
     axios: "npm:^1.20.0"
     commit-and-tag-version: "npm:^13.2.1"
+    cropperjs: "npm:^1.6.2"
     date-fns: "npm:^4.4.0"
     dotenv: "npm:^18.0.4"
     dotenv-checker: "npm:^1.1.7"
@@ -6233,6 +6287,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     npm-run-all2: "npm:^9.0.3"
     pinia: "npm:^4.0.3"
+    regenerator-runtime: "npm:^0.14.1"
     ress: "npm:^6.0.0"
     sass: "npm:^1.105.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -6240,6 +6295,7 @@ __metadata:
     vite-plugin-vue-devtools: "npm:^8.2.1"
     vitest: "npm:^5.0.2"
     vue: "npm:^3.5.43"
+    vue-advanced-cropper: "npm:^2.8.9"
     vue-i18n: "npm:^11.4.12"
     vue-router: "npm:^5.3.1"
     vue-tsc: "npm:^3.3.11"
@@ -7630,6 +7686,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"regenerator-runtime@npm:^0.14.1":
+  version: 0.14.1
+  resolution: "regenerator-runtime@npm:0.14.1"
+  checksum: 10/5db3161abb311eef8c45bcf6565f4f378f785900ed3945acf740a9888c792f75b98ecb77f0775f3bf95502ff423529d23e94f41d80c8256e8fa05ed4b07cf471
+  languageName: node
+  linkType: hard
+
 "regexp-ast-analysis@npm:^0.7.0, regexp-ast-analysis@npm:^0.7.1":
   version: 0.7.1
   resolution: "regexp-ast-analysis@npm:0.7.1"
@@ -8712,6 +8775,19 @@ __metadata:
   version: 3.2.0
   resolution: "vscode-uri@npm:3.2.0"
   checksum: 10/2158a0a86fbd955d5430b7f5fb46156a913d2880a054dadbf8566c19aebe22ece789730c4998ad57e477ff3f0215b2cfa1e6190f796d76ca7534d2a56c00d8fd
+  languageName: node
+  linkType: hard
+
+"vue-advanced-cropper@npm:^2.8.9":
+  version: 2.8.9
+  resolution: "vue-advanced-cropper@npm:2.8.9"
+  dependencies:
+    classnames: "npm:^2.2.6"
+    debounce: "npm:^1.2.0"
+    easy-bem: "npm:^1.0.2"
+  peerDependencies:
+    vue: ^3.0.0
+  checksum: 10/6e17d63fcc8cc722c5882cbae1753e59d6dedc8362f69306ad6d485a02d798126af94c085d98faba6deb3d75ee724c1cf0fb929d75a0b22b17cd9684767b430e
   languageName: node
   linkType: hard
 

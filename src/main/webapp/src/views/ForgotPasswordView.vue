@@ -16,6 +16,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import MotDePasseOublieView from '@/components/cerbere/views/MotDePasseOublieView.vue'
 
 const { t } = useI18n()
 </script>
@@ -23,6 +24,8 @@ const { t } = useI18n()
 <template>
   <div class="container">
     <h1>{{ t('page.forgotPassword.h1') }}</h1>
+
+    <MotDePasseOublieView />
   </div>
 </template>
 

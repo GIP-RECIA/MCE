@@ -23,6 +23,14 @@ import { useI18n } from 'vue-i18n'
 import PageLayout from '@/components/PageLayout.vue'
 
 const { t } = useI18n()
+
+const {
+  VITE_MCE_API_URI,
+  VITE_USER_INFO_API_URI,
+  VITE_PORTAIL_API_URI,
+  VITE_AVATAR_DEFAULT,
+  VITE_API_PREFS_URL,
+} = import.meta.env
 </script>
 
 <template>
@@ -43,7 +51,13 @@ const { t } = useI18n()
         </a>
       </template>
 
-      <div />
+      <mce-ui
+        :mce-api="`${VITE_MCE_API_URI}/`"
+        :user-info-api-url="VITE_USER_INFO_API_URI"
+        :portail-api-url="VITE_PORTAIL_API_URI"
+        :avatar-default="VITE_AVATAR_DEFAULT"
+        :api-prefs-url="VITE_API_PREFS_URL"
+      />
     </PageLayout>
   </div>
 </template>

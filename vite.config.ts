@@ -48,6 +48,20 @@ export default ({ mode }: ConfigEnv) => {
             isCustomElement: tag => [
               'r-header',
               'r-footer',
+              // mce
+              'avatar-user',
+              'font-awesome-icon',
+              'i18n-host',
+              'info-general',
+              'list-onglet',
+              'mce-ui',
+              'modal-content',
+              'onglet-content',
+              'relation-user',
+              'section-onglet',
+              'user-base-info',
+              'info-modal',
+              'font-awesome-icon',
             ].includes(tag),
           },
         },
@@ -58,6 +72,8 @@ export default ({ mode }: ConfigEnv) => {
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src/main/webapp/src', import.meta.url)),
+        // mce
+        '@mce': fileURLToPath(new URL('./src/main/webapp/src/components/mce', import.meta.url)),
       },
     },
     server: {

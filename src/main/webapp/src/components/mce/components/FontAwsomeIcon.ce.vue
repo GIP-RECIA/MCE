@@ -15,21 +15,29 @@
 -->
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import ActivationView from '@/components/cerbere/views/ActivationView.vue'
+import type { FontAwesomeIconProps } from '@fortawesome/vue-fontawesome'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { register } from '@mce/plugins/fontawesome'
+import { onMounted, ref } from 'vue'
 
-const { t } = useI18n()
+const props = defineProps<FontAwesomeIconProps>()
+
+const iconsReady = ref(false)
+
+register()
+
+onMounted(() => {
+  iconsReady.value = true
+})
 </script>
 
 <template>
-  <div class="container">
-    <h1>{{ t('page.cerbere.h1') }}</h1>
-
-    <ActivationView />
-  </div>
+  <FontAwesomeIcon
+    v-if="iconsReady"
+    v-bind="props"
+  />
 </template>
 
-<style scoped lang="scss">
-@use 'sass:map';
-@use '@/assets/scoped' as *;
+<style lang="scss">
+@import '@fortawesome/fontawesome-svg-core/styles.css';
 </style>

@@ -26,6 +26,9 @@ import '@/plugins/date-fns.ts'
 import 'vue3-toastify/dist/index.css'
 import '@/assets/main.scss'
 
+// mce
+import '@/components/mce/main.ts'
+
 const app = createApp(App)
 
 registerDirectives(app)

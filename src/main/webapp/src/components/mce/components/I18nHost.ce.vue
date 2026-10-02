@@ -15,21 +15,15 @@
 -->
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import ActivationView from '@/components/cerbere/views/ActivationView.vue'
+import i18n from '@mce/plugins/i18n'
+import { provide } from 'vue'
+import { I18nInjectionKey } from 'vue-i18n'
 
-const { t } = useI18n()
+defineOptions({ name: 'I18nHost' })
+
+provide(I18nInjectionKey, i18n)
 </script>
 
 <template>
-  <div class="container">
-    <h1>{{ t('page.cerbere.h1') }}</h1>
-
-    <ActivationView />
-  </div>
+  <slot />
 </template>
-
-<style scoped lang="scss">
-@use 'sass:map';
-@use '@/assets/scoped' as *;
-</style>
