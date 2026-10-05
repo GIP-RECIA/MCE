@@ -52,7 +52,7 @@
     "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.1",
     "commit-and-tag-version": "^13.2.1",
-    "cropperjs": "^1.6.2",
+    "cropperjs": "^2.2.0",
     "date-fns": "^4.4.0",
     "dotenv": "^18.0.4",
     "dotenv-checker": "^1.1.7",
