@@ -16,7 +16,7 @@ limitations under the License.
 
 This project includes:
   AntLR Parser Generator under BSD License
-  Apache Commons Codec under Apache License, Version 2.0
+  Apache Commons Codec under Apache-2.0
   Apache Commons Lang under Apache License, Version 2.0
   Apache Log4j API under Apache License, Version 2.0
   Apache Log4j to SLF4J Adapter under Apache License, Version 2.0
@@ -25,18 +25,17 @@ This project includes:
   AspectJ Weaver under Eclipse Public License - v 2.0
   AssertJ fluent assertions under Apache License, Version 2.0
   attoparser under The Apache Software License, Version 2.0
+  Bouncy Castle ASN.1 Extension and Utility APIs under Bouncy Castle Licence
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs under Bouncy Castle Licence
   Bouncy Castle Provider under Bouncy Castle Licence
   Byte Buddy (without dependencies) under Apache License, Version 2.0
   Byte Buddy agent under Apache License, Version 2.0
-  Checker Qual under The MIT License
   ClassGraph under The MIT License (MIT)
   ClassMate under Apache License, Version 2.0
   Eclipse Compiler for Java(TM) under Eclipse Public License - v 2.0
   Ehcache under The Apache Software License, Version 2.0
   error-prone annotations under Apache 2.0
-  FindBugs-jsr305 under The Apache Software License, Version 2.0
-  Guava InternalFutureFailureAccess and InternalFutures under The Apache Software License, Version 2.0
+  Guava InternalFutureFailureAccess and InternalFutures under Apache License, Version 2.0
   Guava ListenableFuture only under The Apache Software License, Version 2.0
   Guava: Google Core Libraries for Java under Apache License, Version 2.0
   H2 Database Engine under MPL 2.0 or EPL 1.0
@@ -78,6 +77,7 @@ This project includes:
   JSON library from Android SDK under Apache License 2.0
   JSON Small and Fast Parser under The Apache Software License, Version 2.0
   JSONassert under The Apache Software License, Version 2.0
+  JSpecify annotations under The Apache License, Version 2.0
   JSR107 API and SPI under Apache License, Version 2.0
   JUL to SLF4J bridge under MIT License
   JUnit Jupiter (Aggregator) under Eclipse Public License v2.0
