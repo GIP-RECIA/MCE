@@ -26,7 +26,6 @@ defineOptions({ name: 'PageMce' })
 
 const props = defineProps<{
   mceApi: string
-  userInfoApiUrl: string
   avatarDefault: string
   portailApiUrl: string
   apiPrefsUrl: string
@@ -70,7 +69,7 @@ const userMailPerso = computed<string>(() => mce.value.emailPersonnel ?? '')
 
 onMounted(async () => {
   try {
-    const res = await getMCE(props.mceApi, props.userInfoApiUrl)
+    const res = await getMCE(props.mceApi)
     mce.value = res.data
 
     listOnglets.value = [
@@ -168,7 +167,6 @@ function handleAvatarUpdated() {
         :user-name="mce.userName"
         :user-mail="userMailPerso"
         :etat="mce.etat ?? ''"
-        :user-info-api-url="userInfoApiUrl"
         :mce-api="mceApi"
         @avatar-updated="handleAvatarUpdated"
       />
@@ -187,7 +185,6 @@ function handleAvatarUpdated() {
         <PreferencesNotification
           v-if="ongletCurrent === 'NOTIFICATIONS'"
           :api-prefs-url="apiPrefsUrl"
-          :user-info-api-url="userInfoApiUrl"
           :portail-api-url="portailApiUrl"
         />
 
@@ -195,7 +192,6 @@ function handleAvatarUpdated() {
           v-else
           :mce-api="mceApi"
           :current-tab="ongletCurrent"
-          :user-info-api-url="userInfoApiUrl"
           :fonction-classes-groupe="mce.fonctionClassesGroupe ?? {}"
           :parent-eleve="mce.parentEleve ?? {}"
           :relation-eleve="mce.relationEleve ?? {}"

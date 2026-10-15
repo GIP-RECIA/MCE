@@ -27,7 +27,6 @@ import { I18nInjectionKey } from 'vue-i18n'
 defineOptions({ name: 'ChangePassword' })
 
 const props = defineProps<{
-  userInfoApiUrl: string
   mceApi: string
 }>()
 
@@ -65,7 +64,7 @@ watch([currentPassword, newPassword, confirmPassword], () => {
 onMounted(async () => {
   try {
     const baseUrl = props.mceApi.replace(TRAILING_SLASH, '')
-    const { data } = await getNetworkPasswordStatus(baseUrl, props.userInfoApiUrl)
+    const { data } = await getNetworkPasswordStatus(baseUrl)
     if (data?.eligible)
       mode.value = 'network'
   }
@@ -115,7 +114,6 @@ async function handleChangePassword() {
         baseUrl,
         newPassword.value,
         confirmPassword.value,
-        props.userInfoApiUrl,
       )
       setMessage(tPwd('success-network'), 'success')
     }
@@ -125,7 +123,6 @@ async function handleChangePassword() {
         currentPassword.value,
         newPassword.value,
         confirmPassword.value,
-        props.userInfoApiUrl,
       )
       setMessage(tPwd('success'), 'success')
       currentPassword.value = ''

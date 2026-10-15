@@ -40,7 +40,6 @@ const messages = {
 describe('relationUser', () => {
   let defaultProps: {
     mceApi: string
-    userInfoApiUrl: string
     details: Relation[]
     titre: string
     onglet: string

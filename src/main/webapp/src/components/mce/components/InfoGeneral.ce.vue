@@ -25,7 +25,6 @@ defineOptions({ name: 'InfoGeneral' })
 const props = defineProps<{
   details: General
   listFonctions: any[]
-  userInfoApiUrl: string
   mceApi: string
   parentEleve: any
   apprentis: any
@@ -88,7 +87,6 @@ const hasApprentis = computed<boolean>(() => {
       :details="computedParentDetails"
       titre="student"
       :mce-api="mceApi"
-      :user-info-api-url="userInfoApiUrl"
     />
 
     <relation-user
@@ -96,7 +94,6 @@ const hasApprentis = computed<boolean>(() => {
       :details="apprentis"
       titre="master"
       :mce-api="mceApi"
-      :user-info-api-url="userInfoApiUrl"
     />
 
     <ClassesGroupesProf

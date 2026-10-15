@@ -119,7 +119,7 @@ describe('fonctionsList', () => {
   describe('cas vide', () => {
     it('ne rend rien si fonctions est vide (v-if)', () => {
       const emptyWrapper = mount(FonctionsList, {
-        props: { fonctions: [], userInfoApiUrl: '', mceApi: '' },
+        props: { fonctions: [], mceApi: '' },
         global: {
           plugins: [i18n],
           provide: { [I18nInjectionKey as symbol]: { global: i18n.global } },

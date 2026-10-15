@@ -27,7 +27,6 @@ const props = defineProps<{
   userName: string
   etat?: string
   userMail?: string | null
-  userInfoApiUrl: string
   mceApi: string
 }>()
 
@@ -118,7 +117,6 @@ const etatIcon = computed(() => {
       </div>
       <avatar-user
         :avatar="props.avatar"
-        :user-info-api-url="props.userInfoApiUrl"
         :mce-api="props.mceApi"
         @avatar-updated="emit('avatarUpdated')"
       />

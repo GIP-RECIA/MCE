@@ -25,7 +25,6 @@ defineOptions({ name: 'FonctionsList' })
 
 const props = defineProps<{
   fonctions: Array<PersonneFonction>
-  userInfoApiUrl: string
   mceApi: string
 }>()
 
@@ -88,7 +87,7 @@ async function onToggle(it: PersonneFonction): Promise<void> {
 
   try {
     const baseUrl = props.mceApi.replace(MCE_SUFFIX, '')
-    await updateFonctionDateFin(baseUrl, id, newValue, props.userInfoApiUrl)
+    await updateFonctionDateFin(baseUrl, id, newValue)
     dnmaService.toggleFonction(it.fonction ?? it.discipline)
   }
   catch (error: unknown) {

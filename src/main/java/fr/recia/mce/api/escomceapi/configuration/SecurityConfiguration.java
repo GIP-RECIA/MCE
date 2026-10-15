@@ -27,7 +27,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.cas.ServiceProperties;
@@ -143,7 +142,7 @@ public class SecurityConfiguration {
             final String domaine = "TODO";
             final String username = assertion.getPrincipal().getName();
             log.debug("User {} logged in with rights {} and {}", username, uid, domaine);
-            return new AppUser(username, "", new ArrayList<>(), "", "");
+            return new AppUser(username, "", new ArrayList<>(), uid, "");
         };
     }
 
@@ -193,9 +192,6 @@ public class SecurityConfiguration {
                         String nameId = nameIdNode != null ? nameIdNode.getTextContent() : "inconnu";
                         String ticket = sessionIndexNode != null ? sessionIndexNode.getTextContent() : "inconnu";
 
-                        // Lors du logout, le CAS envoie aussi des messages pour invalider les PGT, mais ici on ne traite que les
-                        // SessionTicket, qui commencent par ST
-
                         int index = ticket.indexOf('-');
                         boolean isSessionTicket = false;
 
@@ -243,8 +239,10 @@ public class SecurityConfiguration {
                 authz.antMatchers(SWAGGER_WHITELIST).permitAll();
             }
             authz
-                .antMatchers("/health-check", "/", "/ui/**").permitAll()
-                .antMatchers("/api/**").authenticated()
+                // On bloque la partie cerbere pour l'instant car on ne regarde que MCE
+                .antMatchers("/health-check", "/ui/assets/**").permitAll()
+                //.antMatchers("/health-check", "/ui/assets/**", "/ui/cerbere/**").permitAll()
+                .antMatchers("/", "/ui/account/**", "/api/**").authenticated()
                 // Cet endpoint doit être accessible car c'est le callback du CAS vers l'appli spring pour faire valider le ticket
                 .antMatchers(casProperties.getCasTicketCallback()).permitAll()
                 .anyRequest().denyAll();

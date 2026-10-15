@@ -23,7 +23,6 @@ import { I18nInjectionKey } from 'vue-i18n'
 defineOptions({ name: 'ChangeEmail' })
 
 const props = defineProps<{
-  userInfoApiUrl: string
   currentEmailPerso?: string
   mceApi: string
 }>()
@@ -94,7 +93,7 @@ async function handleSubmit() {
 
   try {
     const baseUrl = props.mceApi.replace(TRAILING_SLASH, '')
-    await updateEmail(baseUrl, newEmail.value, confirmEmail.value, props.userInfoApiUrl)
+    await updateEmail(baseUrl, newEmail.value, confirmEmail.value)
 
     step.value = 'code'
     message.value = tEmail('code-sent')
@@ -133,7 +132,7 @@ async function handleVerify() {
 
   try {
     const baseUrl = props.mceApi.replace(TRAILING_SLASH, '')
-    await verifyEmail(baseUrl, verificationCode.value, props.userInfoApiUrl)
+    await verifyEmail(baseUrl, verificationCode.value)
 
     step.value = 'verified'
     message.value = tEmail('verified')
@@ -163,7 +162,7 @@ async function handleResend() {
 
   try {
     const baseUrl = props.mceApi.replace(TRAILING_SLASH, '')
-    await updateEmail(baseUrl, newEmail.value, confirmEmail.value, props.userInfoApiUrl)
+    await updateEmail(baseUrl, newEmail.value, confirmEmail.value)
 
     message.value = tEmail('code-sent')
     messageType.value = 'success'

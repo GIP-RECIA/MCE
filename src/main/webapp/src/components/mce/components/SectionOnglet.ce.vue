@@ -34,7 +34,6 @@ defineOptions({ name: 'SectionOnglet' })
 const props = defineProps<{
   mceApi: string
   currentTab: string
-  userInfoApiUrl: string
   fonctionClassesGroupe: FonctionClassesGroupe
   parentEleve: PersonneRelation
   relationEleve: PersonneRelation
@@ -78,7 +77,6 @@ const props = defineProps<{
         :parent-eleve="props.parentEleve"
         :relation-eleve="props.relationEleve"
         :apprentis="props.apprentis"
-        :user-info-api-url="props.userInfoApiUrl"
       />
     </div>
 
@@ -93,7 +91,6 @@ const props = defineProps<{
     >
       <ChangePassword
         :key="`pwd-${props.currentTab}`"
-        :user-info-api-url="props.userInfoApiUrl"
         :mce-api="props.mceApi"
       />
     </div>
@@ -109,7 +106,6 @@ const props = defineProps<{
     >
       <FonctionsList
         :fonctions="props.fonctionClassesGroupe.listFonctions ?? []"
-        :user-info-api-url="props.userInfoApiUrl ?? ''"
         :mce-api="props.mceApi"
       />
     </div>
@@ -125,7 +121,6 @@ const props = defineProps<{
     >
       <ChangeEmail
         :key="`email-${props.currentTab}`"
-        :user-info-api-url="props.userInfoApiUrl"
         :mce-api="props.mceApi"
         :current-email-perso="props.userMailPerso"
       />

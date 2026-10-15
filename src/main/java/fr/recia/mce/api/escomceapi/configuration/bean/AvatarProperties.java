@@ -28,7 +28,7 @@ public class AvatarProperties {
     /**
      * Taille maximale autorisée pour un avatar en octets.
      */
-    private long maxSize = 512 * 1024; // 512 KB par défaut
+    private long maxSize = 512 * 1024;
 
     /**
      * Types MIME autorisés.

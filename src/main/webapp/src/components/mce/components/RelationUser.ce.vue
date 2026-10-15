@@ -25,7 +25,6 @@ defineOptions({ name: 'RelationUser' })
 
 const props = withDefaults(defineProps<{
   mceApi: string
-  userInfoApiUrl: string
   details?: Relation[]
   titre: string
 }>(), {
@@ -62,7 +61,7 @@ async function selectRelation(uid: string): Promise<void> {
   selectedUid.value = uid
 
   try {
-    const response = await getDetailEnfant(props.mceApi + uid, props.userInfoApiUrl)
+    const response = await getDetailEnfant(props.mceApi + uid)
     if (controller.signal.aborted)
       return
     personne.value = response.data
