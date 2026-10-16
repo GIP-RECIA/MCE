@@ -26,6 +26,7 @@ defineOptions({ name: 'PageMce' })
 
 const props = defineProps<{
   mceApi: string
+  userInfoApiUrl: string
   avatarDefault: string
   portailApiUrl: string
   apiPrefsUrl: string
@@ -185,6 +186,7 @@ function handleAvatarUpdated() {
         <PreferencesNotification
           v-if="ongletCurrent === 'NOTIFICATIONS'"
           :api-prefs-url="apiPrefsUrl"
+          :user-info-api-url="userInfoApiUrl"
           :portail-api-url="portailApiUrl"
         />
 

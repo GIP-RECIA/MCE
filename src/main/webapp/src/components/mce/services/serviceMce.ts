@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import oidc from '@uportal/open-id-connect'
+
 class ApiError extends Error {
   response: { data: any, status: number }
 
@@ -23,6 +25,16 @@ class ApiError extends Error {
   }
 }
 
+async function getToken(userInfoApiUrl: string): Promise<string | undefined> {
+  try {
+    const { encoded } = await oidc({ userInfoApiUrl })
+
+    return encoded
+  }
+  catch (error) {
+    console.error('error: ', error)
+  }
+}
 async function throwIfNotOk(response: Response, _requestUrl?: string,): Promise<void> {
   if (!response.ok) {
     const data = await response.json().catch(() => ({}))
@@ -154,9 +166,14 @@ async function verifyEmail(
   return { data: await response.json().catch(() => null) }
 }
 
-async function getPreferences(url: string, preferencesData: any) {
+async function getPreferences(url: string, preferencesData: any, userInfoApiUrl: string) {
+  const token = await getToken(userInfoApiUrl)
   const response = await fetch(url, {
     method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
   })
 
   await throwIfNotOk(response, url)
@@ -170,9 +187,14 @@ async function getPreferences(url: string, preferencesData: any) {
   }
 }
 
-async function postPreferences(url: string, preferencesData: any) {
+async function postPreferences(url: string, preferencesData: any, userInfoApiUrl: string) {
+  const token = await getToken(userInfoApiUrl)
   const response = await fetch(url, {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
     body: JSON.stringify(preferencesData),
   })
 

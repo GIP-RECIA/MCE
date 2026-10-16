@@ -26,6 +26,7 @@ defineOptions({ name: 'PreferencesNotification' })
 
 const props = defineProps<{
   apiPrefsUrl: string
+  userInfoApiUrl: string
   portailApiUrl: string
 }>()
 
@@ -170,7 +171,7 @@ function isServiceActive(priorities: Priorities): boolean {
 
 async function savePreferences() {
   try {
-    await postPreferences(`${props.apiPrefsUrl}/save`, preferences.value)
+    await postPreferences(`${props.apiPrefsUrl}/save`, preferences.value, props.userInfoApiUrl)
     console.warn('Préférences sauvegardées avec succès.')
   }
   catch (error) {
@@ -189,7 +190,7 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   try {
     const [prefsReponse, portletData] = await Promise.all([
-      getPreferences(props.apiPrefsUrl, {}),
+      getPreferences(props.apiPrefsUrl, {}, props.userInfoApiUrl),
       getAll(props.portailApiUrl),
     ])
 
