@@ -177,26 +177,6 @@ public class CerbereController {
             "Votre mot de passe réseau a été modifié avec succès"));
     }
 
-    @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-
-        // Cas public (parcours d'activation sans jeton) : l'identifiant (login.nom) doit être fourni dans le corps.
-        String uid = principal.getUid();
-        if (uid == null) {
-            uid = request.getLogin();
-        }
-        if (uid == null || uid.isBlank()) {
-            log.warn("[VERIFY_EMAIL] ÉCHEC : aucun identifiant (jeton absent et champ login vide)");
-            throw new ChampsObligatoiresException("L'identifiant est obligatoire");
-        }
-
-        log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
-
-        emailVerificationService.verifyEmail(uid, request.getCode());
-        log.info("[VERIFY_EMAIL] Succès uid={}", uid);
-        return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifié avec succès"));
-    }
-
     @GetMapping("/charte-status")
     public ResponseEntity<CharteStatusResponse> getCharteStatus(@RequestParam String uid) {
         boolean charteRequired = charteService.isCharteRequired(uid);

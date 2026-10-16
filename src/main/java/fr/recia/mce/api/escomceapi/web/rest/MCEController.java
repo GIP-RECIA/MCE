@@ -22,6 +22,7 @@ import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
@@ -30,6 +31,7 @@ import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
+import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -109,16 +111,15 @@ public class MCEController {
     /**
      * Met à jour la date de fin d'une fonction donné de l'utilisateur (utile pour désactiver une fonction)
      */
-    @PutMapping(value = "/fonction/{id}/dateFin", consumes = MediaType.TEXT_PLAIN_VALUE)
-    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody String active, @AuthenticationPrincipal AppUser principal) {
+    @PutMapping("/fonction/{id}/dateFin")
+    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody boolean active, @AuthenticationPrincipal AppUser principal) {
         String currentUid = principal.getUid();
-        boolean isActive = Boolean.parseBoolean(active);
         if (!canEditFunction(currentUid, id)) {
             log.warn("Audit [UPDATE_DATEFIN] : Tentative de modification non autorisée de la fonction id={} par [{}]", id, currentUid);
             throw new AccessDeniedException("Vous ne pouvez modifier que vos propres fonctions");
         }
-        log.debug("Mise à jour de l'état (active={}) de la fonction [id={}]", isActive, id);
-        fonctionService.updateDateFin(id, isActive);
+        log.debug("Mise à jour de l'état (active={}) de la fonction [id={}]", active, id);
+        fonctionService.updateDateFin(id, active);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
@@ -142,6 +143,20 @@ public class MCEController {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
             .body(new ErrorResponse("VERIFICATION_SENT", "Un email de vérification a été envoyé à " + request.getEmail()));
     }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
+        String uid = principal.getUid();
+        if (uid == null || uid.isBlank()) {
+            log.warn("[VERIFY_EMAIL] ÉCHEC : aucun identifiant");
+            throw new ChampsObligatoiresException("L'identifiant est obligatoire");
+        }
+        log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
+        emailVerificationService.verifyEmail(uid, request.getCode());
+        log.info("[VERIFY_EMAIL] Succès uid={}", uid);
+        return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifié avec succès"));
+    }
+
 
     @PostMapping("/avatar")
     public ResponseEntity<Void> updateAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal AppUser principal) throws Exception {

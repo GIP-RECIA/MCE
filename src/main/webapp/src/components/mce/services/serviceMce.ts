@@ -117,6 +117,9 @@ async function updateEmail(
   const response = await fetch(`${baseUrl}/update-email`, {
     method: 'PUT',
     body: JSON.stringify({ email, confirmEmail }),
+    headers: {
+      'content-type': 'application/json',
+    },
   })
   await throwIfNotOk(response, `${baseUrl}/update-email`)
   return { data: await response.json().catch(() => null) }
@@ -130,6 +133,9 @@ async function updateFonctionDateFin(
   const response = await fetch(`${baseUrl}/fonction/${idFonction}/dateFin`, {
     method: 'PUT',
     body: JSON.stringify(active),
+    headers: {
+      'content-type': 'application/json',
+    },
   })
   await throwIfNotOk(response, `${baseUrl}/fonction/${idFonction}/dateFin`)
   return { data: await response.json().catch(() => null) }
@@ -161,6 +167,9 @@ async function verifyEmail(
   const response = await fetch(`${baseUrl}/verify-email`, {
     method: 'POST',
     body: JSON.stringify({ code }),
+    headers: {
+      'content-type': 'application/json',
+    },
   })
   await throwIfNotOk(response, `${baseUrl}/verify-email`)
   return { data: await response.json().catch(() => null) }
