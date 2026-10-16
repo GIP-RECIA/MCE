@@ -32,6 +32,7 @@ import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -73,7 +74,7 @@ public class MCEController {
     /**
      * Donne les informations de l'utilisateur actuellement connecté pour pouvoir les afficher
      */
-    @GetMapping("/")
+    @GetMapping()
     public ResponseEntity<UserDTO> getMCE(@AuthenticationPrincipal AppUser principal) {
         String uid = principal.getUid();
         UserDTO user = userDTOFactory.from(uid);
@@ -108,15 +109,16 @@ public class MCEController {
     /**
      * Met à jour la date de fin d'une fonction donné de l'utilisateur (utile pour désactiver une fonction)
      */
-    @PutMapping("/fonction/{id}/dateFin")
-    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody boolean active, @AuthenticationPrincipal AppUser principal) {
+    @PutMapping(value = "/fonction/{id}/dateFin", consumes = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody String active, @AuthenticationPrincipal AppUser principal) {
         String currentUid = principal.getUid();
+        boolean isActive = Boolean.parseBoolean(active);
         if (!canEditFunction(currentUid, id)) {
             log.warn("Audit [UPDATE_DATEFIN] : Tentative de modification non autorisée de la fonction id={} par [{}]", id, currentUid);
             throw new AccessDeniedException("Vous ne pouvez modifier que vos propres fonctions");
         }
-        log.debug("Mise à jour de l'état (active={}) de la fonction [id={}]", active, id);
-        fonctionService.updateDateFin(id, active);
+        log.debug("Mise à jour de l'état (active={}) de la fonction [id={}]", isActive, id);
+        fonctionService.updateDateFin(id, isActive);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 

@@ -28,8 +28,6 @@ const props = defineProps<{
   mceApi: string
 }>()
 
-const MCE_SUFFIX = /\/mce\/?$/
-
 const message = ref('')
 const messageType = ref<'success' | 'error'>('error')
 const alertRef = ref<HTMLDivElement | null>(null)
@@ -86,8 +84,7 @@ async function onToggle(it: PersonneFonction): Promise<void> {
   const previous = !newValue
 
   try {
-    const baseUrl = props.mceApi.replace(MCE_SUFFIX, '')
-    await updateFonctionDateFin(baseUrl, id, newValue)
+    await updateFonctionDateFin(props.mceApi, id, newValue)
     dnmaService.toggleFonction(it.fonction ?? it.discipline)
   }
   catch (error: unknown) {
