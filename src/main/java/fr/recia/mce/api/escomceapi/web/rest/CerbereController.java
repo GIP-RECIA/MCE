@@ -177,19 +177,6 @@ public class CerbereController {
             "Votre mot de passe réseau a été modifié avec succès"));
     }
 
-    /**
-     * Statut du parcours « mot de passe réseau » du compte authentifié : éligibilité (CVDL ntPass sans
-     * mot de passe local stocké, état Valide, détectée côté serveur car {@code ntPass} n'est pas présent
-     * dans le jeton OIDC). Permet au portail d'afficher le bon écran.
-     */
-    @GetMapping("/network-password/status")
-    public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus(@AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
-        NetworkPasswordResetStatusDTO status = emailVerificationService.getNetworkPasswordResetStatus(uid);
-        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
-        return ResponseEntity.ok(status);
-    }
-
     @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
 
