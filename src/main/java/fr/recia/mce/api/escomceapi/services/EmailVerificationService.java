@@ -80,22 +80,21 @@ public class EmailVerificationService {
     private AttemptGuardService attemptGuardService;
 
     @Autowired
-    private PasswordResetPolicyService passwordResetPolicyService;
+    private ResendPolicyService resendPolicyService;
 
     @Transactional
     public void sendVerificationEmail(String uid, String email) {
         APersonne person = aPersonneRepository.findByUid(uid);
-        if (person == null) {
-            throw new InactiveAccountException("Aucun compte associé à cet identifiant");
-        }
 
-        // Anti-double-clic
-        passwordResetPolicyService.assertResendAllowed(cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId()), uid, "VERIFY_EMAIL");
+        // On ne renvoie pas un code si on vient d'en envoyer un autre récemment
+        List<CerbereConfirmation> cerbereConfirmationsForPerson = cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId());
+        resendPolicyService.assertResendAllowed(cerbereConfirmationsForPerson, uid, "VERIFY_EMAIL");
 
         String code = verificationCodeService.generateVerificationCode();
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Date limite = verificationCodeService.calculateExpiryDate();
 
+        // Avant tout, on supprime tous les codes encore valides
         cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
 
         CerbereConfirmation confirmation = new CerbereConfirmation();
@@ -110,7 +109,8 @@ public class EmailVerificationService {
         // Nouveau code de vérification : le compteur de tentatives repart de zéro.
         attemptGuardService.clearVerificationAttempt(person.getId());
 
-        confirmationMailSender.sendAfterCommit(() -> confirmationMailSender.sendVerificationEmail(email, code));
+        // Envoyer le mail de vérification
+        confirmationMailSender.sendVerificationEmail(email, code);
 
         log.info("Email de vérification envoyé à {} pour l'utilisateur [uid={}]", email, uid);
     }
@@ -131,7 +131,7 @@ public class EmailVerificationService {
         // en attente est détruit.
         AttemptEntry attempts = attemptGuardService.verificationAttempt(person.getId());
         attempts.touch();
-        int maxAttempts = passwordResetPolicyService.maxAttempts();
+        int maxAttempts = resendPolicyService.maxAttempts();
 
         if (attempts.count.get() >= maxAttempts) {
             log.warn("[VERIFY_EMAIL] Compteur saturé ({}/{}) uid={} : suppression du code", attempts.count.get(), maxAttempts, uid);

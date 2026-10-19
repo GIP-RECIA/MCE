@@ -68,21 +68,4 @@ public class ConfirmationMailSender {
         }
     }
 
-    /**
-     * Diffère l'envoi SMTP au commit de la transaction : un rollback ne doit pas laisser partir un code inexistant, et le SMTP lent ne doit pas retenir la
-     * connexion DB. Hors transaction (contexte sans synchronisation), l'envoi est immédiat.
-     */
-    public void sendAfterCommit(Runnable emailAction) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    emailAction.run();
-                }
-            });
-        } else {
-            emailAction.run();
-        }
-    }
-
 }

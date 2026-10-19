@@ -45,6 +45,9 @@ public class AttemptGuardService {
      */
     private final ConcurrentHashMap<String, ResetChallenge> resetChallenges = new ConcurrentHashMap<>();
 
+    /**
+     * Compteur utilisé pour le nombre de tentatives de vérifications d'email
+     */
     private final ConcurrentHashMap<Long, AttemptEntry> verificationAttempts = new ConcurrentHashMap<>();
 
     static final class ResetChallenge {

@@ -37,7 +37,7 @@ import java.util.List;
  */
 @Service
 @Slf4j
-public class PasswordResetPolicyService {
+public class ResendPolicyService {
 
     public static final String VALID_ACCOUNT_STATE = AccountState.VALIDE;
 
@@ -66,14 +66,17 @@ public class PasswordResetPolicyService {
         if (pending.isEmpty()) {
             return;
         }
+        // TODO : pas de order by donc il n'y a rien qui affime que c'est bien la dernière en terme de temps
         CerbereConfirmation last = pending.get(0);
         if (last.getLimite() == null) {
             return;
         }
-        long expiryHours = mailProperties.getVerification().getExpiryHours();
-        long estimatedCreation = last.getLimite().getTime() - (expiryHours * 3_600_000L);
-        long elapsed = System.currentTimeMillis() - estimatedCreation;
-        long cooldownMs = mceProperties.getSecurity().getResetPolicy().getResendCooldownMs();
+        // Récupération de la date de création
+        final long estimatedCreation = last.getLimite().getTime() - (mailProperties.getVerification().getExpiryHours() * 3_600_000L);
+        // Combien de temps il s'est écoulé en ms depuis la date de création
+        final long elapsed = System.currentTimeMillis() - estimatedCreation;
+        // Cooldown en dessous duquel on autorise pas de renvoyer un nouveau code
+        final long cooldownMs = mceProperties.getSecurity().getResetPolicy().getResendCooldownMs();
         if (elapsed < cooldownMs) {
             log.warn("[{}] Anti-double-clic : dernière demande il y a {} ms pour uid={}", logPrefix, elapsed, uid);
             throw new ResendCooldownActiveException(

@@ -57,7 +57,7 @@ import java.util.function.Supplier;
  *
  * <p>Service d'orchestration : chaque responsabilité technique est déléguée à un service spécialisé
  * ({@link VerificationCodeService}, {@link ConfirmationMailSender}, {@link AttemptGuardService},
- * {@link AccountEmailService}, {@link PasswordResetPolicyService}).</p>
+ * {@link AccountEmailService}, {@link ResendPolicyService}).</p>
  */
 @Service
 @Slf4j
@@ -94,15 +94,15 @@ public class PasswordResetService {
     private AccountEmailService accountEmailService;
 
     @Autowired
-    private PasswordResetPolicyService passwordResetPolicyService;
+    private ResendPolicyService resendPolicyService;
 
     /**
      * Garde commune aux parcours de réinitialisation et mot de passe réseau : refuse un compte dont l'état
      * n'est pas Valide (supprimé, bloqué, en attente...).
      */
     private void assertAccountActive(APersonne person, String logPrefix) {
-        if (passwordResetPolicyService.isInactiveAccount(person)) {
-            log.warn("[{}] État '{}' ≠ '{}' pour uid={}", logPrefix, person.getEtat(), PasswordResetPolicyService.VALID_ACCOUNT_STATE, person.getUid());
+        if (resendPolicyService.isInactiveAccount(person)) {
+            log.warn("[{}] État '{}' ≠ '{}' pour uid={}", logPrefix, person.getEtat(), ResendPolicyService.VALID_ACCOUNT_STATE, person.getUid());
             // TODO : c'est quoi ce message d'erreur ??????
             throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
         }
@@ -140,8 +140,8 @@ public class PasswordResetService {
 
         // Nouvelle demande de code : le compteur de tentatives repart de zéro.
         attemptGuardService.clearResetAttempt(person.getId());
+        confirmationMailSender.sendResetEmail(recipient, bundle.getCode());
 
-        confirmationMailSender.sendAfterCommit(() -> confirmationMailSender.sendResetEmail(recipient, bundle.getCode()));
         log.info("[{}] Code généré pour uid={} (envoi programmé après commit)", logPrefix, person.getUid());
     }
 
@@ -196,15 +196,13 @@ public class PasswordResetService {
         }
 
         // Anti-double-clic
-        passwordResetPolicyService.assertResendAllowed(
-            cerbereConfirmationRepository.findPendingPasswordResetByPersonId(person.getId()), uid, "RESET_PASSWORD");
+        resendPolicyService.assertResendAllowed(cerbereConfirmationRepository.findPendingPasswordResetByPersonId(person.getId()), uid, "RESET_PASSWORD");
 
         // Vérification de l'état du compte
         assertAccountActive(person, "RESET_PASSWORD");
 
         PersonneDTO personneDTO = loadProfileOrThrow(person);
-
-        passwordResetPolicyService.assertPasswordResetAllowed(personneDTO, uid);
+        resendPolicyService.assertPasswordResetAllowed(personneDTO, uid);
 
         // Réutilisation ou création de la confirmation, puis envoi du code
         List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
@@ -396,8 +394,7 @@ public class PasswordResetService {
         assertAccountActive(person, "PROCESS_RESET_PASSWORD");
 
         PersonneDTO personneDTO = loadProfileOrThrow(person);
-
-        passwordResetPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
+        resendPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
 
         boolean charteRequise = charteService.isCharteRequired(person);
         log.info("[PROCESS_RESET_PASSWORD] uid={} charteRequise={} (validationcharteservice) charteAccepted={}",
@@ -490,10 +487,8 @@ public class PasswordResetService {
         }
 
         // Même règle de réinitialisation que le parcours public : CVDL ntPass autorisé.
-        passwordResetPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
-
+        resendPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
         passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
-
         personneService.clearUserCaches(person.getUid());
 
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", person.getUid());
@@ -524,7 +519,7 @@ public class PasswordResetService {
         boolean eligible = false;
         PersonneDTO personneDTO = personneService.getUserByUid(uid);
         if (personneDTO != null) {
-            if (passwordResetPolicyService.isInactiveAccount(person)) {
+            if (resendPolicyService.isInactiveAccount(person)) {
                 log.info("[NETWORK_PASSWORD_RESET] Compte non actif uid={}, statut non éligible", uid);
             } else {
                 eligible = passwordService.isNoOldPassEligible(personneDTO);
@@ -550,7 +545,7 @@ public class PasswordResetService {
                                                     Supplier<Optional<CerbereConfirmation>> pendingCodeLookup, Runnable deletePendingCampaign) {
         AttemptEntry attempts = attemptGuardService.resetAttempt(person.getId());
         attempts.touch();
-        int maxAttempts = passwordResetPolicyService.maxAttempts();
+        int maxAttempts = resendPolicyService.maxAttempts();
 
         if (attempts.count.get() >= maxAttempts) {
             log.warn("[{}] Compteur saturé ({}/{}) uid={}", logPrefix, attempts.count.get(), maxAttempts, person.getUid());

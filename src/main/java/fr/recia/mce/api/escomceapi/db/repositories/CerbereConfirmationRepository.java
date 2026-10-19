@@ -84,6 +84,7 @@ public interface CerbereConfirmationRepository extends AbstractRepository<Cerber
     @Query("DELETE FROM CerbereConfirmation cc WHERE cc.aPersonne.id = :personId AND cc.confirmation IS NULL AND cc.code LIKE :likePattern")
     void deletePendingByPersonIdAndType(@Param("personId") Long personId, @Param("likePattern") String likePattern);
 
+    // TODO : méthodes default ???
     default void deletePendingEmailVerificationByPersonId(Long personId) {
         deletePendingByPersonIdAndType(personId, ConfirmationType.EMAIL_VERIFICATION.getLikePattern());
     }
