@@ -33,8 +33,6 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 @Entity
 @Table(name = "login", uniqueConstraints = {@UniqueConstraint(columnNames = "apersonne_alias"),

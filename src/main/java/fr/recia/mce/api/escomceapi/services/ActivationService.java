@@ -21,7 +21,6 @@ import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
-import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
@@ -34,7 +33,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
 import java.util.List;
 
 @Service
@@ -54,9 +52,6 @@ public class ActivationService {
 
     @Autowired
     private PasswordService passwordService;
-
-    @Autowired
-    private CharteService charteService;
 
     @Autowired
     private EmailVerificationService emailVerificationService;

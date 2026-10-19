@@ -25,9 +25,7 @@ import jakarta.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.StringUtils;
 
-import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +57,6 @@ import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
-import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

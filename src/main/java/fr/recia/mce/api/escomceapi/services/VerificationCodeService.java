@@ -67,10 +67,6 @@ public class VerificationCodeService {
         }
     }
 
-    public String getVerificationFrontendUrl() {
-        return mailProperties.getVerification().getFrontendUrl();
-    }
-
     public String generateVerificationCode() {
         int codeLength = mailProperties.getVerification().getCodeLength();
         int max = (int) Math.pow(10, codeLength);

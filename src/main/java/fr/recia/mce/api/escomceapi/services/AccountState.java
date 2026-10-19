@@ -36,6 +36,5 @@ public final class AccountState {
         return constant.equalsIgnoreCase(etat);
     }
 
-    private AccountState() {
-    }
+    private AccountState() {}
 }

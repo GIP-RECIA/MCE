@@ -28,8 +28,6 @@ import jakarta.persistence.TemporalType;
 import jakarta.persistence.UniqueConstraint;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
  * Validation de la charte d'un utilisateur pour un service donné.

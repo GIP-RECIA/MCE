@@ -210,44 +210,6 @@ public class MCEController {
     }
 
     /**
-     * Lecture des fonctions : autorisée pour soi-même ou pour toute personne en relation.
-     *
-     * @param currentUid uid du connecté
-     * @param personId   id personne (base) dont on demande les fonctions
-     */
-    private boolean canAccessFunctionProfile(String currentUid, Long personId) {
-        try {
-            PersonneDTO current = personneService.retrievePersonnebyUid(currentUid);
-            if (current == null || current.getAPersonneBase() == null) {
-                return false;
-            }
-            Long selfPersonId = current.getAPersonneBase().getId();
-            if (selfPersonId.equals(personId)) {
-                return true;
-            }
-            Set<Long> relationPersonIds = new HashSet<>();
-            Collection<RelationEleveContact> relations = relationEleveService.allRelationEleves(currentUid);
-            if (relations != null) {
-                relations.stream()
-                    .map(RelationEleveContact::getUidRelation)
-                    .filter(java.util.Objects::nonNull)
-                    .forEach(uid -> relationPersonIds.addAll(personIdsOfUid(uid)));
-            }
-            Collection<RelationEleveContact> enRelation = relationEleveService.allEleveEnRelation(selfPersonId);
-            if (enRelation != null) {
-                enRelation.stream()
-                    .map(RelationEleveContact::getUidRelation)
-                    .filter(java.util.Objects::nonNull)
-                    .forEach(uid -> relationPersonIds.addAll(personIdsOfUid(uid)));
-            }
-            return relationPersonIds.contains(personId);
-        } catch (Exception e) {
-            log.warn("Erreur lors du contrôle d'accès aux fonctions id={} par {} : {}", personId, currentUid, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
      * Mise à jour de la date de fin : autorisée uniquement pour ses propres fonctions.
      *
      * @param currentUid uid du connecté

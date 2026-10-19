@@ -18,12 +18,10 @@ package fr.recia.mce.api.escomceapi.db.repositories;
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 

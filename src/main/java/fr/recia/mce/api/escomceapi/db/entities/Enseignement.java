@@ -27,8 +27,6 @@ import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 @Entity
 @Table(name = "enseignement")

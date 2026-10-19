@@ -67,7 +67,7 @@ public class ResendPolicyService {
             return;
         }
         // TODO : pas de order by donc il n'y a rien qui affime que c'est bien la dernière en terme de temps
-        CerbereConfirmation last = pending.get(0);
+        CerbereConfirmation last = pending.getFirst();
         if (last.getLimite() == null) {
             return;
         }

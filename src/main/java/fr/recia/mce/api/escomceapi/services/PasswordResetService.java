@@ -161,7 +161,7 @@ public class PasswordResetService {
         if (profil != null && !profil.isBlank()) {
             EnumCategorie requested = EnumCategorie.fromProfile(profil);
             String dbCategorie = person.getCategorie();
-            if (requested == null || dbCategorie == null || !requested.getDbname().equalsIgnoreCase(dbCategorie)) {
+            if (requested == null || !requested.getDbname().equalsIgnoreCase(dbCategorie)) {
                 log.warn("[RESET_PASSWORD] Profil incohérent : front='{}' vs DB='{}' uid={}", profil, dbCategorie, uid);
                 throw new InvalidCodeException("Profil incohérent avec votre compte");
             }
@@ -181,7 +181,7 @@ public class PasswordResetService {
 
         if (email == null || email.isBlank()) {
             if (accountEmails.size() == 1) {
-                email = accountEmails.get(0);
+                email = accountEmails.getFirst();
                 log.info("[RESET_PASSWORD] Email auto-assigné (seul email du compte) uid={}, email={}", uid, email);
             } else {
                 log.warn("[RESET_PASSWORD] Email non fourni pour un compte avec {} emails uid={}", accountEmails.size(), uid);
@@ -272,7 +272,7 @@ public class PasswordResetService {
                 "Les informations fournies ne correspondent pas à un compte unique");
         }
 
-        APersonne target = matches.get(0);
+        APersonne target = matches.getFirst();
         try {
             sendPasswordResetCode(target.getUid(), email, request.getProfil());
         } catch (ResendCooldownActiveException e) {
@@ -377,7 +377,6 @@ public class PasswordResetService {
 
             confirmation = validatePendingCode(
                 resolvedPerson,
-                hashedCode,
                 "PROCESS_RESET_PASSWORD",
                 "Trop de tentatives échouées. Veuillez demander un nouveau code de réinitialisation.",
                 "Le code de réinitialisation est incorrect ou a déjà été utilisé. Veuillez demander un nouveau code.",
@@ -433,8 +432,8 @@ public class PasswordResetService {
     private void storeOrReuseConfirmation(APersonne person, List<CerbereConfirmation> existing,
                                           String hashedCode, String recipient, Date limite, String logPrefix) {
         CerbereConfirmation confirmation;
-        if (!existing.isEmpty() && existing.get(0).getConfirmation() == null) {
-            confirmation = existing.get(0);
+        if (!existing.isEmpty() && existing.getFirst().getConfirmation() == null) {
+            confirmation = existing.getFirst();
             log.info("[{}] Réutilisation de la confirmation existante id={}", logPrefix, confirmation.getId());
         } else {
             confirmation = new CerbereConfirmation();
@@ -535,8 +534,7 @@ public class PasswordResetService {
      *
      * @return la confirmation valide, non expirée
      */
-    private CerbereConfirmation validatePendingCode(APersonne person, String hashedCode, String logPrefix,
-                                                    String tooManyAttemptsMessage, String wrongCodeMessage, String expiredMessage,
+    private CerbereConfirmation validatePendingCode(APersonne person, String logPrefix, String tooManyAttemptsMessage, String wrongCodeMessage, String expiredMessage,
                                                     Supplier<Optional<CerbereConfirmation>> pendingCodeLookup, Runnable deletePendingCampaign) {
         AttemptEntry attempts = attemptGuardService.resetAttempt(person.getId());
         attempts.touch();

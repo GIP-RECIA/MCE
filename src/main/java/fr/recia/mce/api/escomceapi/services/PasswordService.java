@@ -149,7 +149,7 @@ public class PasswordService {
         boolean noOldPass = isNoOldPass(person);
 
         try {
-            validateRequest(person, request, noOldPass);
+            validateRequest(request, noOldPass);
         } catch (WeakPasswordException e) {
             specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
             throw e;
@@ -312,60 +312,6 @@ public class PasswordService {
                     e.getMessage());
             throw new RuntimeException("Erreur SSHA : " + e.getMessage());
         }
-    }
-
-    private boolean requiresSSHA(PersonneDTO person) {
-        if (person == null)
-            return false;
-        String uid = person.getUid() != null ? person.getUid() : "unknown";
-        String regex = mceProperties.getService()
-                .getCustomParams()
-                .getRegexGroupsWithSshaPass();
-
-        log.debug("vérificationSSHA — regex configurée pour uid={} : '{}'", uid, regex);
-
-        if (regex == null || regex.isBlank()) {
-            specialLog.warn("Audit [REQUIRES_SSHA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucune regex configurée pour les groupes SSHA", uid);
-            return false;
-        }
-
-        if (person.getExtUser() == null) {
-            specialLog.warn("Audit [REQUIRES_SSHA] : ÉCHEC pour l'utilisateur [{}] - Raison : L'objet utilisateur externe (LDAP) est nul", uid);
-            return false;
-        }
-
-        Pattern pattern;
-        try {
-            pattern = Pattern.compile(regex);
-        } catch (PatternSyntaxException e) {
-            specialLog.error("Audit [REQUIRES_SSHA] : ÉCHEC pour l'utilisateur [{}] - Raison : Motif regex invalide | Détail : {}", uid, e.getMessage());
-            return false;
-        }
-
-        List<String> groups = person.getExtUser()
-                .getAttribute(externalUserHelper.getUserGroupAttribute());
-
-        if (groups == null || groups.isEmpty()) {
-            specialLog.warn("Audit [REQUIRES_SSHA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucun groupe LDAP trouvé pour l'utilisateur", uid);
-            return false;
-        }
-
-        log.debug("vérificationSSHA — {} groupe(s) trouvé(s) pour l'uid={} :", groups.size(), person.getUid());
-
-        boolean matched = false;
-        boolean debug = log.isDebugEnabled();
-        for (String group : groups) {
-            boolean matches = pattern.matcher(group).matches();
-            if (debug) {
-                log.debug("  → groupe='{}' | correspondance={} (uid={})", group, matches, person.getUid());
-            }
-            if (matches) {
-                matched = true;
-            }
-        }
-
-        log.debug("vérificationSSHA — résultat final pour l'uid={} : withSSHA={}", person.getUid(), matched);
-        return matched;
     }
 
     // --- SAMBA SECTION ---
@@ -733,11 +679,7 @@ public class PasswordService {
     // Validation
     // ---------------------------------------------------------------
 
-    public void validateRequest(PersonneDTO person, PasswordChangeRequestDTO request) {
-        validateRequest(person, request, false);
-    }
-
-    public void validateRequest(PersonneDTO person, PasswordChangeRequestDTO request, boolean noOldPass) {
+    public void validateRequest(PasswordChangeRequestDTO request, boolean noOldPass) {
 
         if (request == null) {
             throw new IllegalArgumentException("Requête invalide");
@@ -877,7 +819,7 @@ public class PasswordService {
                 .findByAPersonne(personne.getAPersonneBase());
 
         if (history != null && !history.isEmpty()) {
-            CerberePassword last = history.get(0);
+            CerberePassword last = history.getFirst();
             if (last.getFin() == null && !isToday(last.getDebut())) {
                 last.setFin(new Date());
                 cerberePasswordRepository.save(last);
@@ -927,14 +869,10 @@ public class PasswordService {
         if (parsed == null)
             return false;
 
-        switch (parsed.algo) {
-            case ARGON2 :
-                return argon2Encoder.matches(input, parsed.hash);
-            case SSHA :
-                return verifySSHA(parsed.digest, parsed.salt, input);
-            default :
-                return false;
-        }
+        return switch (parsed.algo) {
+            case ARGON2 -> argon2Encoder.matches(input, parsed.hash);
+            case SSHA -> verifySSHA(parsed.digest, parsed.salt, input);
+        };
     }
 
     private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {

@@ -219,31 +219,6 @@ public class PersonneService {
     }
 
     /**
-     * Récupère le contenu binaire de l'avatar d'un utilisateur depuis le stockage local.
-     *
-     * @param uid
-     *            L'UID de l'utilisateur.
-     * @return Les octets de l'image, ou null si aucune image n'est trouvée.
-     * @throws RuntimeException
-     *             En cas d'erreur lors de la lecture du fichier.
-     */
-    public byte[] getAvatar(String uid) {
-        String groupDir = uid.substring(0, 2);
-        String userDir = uid.substring(2);
-        Path path = Paths.get(mceProperties.getAvatar().getStoragePath(), groupDir, userDir, mceProperties.getAvatar().getFilename());
-        if (!Files.exists(path)) {
-            log.warn("Avatar non trouvé pour le hash [{}] à l'emplacement : {}", uid, path);
-            return null;
-        }
-        try {
-            return Files.readAllBytes(path);
-        } catch (java.io.IOException e) {
-            log.error("Erreur lors de la lecture de l'avatar pour l'UID [{}] : {}", uid, e.getMessage());
-            throw new RuntimeException("Erreur lors de la lecture de l'image", e);
-        }
-    }
-
-    /**
      * Produit un hash opaque (hexadécimal) à partir de l'uid réel.
      *
      * <p>Fonction déterministe et sans sens inverse pratique (l'uid n'est pas reconstructible depuis le
@@ -548,30 +523,6 @@ public class PersonneService {
         } catch (Exception e) {
             log.warn("[ETAT_COMPTE_LDAP] Échec de la mise à jour de l'état LDAP ({}) pour uid={} : {}. La base prime, aucune action bloquante.",
                     etat, uid, e.getMessage());
-        }
-    }
-
-    /**
-     * Synchronise dans l'annuaire LDAP la liste complète des validations de charte de la personne.
-     * Chaque service est représenté par une valeur {@code serviceId;versionDate;dateSignature}.
-     * La reconstruction complète évite de perdre les validations des autres domaines lorsqu'une
-     * personne signe une nouvelle charte.
-     * La mise à jour LDAP n'est pas bloquante : en cas d'échec technique, un warning est journalisé mais la base,
-     * source de vérité, reste inchangée.
-     *
-     * @param uid
-     *            identifiant de l'utilisateur
-     */
-    public void syncValidationsCharteLdap(String uid) {
-        try {
-            APersonne person = aPersonneRepository.findByUid(uid);
-            if (person == null || person.getId() == null) {
-                throw new PersonneNotFoundException("Utilisateur introuvable : " + uid);
-            }
-            syncValidationsCharteLdap(uid, person.getId());
-        } catch (Exception e) {
-            log.warn("[VALIDATION_CHARTE_LDAP] Échec de la mise à jour des validations de charte LDAP pour uid={} : {}. La base prime, aucune action bloquante.",
-                    uid, e.getMessage());
         }
     }
 

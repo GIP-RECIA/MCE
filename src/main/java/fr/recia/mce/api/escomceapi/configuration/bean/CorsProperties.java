@@ -16,7 +16,6 @@
 package fr.recia.mce.api.escomceapi.configuration.bean;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import lombok.Data;
 

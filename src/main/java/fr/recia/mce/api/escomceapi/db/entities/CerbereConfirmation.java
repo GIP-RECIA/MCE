@@ -32,8 +32,6 @@ import jakarta.persistence.Transient;
 
 import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 @Entity
 @Table(name = "cerbere_confirmation")
