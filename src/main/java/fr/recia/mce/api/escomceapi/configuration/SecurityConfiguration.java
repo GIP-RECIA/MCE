@@ -239,10 +239,11 @@ public class SecurityConfiguration {
                 authz.requestMatchers(SWAGGER_WHITELIST).permitAll();
             }
             authz
-                // On bloque la partie cerbere pour l'instant car on ne regarde que MCE
-                .requestMatchers("/health-check", "/ui/assets/**").permitAll()
-                //.antMatchers("/health-check", "/ui/assets/**", "/ui/cerbere/**").permitAll()
-                .requestMatchers("/", "/ui/account/**", "/api/**", "/ui/index.html").authenticated()
+                // Autoriser l'accès aux ressources statiques
+                .requestMatchers("/health-check", "/ui/assets/**", "/ui/index.html").permitAll()
+                // Pour l'instant on bloque cerbere, on autorise que MCE
+                //.requestMatchers("/ui/cerbere/**").permitAll()
+                .requestMatchers("/", "/ui/account/**", "/api/mce/**").authenticated()
                 // Cet endpoint doit être accessible car c'est le callback du CAS vers l'appli spring pour faire valider le ticket
                 .requestMatchers(casProperties.getCasTicketCallback()).permitAll()
                 .anyRequest().denyAll();
