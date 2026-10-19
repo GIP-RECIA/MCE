@@ -97,10 +97,6 @@ public class EmailVerificationService {
         return verificationCodeService.generateVerificationCode();
     }
 
-    public void purgeStaleAttemptEntries() {
-        attemptGuardService.purgeStaleAttemptEntries();
-    }
-
     /**
      * Garde commune aux parcours de réinitialisation et mot de passe réseau : refuse un compte dont l'état
      * n'est pas Valide (supprimé, bloqué, en attente...).
@@ -168,18 +164,16 @@ public class EmailVerificationService {
 
     @Transactional
     public void sendVerificationEmail(String uid, String email) {
-        APersonne person = aPersonneRepository.findByLogin(uid);
+        APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
             throw new InactiveAccountException("Aucun compte associé à cet identifiant");
         }
 
         // Anti-double-clic
-        passwordResetPolicyService.assertResendAllowed(
-                cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId()), uid, "VERIFY_EMAIL");
+        passwordResetPolicyService.assertResendAllowed(cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId()), uid, "VERIFY_EMAIL");
 
         String code = verificationCodeService.generateVerificationCode();
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
-
         Date limite = verificationCodeService.calculateExpiryDate();
 
         cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
@@ -208,10 +202,7 @@ public class EmailVerificationService {
             email = email.trim();
         }
 
-        // Verrou pessimiste sur la ligne personne : deux requêtes simultanées pour le
-        // même compte sont sérialisées ; la seconde retombera sur l'anti-double-clic
-        // au lieu de créer un second code valide.
-        APersonne person = aPersonneRepository.findByLoginWithLock(login);
+        APersonne person = aPersonneRepository.findByLogin(login);
         if (person == null) {
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
@@ -442,7 +433,7 @@ public class EmailVerificationService {
 
     @Transactional
     public void verifyEmail(String uid, String code) {
-        APersonne person = aPersonneRepository.findByLogin(uid);
+        APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : utilisateur introuvable", uid);
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
@@ -674,7 +665,7 @@ public class EmailVerificationService {
             throw new InvalidCodeException("Le changement de mot de passe réseau a échoué.");
         }
 
-        APersonne person = aPersonneRepository.findByUidWithLock(uid);
+        APersonne person = aPersonneRepository.findByUid(uid);
         if (person == null) {
             throw new InactiveAccountException("Aucun compte associé à cet identifiant");
         }
