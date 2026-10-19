@@ -154,7 +154,7 @@ public class MCEController {
             throw new ChampsObligatoiresException("L'identifiant est obligatoire");
         }
         log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
-        emailVerificationService.verifyEmail(uid, request.getCode());
+        emailVerificationService.verifyEmail(uid, request.getCode(), request.isDoForward());
         log.info("[VERIFY_EMAIL] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifié avec succès"));
     }

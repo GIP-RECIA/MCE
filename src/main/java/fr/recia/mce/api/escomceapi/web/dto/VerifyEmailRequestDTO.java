@@ -22,8 +22,8 @@ import javax.validation.constraints.Pattern;
 
 @Data
 public class VerifyEmailRequestDTO {
-    private String login;
     @NotBlank(message = "Le code de verification est obligatoire")
     @Pattern(regexp = "\\d{6}", message = "Le code de verification doit comporter 6 chiffres")
     private String code;
+    private boolean doForward;
 }

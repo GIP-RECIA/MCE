@@ -95,7 +95,7 @@ public class EmailVerificationService {
     }
 
     @Transactional(noRollbackFor = MaxAttemptsExceededException.class)
-    public void verifyEmail(String uid, String code) {
+    public void verifyEmail(String uid, String code, boolean doForward) {
         APersonne person = aPersonneRepository.findByUid(uid);
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
@@ -130,6 +130,7 @@ public class EmailVerificationService {
         String email = confirmation.getMail();
         personneService.assertUpdateEmail(uid, email);
         person.setEmailPersonnel(email);
+        person.setDoForward(doForward);
 
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
