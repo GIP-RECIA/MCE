@@ -388,11 +388,12 @@ public class PersonneService {
         clearUserCaches(uid);
     }
 
-    public List<String> getDistinctCategories() {
-        return aPersonneRepository.findDistinctCategories();
-    }
 
-    public void validateEmailForUpdate(String uid, String newEmail) {        PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
+    /**
+     * Vérifie que l'utilisateur a bien le droit de changer son mail
+     */
+    public void validateEmailForUpdate(String uid, String newEmail) {
+        PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
         if (personneDTO == null) {
             log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
             throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
@@ -416,16 +417,10 @@ public class PersonneService {
         }
     }
 
-    @Transactional
-    public void updateEmail(String uid, String newEmail) {
+    public void assertUpdateEmail(String uid, String newEmail) {
         log.info("Mise à jour de l'email pour l'utilisateur [uid={}] vers : {}", uid, newEmail);
-
         validateEmailForUpdate(uid, newEmail);
-
-        // L'email est déjà enregistré dans cerbere_confirmation (via sendVerificationEmail)
-        // Pas de mise à jour dans apersonne ni LDAP - lecture dynamique depuis cerbere_confirmation
         clearUserCaches(uid);
-
         log.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
     }
 

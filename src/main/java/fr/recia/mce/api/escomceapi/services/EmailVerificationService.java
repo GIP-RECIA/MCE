@@ -90,13 +90,13 @@ public class EmailVerificationService {
         List<CerbereConfirmation> cerbereConfirmationsForPerson = cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId());
         resendPolicyService.assertResendAllowed(cerbereConfirmationsForPerson, uid, "VERIFY_EMAIL");
 
-        String code = verificationCodeService.generateVerificationCode();
-        String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
-        Date limite = verificationCodeService.calculateExpiryDate();
-
         // Avant tout, on supprime tous les codes encore valides
         cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
 
+        // On créé le nouveau code de confirmation
+        String code = verificationCodeService.generateVerificationCode();
+        String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
+        Date limite = verificationCodeService.calculateExpiryDate();
         CerbereConfirmation confirmation = new CerbereConfirmation();
         confirmation.setAPersonne(person);
         confirmation.setCode(hashedCode);
@@ -106,7 +106,7 @@ public class EmailVerificationService {
         confirmation.setEditor(person);
         cerbereConfirmationRepository.save(confirmation);
 
-        // Nouveau code de vérification : le compteur de tentatives repart de zéro.
+        // Nouveau code de vérification : le compteur de tentatives repart de zéro
         attemptGuardService.clearVerificationAttempt(person.getId());
 
         // Envoyer le mail de vérification
@@ -118,30 +118,16 @@ public class EmailVerificationService {
     @Transactional
     public void verifyEmail(String uid, String code) {
         APersonne person = aPersonneRepository.findByUid(uid);
-        if (person == null) {
-            log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : utilisateur introuvable", uid);
-            throw new InvalidCodeException("Aucun compte associé à cet identifiant");
-        }
-
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
 
-        // Même protection anti-bruteforce que pour le reset : seuls les codes
-        // incorrects consomment une tentative ; au-delà de maxAttempts le code
-        // en attente est détruit.
+        // On vérifie qu'on a pas fait trop de tentatives de vérification échouées
+        // TODO : ça ne bloque pas le code valide même si on a atteint le plafond de tentatives
         AttemptEntry attempts = attemptGuardService.verificationAttempt(person.getId());
         attempts.touch();
-        int maxAttempts = resendPolicyService.maxAttempts();
-
-        if (attempts.count.get() >= maxAttempts) {
-            log.warn("[VERIFY_EMAIL] Compteur saturé ({}/{}) uid={} : suppression du code", attempts.count.get(), maxAttempts, uid);
-            cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
-            attemptGuardService.clearVerificationAttempt(person.getId());
-            throw new MaxAttemptsExceededException("Trop de tentatives échouées. Veuillez demander un nouveau code de vérification.");
-        }
-
+        final int maxAttempts = resendPolicyService.maxAttempts();
         if (optConfirmation.isEmpty()) {
-            int currentAttempt = attempts.count.incrementAndGet();
+            final int currentAttempt = attempts.count.incrementAndGet();
             log.info("[VERIFY_EMAIL] Mauvais code, tentative {}/{} pour uid={}", currentAttempt, maxAttempts, uid);
             if (currentAttempt > maxAttempts) {
                 cerbereConfirmationRepository.deletePendingEmailVerificationByPersonId(person.getId());
@@ -154,6 +140,7 @@ public class EmailVerificationService {
 
         CerbereConfirmation confirmation = optConfirmation.get();
 
+        // On vérifie qu'on a pas validé le code trop tard
         if (confirmation.getLimite().before(new Date())) {
             log.warn("[VERIFY_EMAIL] ÉCHEC uid={} : code expiré (limite={})", uid, confirmation.getLimite());
             cerbereConfirmationRepository.delete(confirmation);
@@ -161,9 +148,9 @@ public class EmailVerificationService {
             throw new CodeExpiredException("Le code de vérification a expiré. Veuillez en demander un nouveau.");
         }
 
+        // On vérifie que la personne peut modifier le mail puis on applique la modification
         String email = confirmation.getMail();
-        // TODO : à quoi ça sert de le faire 2 fois ?
-        personneService.updateEmail(uid, email);
+        personneService.assertUpdateEmail(uid, email);
         person.setEmailPersonnel(email);
 
         confirmation.setConfirmation(new Date());
