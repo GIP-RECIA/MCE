@@ -20,7 +20,9 @@ import fr.recia.mce.api.escomceapi.security.AppUser;
 import fr.recia.mce.api.escomceapi.services.ActivationService;
 import fr.recia.mce.api.escomceapi.services.CharteService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
+import fr.recia.mce.api.escomceapi.services.PasswordResetService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.beans.RecoverUidResult;
 import fr.recia.mce.api.escomceapi.services.exception.ApiException;
 import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
@@ -61,15 +63,18 @@ import java.util.Map;
 public class CerbereController {
 
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
     private final CharteService charteService;
     private final ActivationService activationService;
     private final PersonneService personneService;
 
-    public CerbereController(EmailVerificationService emailVerificationService, CharteService charteService, ActivationService activationService, PersonneService personneService) {
+    public CerbereController(EmailVerificationService emailVerificationService, CharteService charteService, ActivationService activationService,
+                             PersonneService personneService, PasswordResetService passwordResetService) {
         this.emailVerificationService = emailVerificationService;
         this.charteService = charteService;
         this.activationService = activationService;
         this.personneService = personneService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/forgot-password")
@@ -83,7 +88,7 @@ public class CerbereController {
         log.info("[FORGOT_PASSWORD] Demande login={}, email={}, profil={}", login, email, profil);
 
         try {
-            emailVerificationService.sendPasswordResetCode(login, email, profil);
+            passwordResetService.sendPasswordResetCode(login, email, profil);
         } catch (ResendCooldownActiveException e) {
             // Anti-double-clic : laisser le GlobalExceptionHandler répondre 429 avec le temps restant.
             throw e;
@@ -118,7 +123,7 @@ public class CerbereController {
         // est unique. Réponse volontairement générique : aucun détail ne distingue un email inexistant,
         // un compte sans mot de passe local, une cible ambiguë, etc. → pas d'énumération d'utilisateurs,
         // pas de fuite d'uid. (see EmailVerificationService.recoverUid)
-        EmailVerificationService.RecoverUidResult result = emailVerificationService.recoverUid(request);
+        RecoverUidResult result = passwordResetService.recoverUid(request);
 
         log.info("[RECOVER_UID] Réponse générique envoyée pour email={} (code envoyé ? {})",
             request.getEmail(), result != null);
@@ -149,7 +154,7 @@ public class CerbereController {
         String login = request.getLogin();
         log.info("[RESET_PASSWORD] Demande login={}, charteAccepted={}", login, request.isCharteAccepted());
 
-        emailVerificationService.processResetPassword(
+        passwordResetService.processResetPassword(
             login, request.getResetToken(), request.getCode(),
             request.getNewPassword(), request.getConfirmPassword(),
             request.isCharteAccepted());
@@ -169,8 +174,7 @@ public class CerbereController {
         String uid = principal.getUid();
         log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
 
-        emailVerificationService.changeNetworkPassword(
-            uid, request.getNewPassword(), request.getConfirmPassword());
+        passwordResetService.changeNetworkPassword(uid, request.getNewPassword(), request.getConfirmPassword());
 
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS",

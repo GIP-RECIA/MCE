@@ -39,7 +39,7 @@ import java.util.List;
 @Slf4j
 public class PasswordResetPolicyService {
 
-    static final String VALID_ACCOUNT_STATE = AccountState.VALIDE;
+    public static final String VALID_ACCOUNT_STATE = AccountState.VALIDE;
 
     @Autowired
     private MCEProperties mceProperties;

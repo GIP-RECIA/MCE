@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
+import fr.recia.mce.api.escomceapi.services.beans.AttemptEntry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,29 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 @Slf4j
 public class AttemptGuardService {
-
-    /**
-     * Durée de conservation d'une entrée de compteur de tentatives : doit dépasser la durée de vie d'un code (expiryHours) pour ne pas purger un compteur
-     * encore pertinent, tout en libérant la mémoire des comptes abandonnés en cours de route.
-     */
-    private static final long ATTEMPT_ENTRY_TTL_MS = 2 * 3_600_000L;
-
-    /**
-     * Compteur de tentatives horodaté : le champ {@code lastTouchMs} est rafraîchi à chaque accès (bon ou mauvais code), ce qui permet à
-     * {@link #purgeStaleAttemptEntries()} de supprimer les entrées des utilisateurs partis sans conclure.
-     */
-    static final class AttemptEntry {
-        final AtomicInteger count = new AtomicInteger(0);
-        volatile long lastTouchMs = System.currentTimeMillis();
-
-        boolean isStale(long nowMs) {
-            return nowMs - lastTouchMs >= ATTEMPT_ENTRY_TTL_MS;
-        }
-
-        void touch() {
-            lastTouchMs = System.currentTimeMillis();
-        }
-    }
 
     /**
      * Compteur de tentatives par personne pour la réinitialisation du mot de passe (uid connu).

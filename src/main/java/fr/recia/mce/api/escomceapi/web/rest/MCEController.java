@@ -20,6 +20,7 @@ import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.security.AppUser;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
+import fr.recia.mce.api.escomceapi.services.PasswordResetService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
@@ -34,7 +35,6 @@ import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
 import fr.recia.mce.api.escomceapi.web.dto.VerifyEmailRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -63,14 +63,16 @@ public class MCEController {
     private final IRelationEleveService relationEleveService;
     private final IUserDTOFactory userDTOFactory;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
 
     public MCEController(FonctionService fonctionService, PersonneService personneService, IRelationEleveService relationEleveService,
-                         IUserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService) {
+                         IUserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService) {
         this.fonctionService = fonctionService;
         this.personneService = personneService;
         this.relationEleveService = relationEleveService;
         this.userDTOFactory = userDTOFactory;
         this.emailVerificationService = emailVerificationService;
+        this.passwordResetService = passwordResetService;
     }
 
     /**
@@ -173,7 +175,7 @@ public class MCEController {
     @GetMapping("/network-password/status")
     public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus(@AuthenticationPrincipal AppUser principal) {
         String uid = principal.getUid();
-        NetworkPasswordResetStatusDTO status = emailVerificationService.getNetworkPasswordResetStatus(uid);
+        NetworkPasswordResetStatusDTO status = passwordResetService.getNetworkPasswordResetStatus(uid);
         log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
         return ResponseEntity.ok(status);
     }
