@@ -15,47 +15,26 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
-import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
-import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.services.beans.AttemptEntry;
-import fr.recia.mce.api.escomceapi.services.exception.CharteNotAcceptedException;
-import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.CodeExpiredException;
-import fr.recia.mce.api.escomceapi.services.exception.ContactAdminException;
-import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
-import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
-import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
-import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
-import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
 import java.util.Date;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Supplier;
 
 /**
- * Coordination du cycle de vérification d'email et de réinitialisation de mot de passe.
- *
- * <p>Service d'orchestration : chaque responsabilité technique est déléguée à un service spécialisé
- * ({@link VerificationCodeService}, {@link ConfirmationMailSender}, {@link AttemptGuardService},
- * {@link AccountEmailService}, {@link PasswordResetPolicyService}).</p>
+ * Service de vérification de mail (envoi et validation de code)
  */
 @Service
 @Slf4j
@@ -115,14 +94,13 @@ public class EmailVerificationService {
         log.info("Email de vérification envoyé à {} pour l'utilisateur [uid={}]", email, uid);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = MaxAttemptsExceededException.class)
     public void verifyEmail(String uid, String code) {
         APersonne person = aPersonneRepository.findByUid(uid);
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
 
         // On vérifie qu'on a pas fait trop de tentatives de vérification échouées
-        // TODO : ça ne bloque pas le code valide même si on a atteint le plafond de tentatives
         AttemptEntry attempts = attemptGuardService.verificationAttempt(person.getId());
         attempts.touch();
         final int maxAttempts = resendPolicyService.maxAttempts();
