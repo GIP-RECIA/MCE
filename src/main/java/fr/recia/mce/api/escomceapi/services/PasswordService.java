@@ -67,7 +67,7 @@ public class PasswordService {
     // Marqueur actif complet pour les comptes valides SANS mot de passe local : "{SSHA}Active" + 50 "="
     public static final String ACTIVE = PREFIXCODE + "Active" + "=".repeat(50);
 
-    private static final Argon2PasswordEncoder argon2Encoder = new Argon2PasswordEncoder();
+    private static final Argon2PasswordEncoder argon2Encoder = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
 
     // private static final Pattern HASH_PATTERN = Pattern.compile("\\{((SSHA)|(ARGON2))\\}(.+)");
     private static final Pattern HASH_PATTERN = Pattern.compile("\\{([A-Z0-9]+)\\}(.+)");

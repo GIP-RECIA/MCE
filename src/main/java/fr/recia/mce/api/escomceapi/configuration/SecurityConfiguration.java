@@ -21,8 +21,8 @@ import fr.recia.mce.api.escomceapi.configuration.cas.CustomCasAuthenticationEntr
 import fr.recia.mce.api.escomceapi.configuration.cas.CustomCasSuccessHandler;
 import fr.recia.mce.api.escomceapi.configuration.cas.CustomSessionMappingStorage;
 import fr.recia.mce.api.escomceapi.security.AppUser;
-import org.jasig.cas.client.session.SingleSignOutFilter;
-import org.jasig.cas.client.validation.Assertion;
+import org.apereo.cas.client.session.SingleSignOutFilter;
+import org.apereo.cas.client.validation.Assertion;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -41,11 +41,11 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.core.userdetails.AuthenticationUserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -236,15 +236,15 @@ public class SecurityConfiguration {
         http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(authz -> {
             if (!environment.acceptsProfiles(Profiles.of("prod"))) {
-                authz.antMatchers(SWAGGER_WHITELIST).permitAll();
+                authz.requestMatchers(SWAGGER_WHITELIST).permitAll();
             }
             authz
                 // On bloque la partie cerbere pour l'instant car on ne regarde que MCE
-                .antMatchers("/health-check", "/ui/assets/**").permitAll()
+                .requestMatchers("/health-check", "/ui/assets/**").permitAll()
                 //.antMatchers("/health-check", "/ui/assets/**", "/ui/cerbere/**").permitAll()
-                .antMatchers("/", "/ui/account/**", "/api/**").authenticated()
+                .requestMatchers("/", "/ui/account/**", "/api/**", "/ui/index.html").authenticated()
                 // Cet endpoint doit être accessible car c'est le callback du CAS vers l'appli spring pour faire valider le ticket
-                .antMatchers(casProperties.getCasTicketCallback()).permitAll()
+                .requestMatchers(casProperties.getCasTicketCallback()).permitAll()
                 .anyRequest().denyAll();
         });
         http.exceptionHandling(e -> e

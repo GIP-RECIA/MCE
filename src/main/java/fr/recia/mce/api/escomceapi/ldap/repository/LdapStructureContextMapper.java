@@ -15,14 +15,14 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
-import javax.naming.NamingException;
-
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 
 import fr.recia.mce.api.escomceapi.ldap.ExternalStructHelper;
 import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
+
+import javax.naming.NamingException;
 
 public class LdapStructureContextMapper implements ContextMapper<IExternalStructure> {
 

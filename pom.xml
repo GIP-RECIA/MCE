@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.7.11</version>
+    <version>4.1.0</version>
     <relativePath/>
   </parent>
 
@@ -36,10 +36,11 @@
   </distributionManagement>
 
   <properties>
-    <check.java.version>11</check.java.version>
-    <java.version>11</java.version>
+    <check.java.version>25</check.java.version>
+    <java.version>25</java.version>
     <maven.javadoc.failOnError>false</maven.javadoc.failOnError>
     <springdoc-api.version>1.8.0</springdoc-api.version>
+    <querydsl.version>5.1.0</querydsl.version>
   </properties>
 
   <dependencies>
@@ -71,7 +72,6 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -118,7 +118,8 @@
     <dependency>
       <groupId>org.ehcache</groupId>
       <artifactId>ehcache</artifactId>
-      <version>3.8.1</version>
+      <version>3.11.1</version>
+      <classifier>jakarta</classifier>
     </dependency>
     <dependency>
       <groupId>javax.cache</groupId>
@@ -134,16 +135,17 @@
     </dependency>
     <dependency>
       <groupId>com.querydsl</groupId>
-      <artifactId>querydsl-apt</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.querydsl</groupId>
-      <artifactId>querydsl-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.querydsl</groupId>
       <artifactId>querydsl-jpa</artifactId>
+      <version>${querydsl.version}</version>
+      <classifier>jakarta</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>com.querydsl</groupId>
+      <artifactId>querydsl-apt</artifactId>
+      <version>${querydsl.version}</version>
+      <classifier>jakarta</classifier>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -366,6 +368,12 @@
           <compilerArgs>
             <arg>-Xlint:all</arg>
           </compilerArgs>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>
@@ -461,18 +469,6 @@
         <groupId>org.sonarsource.scanner.maven</groupId>
         <artifactId>sonar-maven-plugin</artifactId>
         <version>5.8.0.7211</version>
-      </plugin>
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>
-              <groupId>org.projectlombok</groupId>
-              <artifactId>lombok</artifactId>
-            </exclude>
-          </excludes>
-        </configuration>
       </plugin>
     </plugins>
   </build>

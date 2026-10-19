@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.naming.NamingException;
-
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 
@@ -30,6 +28,8 @@ import com.google.common.collect.Lists;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUser;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+
+import javax.naming.NamingException;
 
 public class LdapUserContextMapper implements ContextMapper<IExternalUser> {
 

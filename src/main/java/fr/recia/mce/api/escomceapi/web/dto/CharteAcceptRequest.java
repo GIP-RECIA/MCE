@@ -15,7 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.web.dto;
 
-import javax.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.AssertTrue;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
