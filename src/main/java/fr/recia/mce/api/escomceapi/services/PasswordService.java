@@ -150,11 +150,9 @@ public class PasswordService {
 
         try {
             validateRequest(person, request, noOldPass);
-
         } catch (WeakPasswordException e) {
             specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
             throw e;
-
         } catch (IllegalArgumentException e) {
             specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de vérification du mot de passe | Détail : {}", uid,
                     e.getMessage());

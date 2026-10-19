@@ -18,6 +18,7 @@ package fr.recia.mce.api.escomceapi.web.rest;
 
 import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
 import fr.recia.mce.api.escomceapi.security.AppUser;
+import fr.recia.mce.api.escomceapi.services.ChangePasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordResetService;
@@ -64,15 +65,17 @@ public class MCEController {
     private final IUserDTOFactory userDTOFactory;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
+    private final ChangePasswordService changePasswordService;
 
     public MCEController(FonctionService fonctionService, PersonneService personneService, IRelationEleveService relationEleveService,
-                         IUserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService) {
+                         IUserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService, ChangePasswordService changePasswordService) {
         this.fonctionService = fonctionService;
         this.personneService = personneService;
         this.relationEleveService = relationEleveService;
         this.userDTOFactory = userDTOFactory;
         this.emailVerificationService = emailVerificationService;
         this.passwordResetService = passwordResetService;
+        this.changePasswordService = changePasswordService;
     }
 
     /**
@@ -128,7 +131,7 @@ public class MCEController {
     @PostMapping("/change-password")
     public ResponseEntity<Void> changePass(@Valid @RequestBody PasswordChangeRequestDTO request, @AuthenticationPrincipal AppUser principal) {
         String uid = principal.getUid();
-        userDTOFactory.changePassword(uid, request);
+        changePasswordService.changePassword(uid, request);
         return ResponseEntity.noContent().build();
     }
 

@@ -75,6 +75,9 @@ async function postPassword(
   const response = await fetch(`${baseUrl}/change-password`, {
     method: 'POST',
     body: JSON.stringify({ oldPass, newPass, confirmPass }),
+    headers: {
+      'content-type': 'application/json',
+    },
   })
   await throwIfNotOk(response, `${baseUrl}/change-password`)
   return { data: await response.json().catch(() => null) }
@@ -104,6 +107,9 @@ async function resetNetworkPassword(
   const response = await fetch(`${baseUrl}/network-password/reset`, {
     method: 'POST',
     body: JSON.stringify({ newPassword: newPass, confirmPassword: confirmPass }),
+    headers: {
+      'content-type': 'application/json',
+    },
   })
   await throwIfNotOk(response, `${baseUrl}/network-password/reset`)
   return { data: await response.json().catch(() => null) }
@@ -154,6 +160,9 @@ async function updateAvatar(
   formData.append('file', file)
   const response = await fetch(`${baseUrl}/avatar`, {
     method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
     body: formData,
   })
   await throwIfNotOk(response, `${baseUrl}/avatar`)

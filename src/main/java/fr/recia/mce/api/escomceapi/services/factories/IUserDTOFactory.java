@@ -65,6 +65,4 @@ public interface IUserDTOFactory {
     UserDTO from(@NotNull final String uid);
 
     InfoGeneralDTO showGeneralInfo();
-
-    void changePassword(final String uid, final PasswordChangeRequestDTO req);
 }

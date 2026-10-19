@@ -348,11 +348,6 @@ public class PasswordResetService {
     }
 
     @Transactional
-    public void processResetPassword(String login, String code, String newPassword, String confirmPassword, boolean charteAccepted) {
-        processResetPassword(login, null, code, newPassword, confirmPassword, charteAccepted);
-    }
-
-    @Transactional
     public void processResetPassword(String login, String resetToken, String code, String newPassword,
                                      String confirmPassword, boolean charteAccepted) {
         log.info("[PROCESS_RESET_PASSWORD] Début identifiant={}", login);
