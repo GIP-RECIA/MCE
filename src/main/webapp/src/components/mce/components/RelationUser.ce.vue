@@ -61,7 +61,7 @@ async function selectRelation(uid: string): Promise<void> {
   selectedUid.value = uid
 
   try {
-    const response = await getDetailEnfant(props.mceApi + uid)
+    const response = await getDetailEnfant(props.mceApi + "/" + uid)
     if (controller.signal.aborted)
       return
     personne.value = response.data
