@@ -61,15 +61,12 @@ public class Login implements Serializable {
     @JoinColumn(name = "apersonne_alias", unique = true)
     private APersonne aPersonneByAPersonneAlias;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateAcquittement", length = 19)
     private Date dateAcquittement;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateCreation", length = 19)
     private Date dateCreation;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateModification", length = 19)
     private Date dateModification;
 

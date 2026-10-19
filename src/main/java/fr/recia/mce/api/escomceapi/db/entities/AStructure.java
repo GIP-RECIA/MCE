@@ -65,15 +65,12 @@ public class AStructure implements Serializable {
     @JsonIgnore
     private APersonne aPersonneByResponsableId;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateAcquittement")
     private Date dateAcquittement;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateCreation")
     private Date dateCreation;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateModification", length = 19)
     private Date dateModification;
 
@@ -101,7 +98,6 @@ public class AStructure implements Serializable {
     @Column(name = "type_structure_fk")
     private Long typeStructureFk;
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "anneeScolaire", length = 10)
     private Date anneeScolaire;
 

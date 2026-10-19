@@ -53,11 +53,9 @@ public class CerbereConfirmation {
     @Column(name = "mail")
     private String mail;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "limite", nullable = false, length = 19)
     private Date limite;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "confirmation", length = 19)
     private Date confirmation;
 

@@ -65,19 +65,15 @@ public class APersonne implements Serializable {
     @JsonIgnore
     private AStructure aStructure;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateAcquittement", length = 19)
     private Date dateAcquittement;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateCreation")
     private Date dateCreation;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateModification", length = 19)
     private Date dateModification;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateSourceModification")
     private Date dateSourceModification;
 
@@ -86,7 +82,6 @@ public class APersonne implements Serializable {
         this.dateSourceModification = new Date();
     }
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "anneeScolaire", length = 10)
     private Date anneeScolaire;
 
@@ -106,7 +101,6 @@ public class APersonne implements Serializable {
     @Column(name = "cn")
     private String cn;
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "dateNaissance", length = 10)
     private Date dateNaissance;
 
@@ -139,7 +133,6 @@ public class APersonne implements Serializable {
     @JsonIgnore
     private String uid;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "validationCharte")
     private Date validationCharte;
 

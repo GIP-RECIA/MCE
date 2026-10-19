@@ -47,7 +47,6 @@ public class Enseignement {
     @Column(name = "code", length = 20)
     private String code;
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "anneeScolaire", length = 10)
     private Date anneeScolaire;
 

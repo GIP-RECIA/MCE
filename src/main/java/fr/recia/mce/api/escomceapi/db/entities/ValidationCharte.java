@@ -58,12 +58,10 @@ public class ValidationCharte implements Serializable {
     private String serviceId;
 
     /** Date de version de la charte du service signée. */
-    @Temporal(TemporalType.DATE)
     @Column(name = "charterVersionDate", nullable = false)
     private Date charterVersionDate;
 
     /** Date/heure de validation (signature effective). */
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "validatedAt", nullable = false)
     private Date validatedAt;
 }

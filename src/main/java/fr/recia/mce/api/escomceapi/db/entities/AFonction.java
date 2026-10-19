@@ -55,15 +55,12 @@ public class AFonction implements Serializable {
     @JsonIgnore
     private APersonne aPersonne;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateAcquittement", length = 19)
     private Date dateAcquittement;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateCreation", length = 19)
     private Date dateCreation;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateModification", length = 19)
     private Date dateModification;
 
@@ -73,15 +70,12 @@ public class AFonction implements Serializable {
     @Column(name = "source")
     private String source;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateFin", length = 19)
     private Date dateFin;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateDebut", length = 19)
     private Date dateDebut;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "dateFinSource", length = 19)
     private Date dateFinSource;
 

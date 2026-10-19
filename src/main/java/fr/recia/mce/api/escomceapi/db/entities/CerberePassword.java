@@ -39,11 +39,9 @@ public class CerberePassword {
     @Column(name = "password", nullable = false)
     private String password;
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "debut", nullable = false)
     private Date debut;
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "fin")
     private Date fin;
 
