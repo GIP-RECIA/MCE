@@ -51,6 +51,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
@@ -223,8 +224,9 @@ public class SecurityConfiguration {
                     } catch (Exception e) {
                         log.error("[SLO] Erreur de parsing XML logoutRequest", e);
                     }
+                } else {
+                    filterChain.doFilter(request, response);
                 }
-                filterChain.doFilter(request, response);
             }
         };
     }
@@ -234,6 +236,8 @@ public class SecurityConfiguration {
         // TODO : enable CSRF
         http.csrf(AbstractHttpConfigurer::disable);
         http.cors(Customizer.withDefaults());
+        // Filtre pour le logout à mettre avant tout
+        http.addFilterBefore(singleSignOutFilter(), CsrfFilter.class);
         http.authorizeHttpRequests(authz -> {
             if (!environment.acceptsProfiles(Profiles.of("prod"))) {
                 authz.requestMatchers(SWAGGER_WHITELIST).permitAll();
