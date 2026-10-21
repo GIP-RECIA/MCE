@@ -89,7 +89,8 @@ public class EmailVerificationService {
         attemptGuardService.clearVerificationAttempt(person.getId());
 
         // Envoyer le mail de vérification
-        confirmationMailSender.sendVerificationEmail(email, code);
+        final String displayName = person.getDisplayName();
+        confirmationMailSender.sendVerificationEmail(email, displayName, code);
 
         log.info("Email de vérification envoyé à {} pour l'utilisateur [uid={}]", email, uid);
     }

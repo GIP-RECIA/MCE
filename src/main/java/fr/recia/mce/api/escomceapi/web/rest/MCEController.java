@@ -30,6 +30,7 @@ import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
+import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
@@ -181,6 +182,22 @@ public class MCEController {
         NetworkPasswordResetStatusDTO status = passwordResetService.getNetworkPasswordResetStatus(uid);
         log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
         return ResponseEntity.ok(status);
+    }
+
+    /**
+     * Changement du mot de passe réseau
+     */
+    @PostMapping("/network-password/reset")
+    // TODO : ca ne devrait pas être une route entière mais une opération supplémentaire qui s'applique en même temps que le changement de mot de passe
+    public ResponseEntity<?> networkPasswordReset(@Valid @RequestBody NetworkPasswordResetRequestDTO request, @AuthenticationPrincipal AppUser principal) {
+
+        String uid = principal.getUid();
+        log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
+
+        passwordResetService.changeNetworkPassword(uid, request.getNewPassword(), request.getConfirmPassword());
+
+        log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
+        return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS", "Votre mot de passe réseau a été modifié avec succès"));
     }
 
     private boolean canAccessRelationProfile(String currentUid, String uid) {

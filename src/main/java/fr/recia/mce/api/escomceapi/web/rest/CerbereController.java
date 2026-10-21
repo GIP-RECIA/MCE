@@ -161,23 +161,6 @@ public class CerbereController {
             "Votre mot de passe a été réinitialisé avec succès"));
     }
 
-    /**
-     * Applique le changement direct du mot de passe réseau (conforme à l'ancienne application : pas
-     * d'ancien mot de passe, pas de code).
-     */
-    @PostMapping("/network-password/reset")
-    public ResponseEntity<?> networkPasswordReset(@Valid @RequestBody NetworkPasswordResetRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-
-        String uid = principal.getUid();
-        log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
-
-        passwordResetService.changeNetworkPassword(uid, request.getNewPassword(), request.getConfirmPassword());
-
-        log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
-        return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS",
-            "Votre mot de passe réseau a été modifié avec succès"));
-    }
-
     @GetMapping("/charte-status")
     public ResponseEntity<CharteStatusResponse> getCharteStatus(@RequestParam String uid) {
         boolean charteRequired = charteService.isCharteRequired(uid);
