@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JAVA_VERSION: '11'
+      JAVA_VERSION: '25'
 
     name: Check notice
 
@@ -145,8 +145,7 @@ jobs:
 
     strategy:
       matrix:
-        java: ['11', '17']
-        mariadb: ['10.3', 'latest']
+        java: ['25']
 
     env:
       LANG: 'fr_FR.UTF-8'
@@ -154,11 +153,9 @@ jobs:
       LANGUAGE: 'fr_FR.UTF-8'
       LC_CTYPE: 'fr_FR.UTF-8'
       TZ: 'Europe/Paris'
-      MARIADB_IMG: 'wodby/mariadb'
       JACOCO_JAVA: '11'
-      JACOCO_MARIADB: '10.3'
 
-    name: Java ${{ matrix.java }} & mariadb ${{ matrix.mariadb }}
+    name: Java ${{ matrix.java }}
 
     needs: changes
 
@@ -187,55 +184,6 @@ jobs:
 
       - name: Check locales
         run: locale -a
-
-      # - name: Pull ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }} image
-      #   run: docker pull ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }}
-
-      # - name: Run MariaDB container
-      #   run: |
-      #     docker run --rm -t -d --name mariadb -v \
-      #       --health-cmd="mysqladmin -uroot -proot ping" --health-interval=10s --health-timeout=10s --health-retries=10 \
-      #       -p 3306:3306/tcp \
-      #       -e "TZ=Europe/Paris" \
-      #       -e "MYSQL_USER=root" \
-      #       -e "MYSQL_ROOT_PASSWORD=root" \
-      #       -e "MYSQL_DATABASE=glc" \
-      #       -e "MYSQL_DEFAULT_STORAGE_ENGINE=InnoDB" \
-      #       -e "MYSQL_CHARACTER_SET_SERVER=utf8mb4" \
-      #       -e "MYSQL_COLLATION_SERVER=utf8mb4_unicode_520_ci" \
-      #       -e "MYSQL_INNODB_BUFFER_POOL_SIZE=2G" \
-      #       -e "MYSQL_INNODB_DEFAULT_ROW_FORMAT=dynamic" \
-      #       -e "MYSQL_INNODB_DATA_FILE_PATH=ibdata1:100M:autoextend:max:10G" \
-      #       -e "MYSQL_INNODB_FLUSH_LOG_AT_TRX_COMMIT=1" \
-      #       -e "MYSQL_INNODB_LOG_BUFFER_SIZE=64M" \
-      #       -e "MYSQL_INNODB_LOG_FILE_SIZE=256M" \
-      #       -e "MYSQL_INNODB_STRICT_MODE=ON" \
-      #       -e "MYSQL_LOWER_CASE_TABLE_NAMES=1" \
-      #       -e "MYSQL_MAX_CONNECT_ERRORS=100" \
-      #       -e "MYSQL_MAX_CONNECTIONS=1000" \
-      #       -e "MYSQL_QUERY_CACHE_LIMIT=10M" \
-      #       -e "MYSQL_QUERY_CACHE_SIZE=0" \
-      #       -e "MYSQL_QUERY_CACHE_TYPE=OFF" \
-      #       ${{ env.MARIADB_IMG }}:${{ matrix.mariadb }} &
-      #     sleep 30
-
-      # - name: Test MariaDB
-      #   run: docker exec mariadb /bin/bash -c "mysql -h127.0.0.1 -uroot -proot -e \"show variables like '%time_zone'; select now();\""
-
-      # - name: Check date
-      #   run: |
-      #     date
-      #     mysql -h127.0.0.1 -uroot -proot -e "show variables like '%time_zone'; select now();"
-
-      # - name: DB connection test and conf checks
-      #   run: |
-      #     netstat -pnltu
-      #     mysql -h127.0.0.1 -uroot -proot -e "show databases;"
-      #     mysql -h127.0.0.1 -uroot -proot -e "show variables like 'char%'; show variables like 'collation%';show variables like 'innodb_default_row_format';"
-      #     mysql -h127.0.0.1 -uroot -proot -e "use glc;show tables;"
-
-      # - name: Populate database
-      #   run: mysql -h127.0.0.1 -uroot -proot < ./src/test/resources/glc.sql
 
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v5
@@ -270,14 +218,13 @@ jobs:
       #     echo "branches = ${{ steps.jacoco.outputs.branches }}"
 
       # - name: Upload JaCoCo coverage report as a workflow artifact
-      #   if: ${{ matrix.mariadb == env.JACOCO_MARIADB }}
       #   uses: actions/upload-artifact@v6
       #   with:
       #     name: jacoco-report-java-${{ matrix.java }}
       #     path: target/site/jacoco/
 
       # - name: Commit and push the coverage badges and summary file
-      #   if: ${{ github.event_name != 'pull_request' && matrix.java == env.JACOCO_JAVA && matrix.mariadb == env.JACOCO_MARIADB }}
+      #   if: ${{ github.event_name != 'pull_request' && matrix.java == env.JACOCO_JAVA }}
       #   run: |
       #     cd badges
       #     if [[ `git status --porcelain *.svg *.json` ]]; then
@@ -289,7 +236,7 @@ jobs:
       #     fi
 
       # - name: Comment on PR with coverage percentages
-      #   if: ${{ github.event_name == 'pull_request' && matrix.java == env.JACOCO_JAVA && matrix.mariadb == env.JACOCO_MARIADB }}
+      #   if: ${{ github.event_name == 'pull_request' && matrix.java == env.JACOCO_JAVA }}
       #   run: |
       #     REPORT=$(<badges/coverage-summary.json)
       #     COVERAGE=$(jq -r '.coverage' <<< "$REPORT")%
