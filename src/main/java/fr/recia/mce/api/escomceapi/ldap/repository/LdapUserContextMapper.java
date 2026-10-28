@@ -25,13 +25,13 @@ import org.springframework.ldap.core.DirContextAdapter;
 
 import com.google.common.collect.Lists;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 
 import javax.naming.NamingException;
 
-public class LdapUserContextMapper implements ContextMapper<IExternalUser> {
+public class LdapUserContextMapper implements ContextMapper<LdapUserDto> {
 
     private ExternalUserHelper externalUserHelper;
 
@@ -41,10 +41,10 @@ public class LdapUserContextMapper implements ContextMapper<IExternalUser> {
     }
 
     @Override
-    public IExternalUser mapFromContext(Object ctx) throws NamingException {
+    public LdapUserDto mapFromContext(Object ctx) throws NamingException {
         DirContextAdapter context = (DirContextAdapter) ctx;
         Map<String, List<String>> attrs = new HashMap<>();
-        ExternalUser person = new ExternalUser();
+        LdapUserDto person = new LdapUserDto();
 
         person.setId(context.getStringAttribute(externalUserHelper.getUserIdAttribute()));
         attrs.put(externalUserHelper.getUserIdAttribute(),

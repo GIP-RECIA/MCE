@@ -38,48 +38,56 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(PersonneNotFoundException.class)
     public ResponseEntity<ErrorResponse> handlePersonneNotFound(PersonneNotFoundException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse("NOT_FOUND", ex.getMessage()));
     }
 
     @ExceptionHandler(WeakPasswordException.class)
     public ResponseEntity<ErrorResponse> handleWeakPassword(WeakPasswordException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("WEAK_PASSWORD", ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidAvatarException.class)
     public ResponseEntity<ErrorResponse> handleInvalidAvatar(InvalidAvatarException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INVALID_AVATAR", ex.getMessage()));
     }
 
     @ExceptionHandler(ChampsObligatoiresException.class)
     public ResponseEntity<ErrorResponse> handleChampsObligatoires(ChampsObligatoiresException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("VALIDATION_ERROR", ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidCodeException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCode(InvalidCodeException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INVALID_CODE", ex.getMessage()));
     }
 
     @ExceptionHandler(CodeExpiredException.class)
     public ResponseEntity<ErrorResponse> handleCodeExpired(CodeExpiredException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("CODE_EXPIRED", ex.getMessage()));
     }
 
     @ExceptionHandler(MaxAttemptsExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxAttempts(MaxAttemptsExceededException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(new ErrorResponse("MAX_ATTEMPTS_EXCEEDED", ex.getMessage()));
     }
 
     @ExceptionHandler(ResendCooldownActiveException.class)
     public ResponseEntity<ErrorResponse> handleResendCooldown(ResendCooldownActiveException ex) {
+        log.error("Exception is :", ex);
         long seconds = ex.getRetryAfterSeconds();
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(new ErrorResponse("RESEND_COOLDOWN",
@@ -89,48 +97,56 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InactiveAccountException.class)
     public ResponseEntity<ErrorResponse> handleInactiveAccount(InactiveAccountException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("INACTIVE_ACCOUNT", ex.getMessage()));
     }
 
     @ExceptionHandler(CharteNotAcceptedException.class)
     public ResponseEntity<ErrorResponse> handleCharteNotAccepted(CharteNotAcceptedException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("CHARTE_REQUIRED", ex.getMessage(), null, ex.getCharteUrl()));
     }
 
     @ExceptionHandler(ContactAdminException.class)
     public ResponseEntity<ErrorResponse> handleContactAdmin(ContactAdminException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("CONTACT_ADMIN_REQUIRED", ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorResponse("FORBIDDEN", ex.getMessage()));
     }
 
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<ErrorResponse> handleSecurity(SecurityException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorResponse("FORBIDDEN", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("BAD_REQUEST", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("BAD_REQUEST", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        log.error("Exception is :", ex);
         List<String> errors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -141,13 +157,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleMalformedJson() {
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("BAD_REQUEST", "JSON invalide"));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoHandler(NoHandlerFoundException ex) {
+        log.error("Exception is :", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse("NOT_FOUND", "Ressource non trouvée : " + ex.getRequestURL()));
     }
@@ -155,7 +173,7 @@ public class GlobalExceptionHandler {
     // Toujours en dernier
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
-        log.error("Une erreur inattendue s'est produite lors du traitement de la requête [{}] - Détail : {}", request.getRequestURI(), ex.getMessage());
+        log.error("Exception is :", ex);
         return ResponseEntity.internalServerError()
                 .body(new ErrorResponse("INTERNAL_SERVER_ERROR", "Une erreur interne est survenue"));
     }

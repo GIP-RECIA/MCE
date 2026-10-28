@@ -16,7 +16,7 @@
 package fr.recia.mce.api.escomceapi.services.beans;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -38,7 +38,7 @@ public class RelationEleveContact {
 
     private Long contact;
     @JsonIgnoreProperties({"uid", "identifiant"})
-    private PersonneDTO eleve;
+    private DatabaseUserDto eleve;
     private String uidRelation;
     private String displayNameRelation;
     private boolean autoriteParental;
@@ -81,7 +81,7 @@ public class RelationEleveContact {
 
         // On garde l'enfant dans le champ eleve pour cohérence interne
         if (enfant != null) {
-            this.eleve = new PersonneDTO(enfant);
+            this.eleve = new DatabaseUserDto(enfant);
         }
 
         log.debug("RelationEleveContact créée via DB → ParentUid={} | ParentNom={} | EnfantUid={} | Type={} | Lien={}",

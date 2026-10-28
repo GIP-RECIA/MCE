@@ -15,7 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
@@ -23,7 +23,7 @@ import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
-import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
@@ -57,7 +57,7 @@ public class ActivationService {
     private EmailVerificationService emailVerificationService;
 
     @Autowired
-    private IUserDTOFactory userDTOFactory;
+    private UserDTOFactory userDTOFactory;
 
     @Autowired
     private CerbereConfirmationRepository cerbereConfirmationRepository;
@@ -92,12 +92,13 @@ public class ActivationService {
             throw new IllegalArgumentException("Identifiants incorrects");
         }
 
-        if (!passwordService.verifyPassword(new PersonneDTO(personne), password, true)) {
+        if (!passwordService.verifyPassword(new DatabaseUserDto(personne), password, true)) {
             log.warn("[ACTIVATION][CONNEXION] ÉCHEC pour uid={} : mot de passe temporaire invalide", personne.getUid());
             throw new IllegalArgumentException("Identifiants incorrects");
         }
 
-        EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
+        //EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
+        EnumPublic pub = null;
         if (pub == null || !pub.isConnectOk()) {
             log.warn("[ACTIVATION][CONNEXION] REFUS pour uid={} : profil {} non connectable par mot de passe", personne.getUid(), pub);
             throw new IllegalArgumentException("Ce compte ne peut pas être activé avec un mot de passe");
@@ -155,7 +156,8 @@ public class ActivationService {
                     .build();
         }
 
-        EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
+        //EnumPublic pub = userDTOFactory.evalPublic(new PersonneDTO(personne));
+        EnumPublic pub = null;
 
         // NEUTRALISÉ (charte) : la charte est toujours considérée comme valide.
         // Réactivation : restaurer `!charteService.isCharteRequired(personne)`.
@@ -216,8 +218,8 @@ public class ActivationService {
         }
 
         String uid = personne.getUid();
-        PersonneDTO personneDTO = personneService.getUserByUid(uid);
-        if (personneDTO == null) {
+        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(uid);
+        if (databaseUserDto == null) {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
 
@@ -242,7 +244,7 @@ public class ActivationService {
             return new ActivationResultDTO(uid, AccountState.VALIDE, false);
         }
 
-        EnumPublic pub = userDTOFactory.evalPublic(personneDTO);
+        EnumPublic pub = userDTOFactory.evalPublic(databaseUserDto);
         boolean passwordRequise = pub != null && pub.isConnectOk();
 
         boolean emailEnAttente = false;
@@ -260,16 +262,13 @@ public class ActivationService {
             // L'état Valide est posé AVANT l'écriture du mot de passe en LDAP : le hash réel est écrit,
             // et non la sentinelle {SCRIPT}LOCK (les écritures base restent dans cette même transaction).
             personneService.valideCompte(uid);
-            passwordService.resetPassword(personneDTO, request.getNewPassword(), request.getConfirmPassword());
+            passwordService.resetPassword(databaseUserDto, request.getNewPassword(), request.getConfirmPassword());
             personneService.clearUserCaches(uid);
         } else {
             // Profils sans mot de passe local (EduConnect/SSO) : activation avec le marqueur actif,
             // équivalent legacy DomainServiceImpl.setEtatValidWithoutPassword.
             personneService.setEtatValidWithoutPassword(uid);
         }
-
-        // Contrôle non bloquant : log d'un warning si l'état LDAP diverge de l'état base (la base prime).
-        personneService.logEtatCompteLdapDivergent(uid);
 
         log.info("[ACTIVATION][PASSWORD] SUCCÈS uid={}, profil={}, password={}, emailRéconfirmé={}", uid, pub, passwordRequise, emailEnAttente);
         return new ActivationResultDTO(uid, AccountState.VALIDE, emailEnAttente);

@@ -18,7 +18,7 @@ package fr.recia.mce.api.escomceapi.services;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -89,7 +89,7 @@ public class AccountEmailService {
 
     public String ldapEmailByUid(String uid) {
         try {
-            IExternalUser ldapUser = personneService.retrievePersonLdap(uid);
+            LdapUserDto ldapUser = personneService.getUserLdap(uid);
             if (ldapUser != null && ldapUser.getEmail() != null && !ldapUser.getEmail().isBlank()) {
                 return ldapUser.getEmail().trim();
             }

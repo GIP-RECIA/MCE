@@ -16,7 +16,7 @@
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.AccountState;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
@@ -63,7 +63,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
     private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
 
     @Override
-    public IExternalUser getUserByUid(String uid) {
+    public LdapUserDto getUserByUid(String uid) {
 
         final AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
@@ -72,14 +72,14 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("Filtre LDAP appliqué : {}", filter);
         }
 
-        ContextMapper<IExternalUser> mapper = new LdapUserContextMapper(this.externalUserHelper);
+        ContextMapper<LdapUserDto> mapper = new LdapUserContextMapper(this.externalUserHelper);
 
         LdapQuery query = LdapQueryBuilder.query()
                 .attributes(externalUserHelper.getAttributes()
                         .toArray(new String[0]))
                 .base(externalUserHelper.getUserDNSubPath()).filter(filter);
 
-        IExternalUser user;
+        LdapUserDto user;
 
         try {
             user = ldapTemplate.searchForObject(query, mapper);
@@ -97,7 +97,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
     }
 
     @Override
-    public List<IExternalUser> getByUids(Collection<String> uids) {
+    public List<LdapUserDto> getByUids(Collection<String> uids) {
         if (uids == null || uids.isEmpty()) {
             return Collections.emptyList();
         }
@@ -111,7 +111,7 @@ public class LdapUserDaoImp implements IExternalUserDao {
             log.debug("Filtre LDAP batch appliqué : {}", orFilter);
         }
 
-        ContextMapper<IExternalUser> mapper = new LdapUserContextMapper(this.externalUserHelper);
+        ContextMapper<LdapUserDto> mapper = new LdapUserContextMapper(this.externalUserHelper);
 
         LdapQuery query = LdapQueryBuilder.query()
                 .attributes(externalUserHelper.getAttributes()

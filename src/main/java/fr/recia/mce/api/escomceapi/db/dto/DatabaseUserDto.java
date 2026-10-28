@@ -19,13 +19,11 @@ import java.util.Date;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import fr.recia.mce.api.escomceapi.db.beans.Personne;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereEnfant;
 import fr.recia.mce.api.escomceapi.db.entities.Login;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 @Setter
-public class PersonneDTO extends Personne {
+public class DatabaseUserDto extends Personne {
 
     private APersonne aPersonneBase;
     private CerbereEnfant cerbereEnfant;
@@ -41,36 +39,33 @@ public class PersonneDTO extends Personne {
     private StructureDTO structureDto;
     private String mailFromLdap;
 
-    @JsonIgnore
-    private IExternalUser extUser;
-
-    public PersonneDTO(final APersonne aPersonne) {
+    public DatabaseUserDto(final APersonne aPersonne) {
         this(aPersonne, aPersonne.getAStructure());
     }
 
-    public PersonneDTO(final APersonne aPersonne, final AStructure aStructure) {
+    public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure) {
         super();
         aPersonneBase = aPersonne;
         structureDto = new StructureDTO(aStructure);
     }
 
-    public PersonneDTO(final APersonne aPersonne, final AStructure aStructure, final Login login) {
+    public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure, final Login login) {
         super();
         aPersonneBase = aPersonne;
         structureDto = new StructureDTO(aStructure);
         this.loginBase = login;
     }
 
-    public PersonneDTO(final APersonne aPersonne, final Login login) {
+    public DatabaseUserDto(final APersonne aPersonne, final Login login) {
         this(aPersonne);
         loginBase = login;
     }
 
-    public PersonneDTO(final Login login) {
+    public DatabaseUserDto(final Login login) {
         this(login.getAPersonneByAPersonneLogin());
     }
 
-    public PersonneDTO(final APersonne aPersonne, final CerbereEnfant enfant, final AStructure aStructure, final Login login) {
+    public DatabaseUserDto(final APersonne aPersonne, final CerbereEnfant enfant, final AStructure aStructure, final Login login) {
         super();
         aPersonneBase = aPersonne;
         structureDto = new StructureDTO(aStructure);
@@ -140,48 +135,6 @@ public class PersonneDTO extends Personne {
     @Override
     public boolean isMailForward() {
         return aPersonneBase.isDoForward();
-    }
-
-    /**
-     * Change le flag doForward en base
-     *
-     * @param doForward
-     *            nouvelle valeur du flag
-     */
-    protected void setForward(final boolean doForward) {
-        aPersonneBase.setDoForward(doForward);
-        setDateModification();
-    }
-
-    /**
-     * Récupère le mot de passe en base
-     *
-     * @return le mot de passe codé ou non
-     */
-    protected String getDbPassword() {
-        return aPersonneBase.getPassword();
-    }
-
-    /**
-     * fixe le mot de passe en base.
-     *
-     * @param password
-     *            nouveau mot de passe
-     */
-    public void setDbPassword(final String password) {
-        aPersonneBase.setPassword(password);
-        setDateModification();
-    }
-
-    /**
-     * Fixe l'état de la personne.
-     *
-     * @param etat
-     *            nouvel état
-     */
-    protected void setEtat(final String etat) {
-        aPersonneBase.setEtat(etat);
-        setDateModification();
     }
 
     /**
@@ -266,7 +219,7 @@ public class PersonneDTO extends Personne {
         if (getClass() != obj.getClass()) {
             return false;
         }
-        PersonneDTO other = (PersonneDTO) obj;
+        DatabaseUserDto other = (DatabaseUserDto) obj;
         return StringUtils.equals(getUid(), other.getUid());
     }
 

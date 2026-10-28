@@ -16,7 +16,7 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
@@ -131,7 +131,7 @@ public class PasswordService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void changePassword(PersonneDTO person, PasswordChangeRequestDTO request) {
+    public void changePassword(DatabaseUserDto person, PasswordChangeRequestDTO request) {
 
         if (person == null) {
             specialLog.error("Audit [CHANGE_PASSWORD] : REFUSÉ - Raison : Objet personne nul (méthode : changePassword)");
@@ -186,7 +186,7 @@ public class PasswordService {
     }
 
     @Transactional
-    public void resetPassword(PersonneDTO person, String newPassword, String confirmPassword) {
+    public void resetPassword(DatabaseUserDto person, String newPassword, String confirmPassword) {
         String uid = person != null ? (person.getUid() != null ? person.getUid() : "unknown") : "null";
         specialLog.info("Audit [RESET_PASSWORD] : DEBUT pour l'utilisateur [{}]", uid);
 
@@ -216,7 +216,7 @@ public class PasswordService {
         specialLog.info("Audit [RESET_PASSWORD] : FIN pour l'utilisateur [{}]", uid);
     }
 
-    private void updatePassword(PersonneDTO person, String newPassword, String auditPrefix) {
+    private void updatePassword(DatabaseUserDto person, String newPassword, String auditPrefix) {
         String uid = person.getUid() != null ? person.getUid() : "unknown";
         try {
             specialLog.info("Audit [{}] : updatePassword DEBUT uid={}", auditPrefix, uid);
@@ -376,7 +376,7 @@ public class PasswordService {
         return p16;
     }
 
-    private boolean requiresSamba(PersonneDTO person) {
+    private boolean requiresSamba(DatabaseUserDto person) {
         if (person == null)
             return false;
         String uid = person.getUid() != null ? person.getUid() : "unknown";
@@ -397,10 +397,13 @@ public class PasswordService {
             return false;
         }
 
+        // TODO : pass ldap user
+        /*
         if (person.getExtUser() == null) {
             specialLog.warn("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : L'objet utilisateur externe (LDAP) est nul", uid);
             return false;
         }
+         */
 
         Pattern pattern;
         try {
@@ -410,8 +413,9 @@ public class PasswordService {
             return false;
         }
 
-        List<String> groups = person.getExtUser()
-                .getAttribute(externalUserHelper.getUserGroupAttribute());
+        // TODO : pass ldap user
+        //List<String> groups = person.getExtUser().getAttribute(externalUserHelper.getUserGroupAttribute());
+        List<String> groups = null;
 
         if (groups == null || groups.isEmpty()) {
             specialLog.warn("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucun groupe LDAP trouvé pour l'utilisateur", uid);
@@ -436,7 +440,7 @@ public class PasswordService {
         return matched;
     }
 
-    private boolean isNtPasswordProfile(PersonneDTO person) {
+    private boolean isNtPasswordProfile(DatabaseUserDto person) {
         EnumPublic res = person.getEnumPublic();
         boolean isCvdl = res != null && res.isNtProfile();
         StructureDTO.DomSource ds = null;
@@ -553,7 +557,7 @@ public class PasswordService {
      *            autorise la comparaison directe si le hash n'a pas de préfixe
      * @return {@code true} si le mot de passe correspond
      */
-    public boolean verifyPassword(PersonneDTO personne, String input, boolean allowPlain) {
+    public boolean verifyPassword(DatabaseUserDto personne, String input, boolean allowPlain) {
 
         if (personne == null || input == null || input.isBlank()) {
             specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ - Raison : Entrée invalide fournie (personne ou mot de passe fourni est nul/vide)");
@@ -708,13 +712,15 @@ public class PasswordService {
      * @return {@code true} si l'utilisateur peut changer son mdp sans fournir l'ancien. Conditions : CVDL strict (ni
      *         PERSONNEL GIP) + ntPass + aucun vrai mdp stocké (null, blank ou marqueur {@code {SSHA}Active=}).
      */
-    private boolean isNoOldPass(PersonneDTO person) {
+    // TODO : regarder par ici pour les spécificités mot de passe réseau
+    private boolean isNoOldPass(DatabaseUserDto person) {
         if (person == null || person.getEnumPublic() == null) {
             return false;
         }
         if (!person.isNtPass()) {
             return false;
         }
+        log.error("efhaefgaegeigeageaya : {}", person);
         // CVDL est le seul profil sans connexion locale : !pub.isConnectOk() est toujours vrai pour CVDL (redondant).
         if (!EnumPublic.CVDL.equals(person.getEnumPublic())) {
             return false;
@@ -728,7 +734,7 @@ public class PasswordService {
      *         NewPassRezo) : CVDL strict + ntPass + aucun mot de passe local stocké. C'est la condition pour
      *         demander un code de changement par email (il n'y a pas d'ancien mot de passe à vérifier).
      */
-    public boolean isNoOldPassEligible(PersonneDTO person) {
+    public boolean isNoOldPassEligible(DatabaseUserDto person) {
         return isNoOldPass(person);
     }
 
@@ -781,7 +787,7 @@ public class PasswordService {
      * Enregistre le mot de passe actuel dans l'historique (table cerbere_password). En cas de modification multiple le même jour, le hash est mis à jour.
      */
     @Transactional
-    public void savePasswordToHistory(PersonneDTO personne, String hashLdap) {
+    public void savePasswordToHistory(DatabaseUserDto personne, String hashLdap) {
         specialLog.info("Audit [SAVE_PASSWORD_HISTORY] : Sauvegarde du mot de passe dans l'historique pour l'utilisateur [{}]", personne.getUid());
 
         APersonne aPersonne = personne.getAPersonneBase();
@@ -814,7 +820,7 @@ public class PasswordService {
      * Ferme le dernier mot de passe actif en renseignant sa date de fin.
      */
     @Transactional
-    public void closeLastPassword(PersonneDTO personne) {
+    public void closeLastPassword(DatabaseUserDto personne) {
         List<CerberePassword> history = cerberePasswordRepository
                 .findByAPersonne(personne.getAPersonneBase());
 
@@ -841,7 +847,7 @@ public class PasswordService {
     /**
      * Vérifie si le mot de passe en clair a déjà été utilisé par le passé.
      */
-    public boolean isPasswordAlreadyUsed(PersonneDTO personne, String newPasswordClair) {
+    public boolean isPasswordAlreadyUsed(DatabaseUserDto personne, String newPasswordClair) {
         log.debug("Vérification si le mot de passe a déjà été utilisé pour l'utilisateur [{}]", personne.getUid());
         List<CerberePassword> history = cerberePasswordRepository.findByAPersonne(personne.getAPersonneBase());
 
@@ -875,7 +881,7 @@ public class PasswordService {
         };
     }
 
-    private void updatePasswordInDatabase(PersonneDTO person, PasswordResult result) {
+    private void updatePasswordInDatabase(DatabaseUserDto person, PasswordResult result) {
         Long id = person.getAPersonneBase().getId();
         log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null,
                 result.sambaNt != null);
@@ -900,7 +906,7 @@ public class PasswordService {
         log.debug("APRÈS SAUVEGARDE — sambaLm sauvegardé pour uid={} : présent={}", person.getUid(), saved.getSambaLmpassword() != null);
     }
 
-    private void updatePasswordInLdap(PersonneDTO person, PasswordResult result) {
+    private void updatePasswordInLdap(DatabaseUserDto person, PasswordResult result) {
         String uid = person.getUid() != null ? person.getUid() : "unknown";
         try {
             // L'état est relu en base (source de vérité) au moment de l'écriture LDAP : le hash réel n'est

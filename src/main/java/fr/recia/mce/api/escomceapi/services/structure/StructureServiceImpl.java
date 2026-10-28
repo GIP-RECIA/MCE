@@ -15,21 +15,17 @@
  */
 package fr.recia.mce.api.escomceapi.services.structure;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
-import fr.recia.mce.api.escomceapi.db.enums.SurType;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalStructDao;
 import lombok.Getter;
@@ -40,38 +36,32 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class StructureServiceImpl implements IStructureService {
 
-    @Autowired
-    private IExternalStructDao externalStructDao;
-
-    @Autowired
-    private CacheManager cacheManager;
-
+    private final IExternalStructDao externalStructDao;
+    private final CacheManager cacheManager;
     private final DomaineProperties domaineProperties;
-
-    private volatile List<IExternalStructure> allStructures;
-
-    private final Map<String, IExternalStructure> siren2structure = Collections
-            .synchronizedMap(new HashMap<>());
-
-    private final Map<String, IExternalStructure> uai2structure = Collections
-            .synchronizedMap(new HashMap<>());
 
     private final Set<String> setDomaineEtabRecia = new HashSet<>();
     private final Set<String> setIncludeEtabRecia = new HashSet<>();
     private final Set<String> setExcludeEtabRecia = new HashSet<>();
 
-    public StructureServiceImpl(DomaineProperties domaineProperties) {
+    private List<IExternalStructure> allStructures;
+    private Map<String, IExternalStructure> siren2structure;
+    private Map<String, IExternalStructure> uai2structure;
+
+    public StructureServiceImpl(IExternalStructDao externalStructDao, CacheManager cacheManager, DomaineProperties domaineProperties) {
+        this.externalStructDao = externalStructDao;
+        this.cacheManager = cacheManager;
         this.domaineProperties = domaineProperties;
         setDomaineEtabRecia.addAll(domaineProperties.getGestionRecia());
         setIncludeEtabRecia.addAll(domaineProperties.getGestionInclude());
         setExcludeEtabRecia.addAll(domaineProperties.getGestionExclude());
     }
 
-    @Override
-    public List<IExternalStructure> getAllStructures() {
-
+    private void loadAllStructures() {
         if (allStructures == null) {
             allStructures = externalStructDao.loadAllStructure();
+            siren2structure = new HashMap<>();
+            uai2structure = new HashMap<>();
             for (IExternalStructure struct : allStructures) {
                 siren2structure.put(struct.getId(), struct);
                 if (struct.getUai() != null) {
@@ -79,8 +69,6 @@ public class StructureServiceImpl implements IStructureService {
                 }
             }
         }
-
-        return allStructures;
     }
 
     public boolean isStructureLoaded() {
@@ -89,32 +77,30 @@ public class StructureServiceImpl implements IStructureService {
 
     @Override
     public IExternalStructure findStructureBySiren(String siren) {
-
-        if (isStructureLoaded()) {
-            log.debug("Recherche de structure avec le SIREN : {}", siren);
-
-            return siren2structure.get(siren);
+        // Premier chargement des structures si elle ne sont pas encore chargées
+        if (!isStructureLoaded()) {
+            log.warn("Tentative de recherche de structure par SIREN [{}], mais le cache des structures n'est pas encore chargé.", siren);
+            loadAllStructures();
         }
-        log.warn("Tentative de recherche de structure par SIREN [{}], mais le cache des structures n'est pas encore chargé.", siren);
-        return null;
+        log.debug("Recherche de structure avec le SIREN : {}", siren);
+        return siren2structure.get(siren);
     }
 
     @Override
     public IExternalStructure findStructureByUai(String uai) {
-        if (isStructureLoaded()) {
-            log.debug("Recherche de structure avec l'UAI : {}", uai);
-
-            return uai2structure.get(uai);
+        // Premier chargement des structures si elle ne sont pas encore chargées
+        if (!isStructureLoaded()) {
+            log.warn("Tentative de recherche de structure par UAI [{}], mais le cache des structures n'est pas encore chargé.", uai);
+            loadAllStructures();
         }
-        log.warn("Tentative de recherche de structure par UAI [{}], mais le cache des structures n'est pas encore chargé.", uai);
-        return null;
+        log.debug("Recherche de structure avec l'UAI : {}", uai);
+        return uai2structure.get(uai);
     }
 
     @Override
     public boolean isReseauRecia(IExternalStructure str) {
         String uaiOrSiren = str.getUai();
-        log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}",
-                uaiOrSiren, (Object) str.getDomaines());
+        log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}", uaiOrSiren, (Object) str.getDomaines());
 
         if (isDomaineRecia(str)) {
             log.debug("    ** Domaine RECIA détecté");
@@ -136,14 +122,16 @@ public class StructureServiceImpl implements IStructureService {
     }
 
     @Override
-    public boolean isReseauRecia(PersonneDTO p) {
+    public boolean isReseauRecia(DatabaseUserDto p) {
 
-        if (p.getExtUser() == null) {
-            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
-            return false;
-        }
+        // TODO : pass ldap user
+//        if (p.getExtUser() == null) {
+//            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
+//            return false;
+//        }
 
-        List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
+        //List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
+        List<String> uais = null;
 
         log.debug("=== isReseauRecia pour uid={} ===", p.getUid());
         log.debug("ESCOUAI pour uid={} : {}", p.getUid(), uais);
@@ -215,31 +203,4 @@ public class StructureServiceImpl implements IStructureService {
 
         return false;
     }
-
-    @Override
-    public Set<String> getAllVilles() {
-        Set<String> villes = new TreeSet<>();
-        for (IExternalStructure struct : getAllStructures()) {
-            String ville = struct.getVille();
-            if (ville != null && !ville.isBlank()) {
-                villes.add(ville.toUpperCase());
-            }
-        }
-        return villes;
-    }
-
-    @Override
-    public Set<String> findVillesBySurType(SurType surType) {
-        Set<String> villes = new TreeSet<>();
-        for (IExternalStructure struct : getAllStructures()) {
-            if (surType.matches(struct.getType())) {
-                String ville = struct.getVille();
-                if (ville != null && !ville.isBlank()) {
-                    villes.add(ville.toUpperCase());
-                }
-            }
-        }
-        return villes;
-    }
-
 }

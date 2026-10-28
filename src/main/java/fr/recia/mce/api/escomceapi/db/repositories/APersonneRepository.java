@@ -15,7 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.db.repositories;
 
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import org.springframework.data.jpa.repository.Query;
@@ -77,21 +77,21 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
     @Query("SELECT DISTINCT a.categorie FROM APersonne a ORDER BY a.categorie")
     List<String> findDistinctCategories();
 
-    @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, s, l) " +
+    @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto(a, s, l) " +
             "FROM APersonne a " +
             "JOIN Login l ON a = l.aPersonneByAPersonneLogin " +
             "JOIN AStructure s ON s = a.aStructure " +
             "WHERE a.uid = :uid")
-    PersonneDTO getPersonneByUid(final String uid);
+    DatabaseUserDto getPersonneByUid(final String uid);
 
-    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.PersonneDTO(a, ce, s, l) " +
+    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto(a, ce, s, l) " +
             "FROM APersonne a, CerbereEnfant ce, AStructure s, Login l " +
             "WHERE ce.aPersonneByIdParent.id = :parent " +
             "AND ce.aPersonneByIdEnfant = a " +
             "AND a = l.aPersonneByAPersonneLogin " +
             "AND s = a.aStructure " +
             "AND (a.etat != 'Delete' OR a.dateModification < a.dateAcquittement)")
-    Collection<PersonneDTO> findAllEnfantOf(@Param("parent") Long parent);
+    Collection<DatabaseUserDto> findAllEnfantOf(@Param("parent") Long parent);
 
     /**
      * Fallback DB : Retourne les parents/tuteurs d'un élève (utilisé quand LDAP ne renvoie rien)

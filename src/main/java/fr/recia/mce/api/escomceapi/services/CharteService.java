@@ -20,7 +20,7 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -256,7 +256,7 @@ public class CharteService {
      * est indisponible (le contrôle fait alors faill-open sur la charte par défaut).
      */
     private List<String> personDomains(String uid) {
-        IExternalUser user = loadLdapUserCached(uid);
+        LdapUserDto user = loadLdapUserCached(uid);
         if (user == null) {
             return null;
         }
@@ -271,19 +271,19 @@ public class CharteService {
         return normalized;
     }
 
-    private IExternalUser loadLdapUserCached(String uid) {
+    private LdapUserDto loadLdapUserCached(String uid) {
         if (externalUserDao == null || uid == null) {
             return null;
         }
         Cache cache = cacheManager != null ? cacheManager.getCache(LDAP_CACHE_NAME) : null;
         if (cache != null) {
-            IExternalUser hit = cache.get(uid, IExternalUser.class);
+            LdapUserDto hit = cache.get(uid, LdapUserDto.class);
             if (hit != null) {
                 return hit;
             }
         }
         try {
-            IExternalUser user = externalUserDao.getUserByUid(uid);
+            LdapUserDto user = externalUserDao.getUserByUid(uid);
             if (cache != null && user != null) {
                 cache.putIfAbsent(uid, user);
             }

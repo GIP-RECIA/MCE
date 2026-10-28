@@ -16,9 +16,9 @@
 
 package fr.recia.mce.api.escomceapi.services;
 
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
-import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -30,16 +30,16 @@ public class ChangePasswordService {
 
     private final PersonneService personneService;
     private final PasswordService passwordService;
-    private final IUserDTOFactory userDTOFactory;
+    private final UserDTOFactory userDTOFactory;
 
-    public ChangePasswordService(PersonneService personneService, PasswordService passwordService, IUserDTOFactory userDTOFactory){
+    public ChangePasswordService(PersonneService personneService, PasswordService passwordService, UserDTOFactory userDTOFactory){
         this.personneService = personneService;
         this.passwordService = passwordService;
         this.userDTOFactory = userDTOFactory;
     }
 
     public void changePassword(String uid, PasswordChangeRequestDTO req) {
-        PersonneDTO user = personneService.retrievePersonnebyUid(uid);
+        DatabaseUserDto user = personneService.getUserDatabase(uid);
         EnumPublic pub = user.getEnumPublic();
         log.info("[CHANGE_PASSWORD] Diagnostique uid={} : enumPublic brut={}, isNtPass={}, source={}", uid, pub, user.isNtPass(), user.getSource());
         // TODO : pourquoi vérifier si c'est null ???? s'il faut qu'on la recalcule à chaque fois de toute manière

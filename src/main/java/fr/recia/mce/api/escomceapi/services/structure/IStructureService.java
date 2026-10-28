@@ -15,27 +15,17 @@
  */
 package fr.recia.mce.api.escomceapi.services.structure;
 
-import java.util.List;
-import java.util.Set;
-
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
-import fr.recia.mce.api.escomceapi.db.enums.SurType;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 
 public interface IStructureService {
 
-    public List<IExternalStructure> getAllStructures();
+    IExternalStructure findStructureBySiren(final String siren);
 
-    public IExternalStructure findStructureBySiren(final String siren);
-
-    public IExternalStructure findStructureByUai(final String uai);
+    IExternalStructure findStructureByUai(final String uai);
 
     boolean isReseauRecia(IExternalStructure str);
 
-    boolean isReseauRecia(PersonneDTO p);
-
-    Set<String> getAllVilles();
-
-    Set<String> findVillesBySurType(SurType surType);
+    boolean isReseauRecia(DatabaseUserDto p);
 
 }

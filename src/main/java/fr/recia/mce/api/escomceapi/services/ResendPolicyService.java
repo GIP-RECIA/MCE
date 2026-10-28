@@ -17,13 +17,13 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
-import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
+import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -48,7 +48,7 @@ public class ResendPolicyService {
     private MailProperties mailProperties;
 
     @Autowired
-    private IUserDTOFactory userDTOFactory;
+    private UserDTOFactory userDTOFactory;
 
     public int maxAttempts() {
         return mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
@@ -98,13 +98,13 @@ public class ResendPolicyService {
      * <li>sans connectOk ni ntPass, aucun mode d'authentification local n'existe (même règle que UserDTOFactoryImpl.computePassEditable).</li>
      * </ul>
      */
-    public void assertPasswordResetAllowed(PersonneDTO personneDTO, String uid) {
-        if (!userDTOFactory.canResetPassword(personneDTO)) {
-            EnumPublic pub = personneDTO.getEnumPublic();
+    public void assertPasswordResetAllowed(DatabaseUserDto databaseUserDto, String uid) {
+        if (!userDTOFactory.canResetPassword(databaseUserDto)) {
+            EnumPublic pub = databaseUserDto.getEnumPublic();
             if (pub == null && userDTOFactory != null) {
                 try {
-                    pub = userDTOFactory.evalPublic(personneDTO);
-                    personneDTO.setEnumPublic(pub);
+                    //pub = userDTOFactory.evalPublic(databaseUserDto);
+                    databaseUserDto.setEnumPublic(pub);
                 } catch (RuntimeException e) {
                     log.error("[PASSWORD_RESET] Échec de l'évaluation du profil uid={} : {}", uid, e.getMessage());
                 }
@@ -115,15 +115,15 @@ public class ResendPolicyService {
             }
             if (pub.isEduconnect()) {
                 log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}, enumPublic={}, ntPass={}",
-                        uid, pub, personneDTO.isNtPass());
+                        uid, pub, databaseUserDto.isNtPass());
                 throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
             }
             log.warn("[PASSWORD_RESET] Refus : mot de passe local non éditable uid={}, enumPublic={}, ntPass={}",
-                    uid, pub, personneDTO.isNtPass());
+                    uid, pub, databaseUserDto.isNtPass());
             throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
         }
         log.info("[PASSWORD_RESET] Autorisation uid={} : enumPublic={}, ntPass={}",
-                uid, personneDTO.getEnumPublic(), personneDTO.isNtPass());
+                uid, databaseUserDto.getEnumPublic(), databaseUserDto.isNtPass());
     }
 
 }

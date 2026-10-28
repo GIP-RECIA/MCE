@@ -32,7 +32,7 @@ import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.ClasseGroupe;
 import fr.recia.mce.api.escomceapi.services.beans.EnseignementProf;
@@ -75,7 +75,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
     }
 
     @Override
-    public ClasseGroupeDTO calculCG(IExternalUser person) {
+    public ClasseGroupeDTO calculCG(LdapUserDto person) {
 
         log.debug("DEBUG: Entrée dans calculCG pour {}", person != null ? person.getId() : "null");
         if (person == null) {
@@ -112,8 +112,6 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         regexClasse = this.serviceProperties.getClasseProperties().getRegexSirenAndClasse();
         regexGroup = this.serviceProperties.getGrpPedagoProperties().getRegexSirenAndClasse();
 
-        List<String> listCodeMatieres = person.getAttribute(extUserHelper.getUserCodeMatiereEnseignement());
-
         // process each ldap attribute classe and groupes
         log.debug("DEBUG: Traitement des attributs classe/groupe pour uid={}", uid);
         retriveClassesGroupsOfPerson(classAttrs, regexClasse, person, classes, groups,
@@ -133,8 +131,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
         for (String key : allKeys) {
             // Get or create the ClasseGroupe object
-            ClasseGroupe existingGroup = cgMap.getOrDefault(key,
-                    new ClasseGroupe(key, new ArrayList<>(), new ArrayList<>()));
+            ClasseGroupe existingGroup = cgMap.getOrDefault(key, new ClasseGroupe(key, new ArrayList<>(), new ArrayList<>()));
             IExternalStructure struct = structureService.findStructureBySiren(key);
             existingGroup.setNameEtab(struct.getName());
 
@@ -190,7 +187,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
     }
 
     private void retriveClassesGroupsOfPerson(String[] attributs, String regexCG,
-            IExternalUser person,
+            LdapUserDto person,
             Map<String, List<String>> classes, Map<String, List<String>> groups,
             Map<String, Map<String, ClasseGroupe>> profMap) {
         Pattern pattern = Pattern.compile(regexCG);
@@ -310,7 +307,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         profMap.putIfAbsent(siren, cgMap);
     }
 
-    private List<String> calculEnseignementSuivis(IExternalUser person, String attrEnsSuivi) {
+    private List<String> calculEnseignementSuivis(LdapUserDto person, String attrEnsSuivi) {
 
         List<String> valuesAttr = person.getAttribute(attrEnsSuivi);
         List<String> enseignements = new ArrayList<>();
@@ -323,7 +320,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         return enseignements;
     }
 
-    private String findMatiere(IExternalUser person, String siren, String code) {
+    private String findMatiere(LdapUserDto person, String siren, String code) {
 
         String nomMatiere = null;
 

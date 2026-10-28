@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.services.factories.impl;
+package fr.recia.mce.api.escomceapi.services.factories;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
+import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import jakarta.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.StringUtils;
@@ -31,9 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
-import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
@@ -45,19 +44,17 @@ import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
-import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
-import fr.recia.mce.api.escomceapi.services.factories.IUserDTOFactory;
 import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
-import fr.recia.mce.api.escomceapi.web.dto.UserDTO;
+import fr.recia.mce.api.escomceapi.web.dto.UserForDisplayDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -65,9 +62,10 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Transactional(readOnly = true)
 @Getter
-public class UserDTOFactoryImpl implements IUserDTOFactory {
+public class UserDTOFactory {
 
-    private static final String GUEST_USER_PREFIX = "guest";
+    // TODO : à mettre en conf
+    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT = "[^@]+@ac-orleans-tours.fr";
 
     @Autowired
     private transient APersonneRepository daoPersonne;
@@ -86,11 +84,6 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
 
     @Autowired
     private ExternalUserHelper extUserHelper;
-
-    private IExternalUser externalUser;
-    private PersonneDTO personneDTO;
-
-    private final ServiceProperties serviceProperties;
 
     @Autowired
     private IStructureService structureService;
@@ -116,54 +109,106 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private Pattern groupsWithSSHAPassword;
     private Pattern groupsWithNtPassword;
 
-    public UserDTOFactoryImpl(MCEProperties mceProperties) {
-        this.serviceProperties = mceProperties.getService();
+    public UserDTOFactory(MCEProperties mceProperties) {
         this.mceProperties = mceProperties;
-        String regex = this.serviceProperties.getCustomParams().getRegexGroupsWithSshaPass();
+        String regex = mceProperties.getService().getCustomParams().getRegexGroupsWithSshaPass();
         if (regex != null) {
             this.groupsWithSSHAPassword = Pattern.compile(regex);
         }
-        String ntRegex = this.serviceProperties.getCustomParams().getRegexGroupsWithSambaNt();
+        String ntRegex = mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt();
         if (ntRegex != null) {
             this.groupsWithNtPassword = Pattern.compile(ntRegex);
         }
     }
 
-    @Override
-    public APersonne from(@NotNull UserDTO dtObject) {
-        log.debug("Conversion DTO vers modèle pour id={}", dtObject != null ? dtObject.getId() : null);
-        if (dtObject != null) {
-            Optional<APersonne> optionalAPersonne = daoPersonne.findById(dtObject.getId());
-            return optionalAPersonne.orElse(null);
+    public UserForDisplayDTO from(@NotNull String uid) {
+        log.debug("Création d'un UserForDisplayDTO à partir de l'uid : {}", uid);
+        LdapUserDto ldapUser = personneService.getUserLdap(uid);
+        DatabaseUserDto databaseUser = personneService.getUserDatabase(uid);
+        try {
+            EnumPublic ep = evalPublic(databaseUser);
+            log.debug("Profil public évalué avec succès pour l'utilisateur [uid={}] : {}", databaseUser.getUid(), ep.name());
+        } catch (Exception e) {
+            log.error("Échec de l'évaluation du profil public pour l'utilisateur [uid={}] - Raison : Erreur technique lors du calcul du profil | Détail : {}", databaseUser.getUid(), e.getMessage());
         }
-        return null;
+        return from(ldapUser, databaseUser);
     }
 
-    @Override
-    public UserDTO from(IExternalUser extModel, boolean withInternal) {
-        log.debug("Conversion modèle externe vers DTO pour uid={}", extModel != null ? extModel.getId() : null);
+    /**
+     * Retourne le DTO prêt pour affichage
+     */
+    private UserForDisplayDTO from(LdapUserDto ldapUser, DatabaseUserDto databaseUser) {
+        APersonne base = databaseUser.getAPersonneBase();
+        if (base == null) {
+            log.error("Données de base absentes pour l'utilisateur [uid={}]", databaseUser.getUid());
+            return null;
+        }
 
-        PersonneDTO model = null;
-        if (extModel != null && withInternal) {
-            personneDTO = personneService.retrievePersonnebyUid(extModel.getId());
-            personneDTO.setMailFromLdap(extModel.getEmail());
-
-            model = personneDTO;
-
-            try {
-                EnumPublic ep = evalPublic(model);
-                log.debug("Profil public évalué avec succès pour l'utilisateur [uid={}] : {}", model.getUid(), ep.name());
-            } catch (Exception e) {
-                log.error(
-                        "Échec de l'évaluation du profil public pour l'utilisateur [uid={}] - Raison : Erreur technique lors du calcul du profil | Détail : {}",
-                        model.getUid(), e.getMessage());
+        // Détection objectClass AVANT résolution des relations
+        boolean isMaitre = false;
+        List<RelationEleveContact> apprentisList = null;
+        if (ldapUser != null) {
+            List<String> objectClasses = ldapUser.getAttribute("objectClass");
+            isMaitre = EnumObjectClass.containsMaitre(objectClasses);
+            if (isMaitre) {
+                apprentisList = iRelationEleveService.allApprentiEnRelation(databaseUser.getUid());
+                log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", databaseUser.getUid(), apprentisList != null ? apprentisList.size() : 0);
             }
+            log.debug("objectClass [uid={}]: isMaitre={}", databaseUser.getUid(), isMaitre);
         }
-        return from(model, extModel);
+
+        // isMaitre REMPLACE le profil : pas de parentEleve ni relationEleve
+        List<RelationEleveContact> respEleves = isMaitre ? null : resolveRespEleves(ldapUser);
+        List<RelationEleveContact> eleves = isMaitre ? null : resolveEleves(base);
+
+        EnumPublic pub = databaseUser.getEnumPublic();
+        boolean passEditable = false;
+        boolean canEditEmail = false;
+        boolean eduConnect = false;
+        boolean passEtab = false;
+
+        if (pub != null) {
+            passEditable = computePassEditable(databaseUser, pub);
+            eduConnect = computeEduConnect(databaseUser, pub);
+            canEditEmail = computeCanEditEmail(pub, base, databaseUser);
+            passEtab = computePassEtab(pub, databaseUser);
+        }
+
+        String resolvedEmail = resolveEmail(databaseUser, ldapUser);
+        String resolvedEmailPersonnel = resolveEmailPersonnel(base);
+        String etab = resolveEtablissementName(databaseUser);
+        String userIdentifiant = databaseUser.getIdentifiant();
+        List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
+        return new UserForDisplayDTO(
+            base.getId(),
+            databaseUser.getUid(),
+            databaseUser.getDisplayName(),
+            base.getGivenName(),
+            base.getSn(),
+            base.getCivilite(),
+            base.getCategorie(),
+            canEditEmail,
+            userIdentifiant,
+            etab,
+            resolvedEmail,
+            resolvedEmailPersonnel,
+            databaseUser.getNaissance(),
+            resolveAvatarUrl(base, ldapUser),
+            base.getEtat(),
+            passEditable,
+            userPublic,
+            showGeneralInfo(ldapUser, databaseUser),
+            respEleves,
+            eleves,
+            apprentisList
+        );
     }
 
-    @Override
-    public EnumPublic evalPublic(final PersonneDTO personne) {
+    // TODO : sortir de la classe ça n'a rien a faire dans une factory
+    public EnumPublic evalPublic(final DatabaseUserDto personne) {
+
+        // Sortir de la méthode
+        LdapUserDto ldapUser = personneService.getUserLdap(personne.getUid());
 
         DomSource ds = null;
         StructureDTO structure = personne.getStructureDto();
@@ -175,8 +220,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             try {
                 ds = structure.getDomSource();
             } catch (Exception e) {
-                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(),
-                        e.getMessage());
+                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
             }
         }
 
@@ -186,14 +230,12 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         }
 
         EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
-
         EnumPublic res = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
         personne.setEnumPublic(res);
 
         if (groupsWithSSHAPassword != null && DomSource.GIP.equals(ds)) {
-            IExternalUser extUser = personne.getExtUser();
-            if (extUser != null) {
-                List<String> attrs = extUser.getAttribute("isMemberOf");
+            if (ldapUser != null) {
+                List<String> attrs = ldapUser.getAttribute("isMemberOf");
                 if (attrs != null) {
                     personne.setSSHAPass(attrs.stream().anyMatch(s -> groupsWithSSHAPassword.matcher(s).matches()));
                 }
@@ -201,9 +243,8 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         }
 
         if (groupsWithNtPassword != null && (res != null && res.isNtProfile() || DomSource.GIP.equals(ds))) {
-            IExternalUser extUser = personne.getExtUser();
-            if (extUser != null) {
-                List<String> attrs = extUser.getAttribute("isMemberOf");
+            if (ldapUser != null) {
+                List<String> attrs = ldapUser.getAttribute("isMemberOf");
                 if (attrs != null) {
                     personne.setNtPass(attrs.stream().anyMatch(s -> groupsWithNtPassword.matcher(s).matches()));
                 }
@@ -213,79 +254,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return res;
     }
 
-    @Override
-    public UserDTO from(PersonneDTO model, IExternalUser extModel) {
-        structureService.getAllStructures();
-
-        if (model == null || extModel == null)
-            return null;
-
-        APersonne base = model.getAPersonneBase();
-        if (base == null) {
-            log.error("Données de base absentes pour l'utilisateur [uid={}]", model.getUid());
-            return null;
-        }
-
-        // Détection objectClass AVANT résolution des relations
-        boolean isMaitre = false;
-        List<RelationEleveContact> apprentisList = null;
-        if (extModel != null) {
-            List<String> objectClasses = extModel.getAttribute("objectClass");
-            isMaitre = EnumObjectClass.containsMaitre(objectClasses);
-            if (isMaitre) {
-                apprentisList = iRelationEleveService.allApprentiEnRelation(model.getUid());
-                log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)",
-                        model.getUid(), apprentisList != null ? apprentisList.size() : 0);
-            }
-            log.debug("objectClass [uid={}]: isMaitre={}",
-                    model.getUid(), isMaitre);
-        }
-
-        // isMaitre REMPLACE le profil : pas de parentEleve ni relationEleve
-        List<RelationEleveContact> respEleves = isMaitre ? null : resolveRespEleves(extModel);
-        List<RelationEleveContact> eleves = isMaitre ? null : resolveEleves(base);
-
-        EnumPublic pub = model.getEnumPublic();
-        boolean passEditable = false;
-        boolean canEditEmail = false;
-        boolean eduConnect = false;
-        boolean passEtab = false;
-
-        if (pub != null) {
-            passEditable = computePassEditable(model, pub);
-            eduConnect = computeEduConnect(model, pub);
-            canEditEmail = computeCanEditEmail(pub, base, model);
-            passEtab = computePassEtab(pub, model);
-        }
-
-        String resolvedEmail = resolveEmail(model, extModel);
-        String resolvedEmailPersonnel = resolveEmailPersonnel(base);
-        String etab = resolveEtablissementName(model);
-        String userIdentifiant = model.getIdentifiant();
-        List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
-        UserDTO user = new UserDTO(
-                base.getId(),
-                model.getUid(),
-                model.getDisplayName(),
-                base.getGivenName(),
-                base.getSn(),
-                base.getCivilite(),
-                base.getCategorie(),
-                canEditEmail,
-                userIdentifiant,
-                etab,
-                resolvedEmail,
-                resolvedEmailPersonnel,
-                model.getNaissance(),
-                resolveAvatarUrl(base, extModel),
-                base.getEtat(),
-                passEditable,
-                userPublic, showGeneralInfo(), respEleves, eleves, apprentisList);
-
-        return user;
-    }
-
-    private List<RelationEleveContact> resolveRespEleves(IExternalUser extModel) {
+    private List<RelationEleveContact> resolveRespEleves(LdapUserDto extModel) {
         Collection<RelationEleveContact> col = iRelationEleveService.allRelationEleves(extModel);
         return col != null ? new ArrayList<>(col) : null;
     }
@@ -294,34 +263,30 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return new ArrayList<>(iRelationEleveService.allEleveEnRelation(base.getId()));
     }
 
-    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT = "[^@]+@ac-orleans-tours.fr";
-
-    @Override
-    public boolean isPasswordEditable(PersonneDTO model) {
+    public boolean isPasswordEditable(DatabaseUserDto model) {
         if (model == null) {
             return false;
         }
         return computePassEditable(model, model.getEnumPublic());
     }
 
-    @Override
-    public boolean canResetPassword(PersonneDTO personneDTO) {
-        if (personneDTO == null) {
+    public boolean canResetPassword(DatabaseUserDto databaseUserDto) {
+        if (databaseUserDto == null) {
             return false;
         }
         // Toujours évaluer le profil pour s'assurer que source est correcte (isEduconnect dépend de source)
-        EnumPublic pub = evalPublic(personneDTO);
-        personneDTO.setEnumPublic(pub);
+        EnumPublic pub = evalPublic(databaseUserDto);
+        databaseUserDto.setEnumPublic(pub);
         if (pub == null) {
             return false;
         }
         if (pub.isEduconnect()) {
             return false;
         }
-        return isPasswordEditable(personneDTO);
+        return isPasswordEditable(databaseUserDto);
     }
 
-    private boolean computePassEditable(PersonneDTO model, EnumPublic pub) {
+    private boolean computePassEditable(DatabaseUserDto model, EnumPublic pub) {
         if (pub == null) {
             return false;
         }
@@ -329,34 +294,36 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
             return false;
         }
         String acMailPattern = mailProperties.getAcMailPattern();
-        if (acMailPattern == null)
+        if (acMailPattern == null){
             acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
-        if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null
-                && model.getMailFixe().matches(acMailPattern)) {
+        }
+        if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null && model.getMailFixe().matches(acMailPattern)) {
             return model.isNtPass();
         }
         return pub.isConnectOk() || model.isNtPass();
     }
 
-    private boolean computeEduConnect(PersonneDTO model, EnumPublic pub) {
+    private boolean computeEduConnect(DatabaseUserDto model, EnumPublic pub) {
         if (pub == null) {
             return false;
         }
         String acMailPattern = mailProperties.getAcMailPattern();
-        if (acMailPattern == null)
+        if (acMailPattern == null){
             acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
-        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION
-                || !model.getMailFixe().matches(acMailPattern)) {
+        }
+        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION || !model.getMailFixe().matches(acMailPattern)) {
             return pub.isEduconnect();
         }
         return false;
     }
 
-    private boolean computeCanEditEmail(EnumPublic pub, APersonne base, PersonneDTO model) {
-        if (pub.isEleve())
+    private boolean computeCanEditEmail(EnumPublic pub, APersonne base, DatabaseUserDto model) {
+        if (pub.isEleve()){
             return true;
-        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty())
+        }
+        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()){
             return true;
+        }
         return model.getMailFixe() == null || model.getMailFixe().isEmpty();
     }
 
@@ -371,14 +338,14 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         if (pub == null) {
             return false;
         }
-        return computeCanEditEmail(pub, base, new PersonneDTO(base));
+        return computeCanEditEmail(pub, base, new DatabaseUserDto(base));
     }
 
-    private boolean computePassEtab(EnumPublic pub, PersonneDTO model) {
+    private boolean computePassEtab(EnumPublic pub, DatabaseUserDto model) {
         return pub.isPassEtab() && structureService.isReseauRecia(model);
     }
 
-    private String resolveEmail(PersonneDTO model, IExternalUser extModel) {
+    private String resolveEmail(DatabaseUserDto model, LdapUserDto extModel) {
         if (StringUtils.isBlank(model.getMailFromLdap()) && extModel != null) {
             model.setMailFromLdap(extModel.getEmail());
         }
@@ -393,7 +360,7 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return base.getEmailPersonnel();
     }
 
-    private String resolveEtablissementName(PersonneDTO model) {
+    private String resolveEtablissementName(DatabaseUserDto model) {
         if (model.getStructureDto() == null)
             return null;
         try {
@@ -408,17 +375,17 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
     private List<String> buildUserPublicLinks(boolean eduConnect, boolean passEtab) {
         List<String> links = new ArrayList<>();
         if (eduConnect) {
-            links.add(this.serviceProperties.getCustomParams().getLienEdu());
+            links.add(mceProperties.getService().getCustomParams().getLienEdu());
             if (passEtab) {
-                links.add(this.serviceProperties.getCustomParams().getLienPassEtab());
+                links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
             }
         } else if (passEtab) {
-            links.add(this.serviceProperties.getCustomParams().getLienPassEtab());
+            links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
         }
         return links;
     }
 
-    private String resolveAvatarUrl(APersonne base, IExternalUser extModel) {
+    private String resolveAvatarUrl(APersonne base, LdapUserDto extModel) {
         if (base.getPhoto() != null) {
             log.debug("URL de l'avatar pour l'UID [{}]: {}", base.getUid(), base.getPhoto());
             return base.getPhoto();
@@ -434,44 +401,16 @@ public class UserDTOFactoryImpl implements IUserDTOFactory {
         return null;
     }
 
-    @Override
-    public UserDTO from(@NotNull PersonneDTO model) {
-
-        log.debug("Conversion modèle vers DTO pour uid={}", model.getUid());
-        externalUser = personneService.retrievePersonLdap(model.getUid());
-        return from(model, externalUser);
-    }
-
-    @Override
-    public UserDTO from(@NotNull String uid) {
-
-        log.debug("Conversion de l'uid vers DTO pour {}", uid);
-        externalUser = personneService.retrievePersonLdap(uid);
-
-        return from(externalUser, true);
-    }
-
-    @Override
-    public InfoGeneralDTO showGeneralInfo() {
-
-        APersonne base = personneDTO.getAPersonneBase();
-        InfoGeneralDTO infoGeneral = null;
+    private InfoGeneralDTO showGeneralInfo(LdapUserDto ldapUserDto, DatabaseUserDto databaseUserDto) {
+        APersonne base = databaseUserDto.getAPersonneBase();
         List<FonctionDTO> listFonctions;
-
         Long id = base.getId();
         log.debug("Récupération des informations générales pour l'ID utilisateur : {}", id);
-
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
-
         listFonctions = new ArrayList<>(fonctions);
         log.debug("{} fonction(s) trouvée(s) pour l'ID utilisateur : {}", listFonctions.size(), id);
-
-        IExternalUser extUser = personneDTO.getExtUser();
-        ClasseGroupeDTO classes = extUser != null ? classeGroupeService.calculCG(extUser) : null;
-
-        infoGeneral = new InfoGeneralDTO(listFonctions, classes);
-
-        return infoGeneral;
+        ClasseGroupeDTO classes = ldapUserDto != null ? classeGroupeService.calculCG(ldapUserDto) : null;
+        return new InfoGeneralDTO(listFonctions, classes);
     }
 
 }

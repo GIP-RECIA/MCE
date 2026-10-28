@@ -18,11 +18,11 @@ package fr.recia.mce.api.escomceapi.db.beans;
 import java.util.Date;
 
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter
-@Setter
+@Data
 public class Personne {
 
     private String displayName;

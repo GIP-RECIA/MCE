@@ -76,7 +76,7 @@ L'API est accessible sur `https://lycees.test.recia.dev` (port et context-path c
 |---------|-------------------------------------------|------------------------------------------|
 | `GET`   | `/api/personne/mce/`                      | Profil complet de l'utilisateur connecté |
 | `GET`   | `/api/personne/mce/{id}`                  | Profil d'un enfant par son identifiant   |
-| `GET`   | `/api/personne/mce/getuser`               | Informations complètes (`PersonneDTO`)   |
+| `GET`   | `/api/personne/mce/getuser`               | Informations complètes (`DatabaseUserDto`)   |
 | `GET`   | `/api/personne/mce/ldap`                  | Données LDAP brutes                      |
 | `POST`  | `/api/personne/mce/{uid}/change-password` | Changement de mot de passe               |
 | `PUT`   | `/api/personne/mce/{uid}/update-email`    | Demande de vérification email            |

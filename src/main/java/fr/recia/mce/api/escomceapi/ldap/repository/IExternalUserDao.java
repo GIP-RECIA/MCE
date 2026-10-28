@@ -15,16 +15,16 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 
 import java.util.Collection;
 import java.util.List;
 
 public interface IExternalUserDao {
 
-    IExternalUser getUserByUid(final String uid);
+    LdapUserDto getUserByUid(final String uid);
 
-    List<IExternalUser> getByUids(final Collection<String> uids);
+    List<LdapUserDto> getByUids(final Collection<String> uids);
 
     void updatePassword(final String uid, final String newHashedPassword);
 

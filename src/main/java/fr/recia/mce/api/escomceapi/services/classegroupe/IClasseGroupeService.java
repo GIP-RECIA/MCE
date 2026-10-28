@@ -15,10 +15,10 @@
  */
 package fr.recia.mce.api.escomceapi.services.classegroupe;
 
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 
 public interface IClasseGroupeService {
 
-    public ClasseGroupeDTO calculCG(IExternalUser person);
+    public ClasseGroupeDTO calculCG(LdapUserDto person);
 
 }

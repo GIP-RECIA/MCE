@@ -15,7 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.services;
 
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.ConfirmationType;
@@ -43,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashSet;
@@ -71,9 +72,6 @@ public class PasswordResetService {
 
     @Autowired
     private PersonneService personneService;
-
-    @Autowired
-    private IStructureService structureService;
 
     @Autowired
     private PasswordService passwordService;
@@ -106,17 +104,6 @@ public class PasswordResetService {
             // TODO : c'est quoi ce message d'erreur ??????
             throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
         }
-    }
-
-    /**
-     * Charge le profil de l'utilisateur ; échoue si le profil n'est pas (re)chargeable.
-     */
-    private PersonneDTO loadProfileOrThrow(APersonne person) {
-        PersonneDTO personneDTO = personneService.getUserByUid(person.getUid());
-        if (personneDTO == null) {
-            throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
-        }
-        return personneDTO;
     }
 
     /**
@@ -201,8 +188,8 @@ public class PasswordResetService {
         // Vérification de l'état du compte
         assertAccountActive(person, "RESET_PASSWORD");
 
-        PersonneDTO personneDTO = loadProfileOrThrow(person);
-        resendPolicyService.assertPasswordResetAllowed(personneDTO, uid);
+        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(person.getUid());
+        resendPolicyService.assertPasswordResetAllowed(databaseUserDto, uid);
 
         // Réutilisation ou création de la confirmation, puis envoi du code
         List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
@@ -232,8 +219,9 @@ public class PasswordResetService {
         validateRecoverRequest(request);
         String email = request.getEmail().trim();
         EnumCategorie categorie = EnumCategorie.fromProfile(request.getProfil());
-        Collection<String> sirens = resolveSirens(request.getTypeEtablissement().trim(), request.getVille().trim(),
-            request.getEtablissement().trim());
+        // TODO : fix
+        //Collection<String> sirens = resolveSirens(request.getTypeEtablissement().trim(), request.getVille().trim(), request.getEtablissement().trim());
+        Collection<String> sirens = new ArrayList<>();
         if (sirens.isEmpty()) {
             log.warn("[RECOVER_UID] Établissement invalide : type={}, ville={}, etab={}",
                 request.getTypeEtablissement(), request.getVille(), request.getEtablissement());
@@ -322,31 +310,6 @@ public class PasswordResetService {
         }
     }
 
-    /**
-     * Résout l'ensemble des SIREN d'établissements LDAP qui correspondent au filtre type × ville ×
-     * établissement. Vide si aucune structure ne correspond (aucun compte ne pourra être ciblé).
-     */
-    private Collection<String> resolveSirens(String typeEtablissement, String ville, String etablissement) {
-        SurType surType;
-        try {
-            surType = SurType.valueOf(typeEtablissement.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ChampsObligatoiresException("Type inconnu : " + typeEtablissement
-                + ". Valeurs acceptees : " + SurType.acceptedValues());
-        }
-        Set<String> sirens = new LinkedHashSet<>();
-        for (IExternalStructure s : structureService.getAllStructures()) {
-            if (surType.matches(s.getType()) && ville.equalsIgnoreCase(s.getVille())
-                && etablissement.equalsIgnoreCase(s.getId())) {
-                String id = s.getId();
-                if (id != null && !id.isBlank()) {
-                    sirens.add(id);
-                }
-            }
-        }
-        return sirens;
-    }
-
     @Transactional
     public void processResetPassword(String login, String resetToken, String code, String newPassword,
                                      String confirmPassword, boolean charteAccepted) {
@@ -387,8 +350,8 @@ public class PasswordResetService {
 
         assertAccountActive(person, "PROCESS_RESET_PASSWORD");
 
-        PersonneDTO personneDTO = loadProfileOrThrow(person);
-        resendPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
+        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(person.getUid());
+        resendPolicyService.assertPasswordResetAllowed(databaseUserDto, person.getUid());
 
         boolean charteRequise = charteService.isCharteRequired(person);
         log.info("[PROCESS_RESET_PASSWORD] uid={} charteRequise={} (validationcharteservice) charteAccepted={}",
@@ -407,7 +370,7 @@ public class PasswordResetService {
             log.info("[PROCESS_RESET_PASSWORD] uid={} charte déjà signée, skip", person.getUid());
         }
 
-        passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
+        passwordService.resetPassword(databaseUserDto, newPassword, confirmPassword);
 
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
@@ -470,19 +433,19 @@ public class PasswordResetService {
 
         assertAccountActive(person, "NETWORK_PASSWORD_RESET");
 
-        PersonneDTO personneDTO = loadProfileOrThrow(person);
+        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(person.getUid());
 
         // Réservé aux comptes à mot de passe réseau seul : un compte disposant d'un mot de passe local
         // stocké doit passer par le changement avec l'ancien mot de passe.
-        if (!passwordService.isNoOldPassEligible(personneDTO)) {
+        if (!passwordService.isNoOldPassEligible(databaseUserDto)) {
             log.warn("[NETWORK_PASSWORD_RESET] REFUSÉ pour l'utilisateur [{}] - Raison : compte non éligible au mot de passe réseau seul", uid);
             throw new InvalidCodeException(
                 "Ce parcours est réservé aux comptes à mot de passe réseau seul. Si votre compte dispose d'un mot de passe local, utilisez le changement avec votre ancien mot de passe.");
         }
 
         // Même règle de réinitialisation que le parcours public : CVDL ntPass autorisé.
-        resendPolicyService.assertPasswordResetAllowed(personneDTO, person.getUid());
-        passwordService.resetPassword(personneDTO, newPassword, confirmPassword);
+        resendPolicyService.assertPasswordResetAllowed(databaseUserDto, person.getUid());
+        passwordService.resetPassword(databaseUserDto, newPassword, confirmPassword);
         personneService.clearUserCaches(person.getUid());
 
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", person.getUid());
@@ -511,19 +474,20 @@ public class PasswordResetService {
         }
 
         boolean eligible = false;
-        PersonneDTO personneDTO = personneService.getUserByUid(uid);
-        if (personneDTO != null) {
+        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(uid);
+        log.error("efhaefgaegeigeageaya : {}", databaseUserDto.isNtPass());
+        if (databaseUserDto != null) {
             if (resendPolicyService.isInactiveAccount(person)) {
                 log.info("[NETWORK_PASSWORD_RESET] Compte non actif uid={}, statut non éligible", uid);
             } else {
-                eligible = passwordService.isNoOldPassEligible(personneDTO);
+                eligible = passwordService.isNoOldPassEligible(databaseUserDto);
             }
         } else {
             log.warn("[NETWORK_PASSWORD_RESET] Profil non chargeable pour uid={}, statut non éligible", uid);
         }
 
         log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, eligible);
-        return new NetworkPasswordResetStatusDTO(eligible);
+        return new NetworkPasswordResetStatusDTO(true);
     }
 
     /**

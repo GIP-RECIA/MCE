@@ -19,12 +19,12 @@ import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
@@ -89,38 +89,70 @@ public class PersonneService {
     @Autowired
     private MailProperties mailProperties;
 
-    public PersonneDTO getUserByUid(String uid) {
+    /**
+     * Charge un utilisateur depuis la base de données
+     */
+    public DatabaseUserDto getUserDatabase(String uid) {
+        // Récupération dans le cache si possible
         Cache cache = cacheManager.getCache(DB_CACHE_NAME);
         if (cache != null) {
-            PersonneDTO cached = cache.get(uid, PersonneDTO.class);
+            DatabaseUserDto cached = cache.get(uid, DatabaseUserDto.class);
             if (cached != null) {
                 log.debug("Cache hit pour 'personneDBCache' : Données DB chargées pour l'uid [{}]", uid);
                 return cached;
             }
         }
 
+        // Sinon on requête la BDD et on met dans le cache
         log.debug("Cache miss pour 'personneDBCache' : Récupération des données DB pour l'uid [{}]", uid);
-
-        PersonneDTO personne = aPersonneRepository.getPersonneByUid(uid);
-
+        DatabaseUserDto personne = aPersonneRepository.getPersonneByUid(uid);
         if (personne != null) {
             populateCharteValidationDTO(personne, uid);
-            loadLdapUser(personne, uid);
             if (cache != null) {
                 cache.putIfAbsent(uid, personne);
             }
         }
 
-        log.debug("Recherche base de données terminée pour l'uid [{}] : Résultat={}", uid, personne);
         return personne;
     }
+
+    /**
+     * Charge un utilisateur depuis le LDAP
+     */
+    public LdapUserDto getUserLdap(String uid) {
+        // Récupération dans le cache si possible
+        LdapUserDto userLdap = null;
+        Cache cache = cacheManager.getCache(LDAP_CACHE_NAME);
+        if (cache != null) {
+            userLdap = cache.get(uid, LdapUserDto.class);
+            if (!Objects.isNull(userLdap)) {
+                log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
+                return userLdap;
+            }
+        }
+
+        // Sinon on requête le LDAP et on met dans le cache
+        try {
+            log.debug("Cache miss pour 'personneLDAPCache' : Récupération des données LDAP depuis l'annuaire pour l'uid [{}]", uid);
+            userLdap = getExtDao().getUserByUid(uid);
+            if (cache != null) {
+                cache.putIfAbsent(uid, userLdap);
+            }
+        } catch (Exception e) {
+            log.error("Échec du chargement des données LDAP pour l'uid [{}] - Détail : {}", uid, e.getMessage());
+
+        }
+        return userLdap;
+
+    }
+
 
     /**
      * Reflète sur le DTO l'état de la validation de charte (date + flag) lu depuis la table dédiée
      * {@code validationcharteservice}, pour le service courant de la personne. N'écrit plus la colonne
      * {@code apersonne.validationCharte}.
      */
-    private void populateCharteValidationDTO(PersonneDTO personne, String uid) {
+    private void populateCharteValidationDTO(DatabaseUserDto personne, String uid) {
         try {
             APersonne base = personne.getApersonne();
             if (base == null || base.getId() == null) {
@@ -131,90 +163,13 @@ public class PersonneService {
                 return;
             }
             ValidationCharte validation = validationCharteRepository
-                    .findByApersonneIdAndServiceId(base.getId(), serviceId);
+                .findByApersonneIdAndServiceId(base.getId(), serviceId);
             if (validation != null) {
                 personne.setDateValidCharte(validation.getValidatedAt());
                 personne.setCharteValide(true);
             }
         } catch (Exception e) {
             log.warn("Impossible de refléter la validation de charte sur le DTO pour l'uid [{}] : {}", uid, e.getMessage());
-        }
-    }
-
-    private IExternalUser getUserLdap(String uid) {
-        IExternalUser userLdap = null;
-
-        Cache cache = cacheManager.getCache(LDAP_CACHE_NAME);
-
-        if (cache != null) {
-            IExternalUser getUser = cache.get(uid, IExternalUser.class);
-            if (!Objects.isNull(getUser)) {
-                log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
-                return getUser;
-            }
-        }
-
-        try {
-            log.debug("Cache miss pour 'personneLDAPCache' : Récupération des données LDAP depuis l'annuaire pour l'uid [{}]", uid);
-            userLdap = getExtDao().getUserByUid(uid);
-            if (cache != null) {
-                cache.putIfAbsent(uid, userLdap);
-            }
-
-        } catch (Exception e) {
-            log.error("Échec du chargement des données LDAP pour l'uid [{}] - Détail : {}", uid, e.getMessage());
-
-        }
-        return userLdap;
-
-    }
-
-    private void loadLdapUser(PersonneDTO personne, String uid) {
-        IExternalUser u = getUserLdap(uid);
-        personne.setExtUser(u);
-    }
-
-    public PersonneDTO retrievePersonnebyUid(String uid) {
-        return this.getUserByUid(uid);
-    }
-
-    public IExternalUser retrievePersonLdap(String uid) {
-        log.debug("retrievePersonLdap : {}", uid);
-        return getUserLdap(uid);
-
-    }
-
-    /**
-     * Contrôle non bloquant de l'état du compte dans l'annuaire LDAP (attribut
-     * {@code ESCOPersonEtatCompte}). La base de données reste la source de vérité : si la base considère le compte
-     * {@code Valide} mais que l'annuaire indique un état divergent ({@code Bloque}, {@code Delete}, {@code Incertain},
-     * {@code Incertain_Export_Add}, {@code Incertain_Export_Modify}, {@code Invalide}...), un warning est simplement
-     * journalisé, sans refuser l'activation.
-     *
-     * @param uid
-     *            identifiant de l'utilisateur
-     */
-    public void logEtatCompteLdapDivergent(String uid) {
-        APersonne entity = aPersonneRepository.findByUid(uid);
-        if (entity == null) {
-            return;
-        }
-        if (!AccountState.same(entity.getEtat(), AccountState.VALIDE)) {
-            return;
-        }
-        IExternalUser userLdap = getUserLdap(uid);
-        if (userLdap == null) {
-            log.warn("[ETAT_COMPTE_LDAP] uid={} : compte '{}' en base mais utilisateur introuvable/indisponible dans l'annuaire LDAP",
-                    uid, entity.getEtat());
-            return;
-        }
-        String etatLdapAttr = mceProperties.getLdap().getUserBranch().getEtatCompteAttribute();
-        List<String> etatsLdap = userLdap.getAttribute(etatLdapAttr);
-        boolean actifDansLdap = etatsLdap != null
-                && etatsLdap.stream().anyMatch(s -> AccountState.same(s, AccountState.VALIDE));
-        if (!actifDansLdap) {
-            log.warn("[ETAT_COMPTE_LDAP] uid={} : compte '{}' en base mais état LDAP divergent ({}={}). La base prime : aucune action bloquante.",
-                    uid, entity.getEtat(), etatLdapAttr, etatsLdap);
         }
     }
 
@@ -368,13 +323,13 @@ public class PersonneService {
      * Vérifie que l'utilisateur a bien le droit de changer son mail
      */
     public void validateEmailForUpdate(String uid, String newEmail) {
-        PersonneDTO personneDTO = aPersonneRepository.getPersonneByUid(uid);
-        if (personneDTO == null) {
+        DatabaseUserDto databaseUserDto = aPersonneRepository.getPersonneByUid(uid);
+        if (databaseUserDto == null) {
             log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
             throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
         }
 
-        if (!canEditPersonalEmail(personneDTO)) {
+        if (!canEditPersonalEmail(databaseUserDto)) {
             log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", uid);
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
         }
@@ -399,7 +354,7 @@ public class PersonneService {
         log.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
     }
 
-    private boolean canEditPersonalEmail(PersonneDTO personne) {
+    private boolean canEditPersonalEmail(DatabaseUserDto personne) {
         APersonne base = personne.getAPersonneBase();
         if (base == null) {
             return false;

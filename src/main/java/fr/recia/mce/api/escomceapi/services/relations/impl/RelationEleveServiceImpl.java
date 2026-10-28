@@ -29,10 +29,10 @@ import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties.RelationProperties;
-import fr.recia.mce.api.escomceapi.db.dto.PersonneDTO;
+import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalUser;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact.SensRel;
@@ -86,7 +86,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         this.grpTypRel = relProps.getGroupTypRel();
     }
 
-    private void analyseMaitre(final IExternalUser personne, final String ldapAttr,
+    private void analyseMaitre(final LdapUserDto personne, final String ldapAttr,
             final String type,
             final boolean autorite,
             final Map<String, RelationEleveContact> uid2relation) {
@@ -131,8 +131,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
      * @param uid2relation
      *            map des relations
      */
-    private void analyse(final IExternalUser personne, final String ldapAttr,
-            final Map<String, RelationEleveContact> uid2relation) {
+    private void analyse(final LdapUserDto personne, final String ldapAttr, final Map<String, RelationEleveContact> uid2relation) {
 
         List<String> listAttrs = personne.getAttribute(ldapAttr);
 
@@ -182,7 +181,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         if (eleve == null || eleve.trim().isEmpty())
             return Collections.emptyList();
 
-        IExternalUser personne = personneService.retrievePersonLdap(eleve);
+        LdapUserDto personne = personneService.getUserLdap(eleve);
         if (personne == null) {
             log.warn("Aucune donnée LDAP trouvée pour l'élève {}", eleve);
             return Collections.emptyList();
@@ -192,7 +191,8 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     }
 
     @Override
-    public Collection<RelationEleveContact> allRelationEleves(IExternalUser personne) {
+    // TODO : a retravailler
+    public Collection<RelationEleveContact> allRelationEleves(LdapUserDto personne) {
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
 
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
@@ -206,16 +206,21 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
             return Collections.emptyList();
         }
 
-        if (hasRelation)
+        log.error("personne : {}", personne);
+        log.error("eleveRelation : {}", eleveRelation);
+
+        if (hasRelation){
             analyse(personne, eleveRelation, uid2relation);
-        if (hasTuteur)
+        }
+        if (hasTuteur){
             analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
+        }
 
         // Remplissage des noms via LDAP
         if (!uid2relation.isEmpty()) {
             try {
-                List<IExternalUser> users = personneService.getExtDao().getByUids(uid2relation.keySet());
-                for (IExternalUser u : users) {
+                List<LdapUserDto> users = personneService.getExtDao().getByUids(uid2relation.keySet());
+                for (LdapUserDto u : users) {
                     RelationEleveContact rel = uid2relation.get(u.getId());
                     if (rel != null) {
                         rel.setDisplayNameRelation(u.getDisplayName());
@@ -271,13 +276,13 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
      */
     @Override
     public Collection<RelationEleveContact> allEleveEnRelation(Long parent) {
-        Collection<PersonneDTO> allEnfant;
+        Collection<DatabaseUserDto> allEnfant;
         Map<String, RelationEleveContact> uidEleve2relation = new HashMap<>();
 
         try {
             allEnfant = aPersonneRepository.findAllEnfantOf(parent);
 
-            for (PersonneDTO enfant : allEnfant) {
+            for (DatabaseUserDto enfant : allEnfant) {
 
                 String uid = enfant.getUid();
                 String typeRel = enfant.typeOfParent();
@@ -311,11 +316,11 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     @Override
     public List<RelationEleveContact> allApprentiEnRelation(String maitre) {
         List<RelationEleveContact> allApprenti = null;
-        IExternalUser personne = personneService.retrievePersonLdap(maitre);
+        LdapUserDto personne = personneService.getUserLdap(maitre);
 
         Long maitreId = null;
         try {
-            PersonneDTO maitreDto = personneService.retrievePersonnebyUid(maitre);
+            DatabaseUserDto maitreDto = personneService.getUserDatabase(maitre);
             if (maitreDto != null && maitreDto.getAPersonneBase() != null) {
                 maitreId = maitreDto.getAPersonneBase().getId();
             }
@@ -334,7 +339,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                     if (m.matches()) {
                         String uid = m.group(1);
                         try {
-                            PersonneDTO eleve = personneService.retrievePersonnebyUid(uid);
+                            DatabaseUserDto eleve = personneService.getUserDatabase(uid);
                             RelationEleveContact re = new RelationEleveContact(SensRel.CONTACT2ELEVE);
                             re.setContact(maitreId);
                             re.setEleve(eleve);

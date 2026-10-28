@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UserDTO {
+public class UserForDisplayDTO {
 
     @JsonIgnore
     private Long id;
@@ -56,13 +56,13 @@ public class UserDTO {
     private List<RelationEleveContact> relationEleve;
     private List<RelationEleveContact> apprentis;
 
-    public UserDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, Boolean canEditEmail,
-            String identifiant, String etab, String email, String emailPersonnel, Date bod,
-            String avatar, String etat, Boolean mdp, List<String> userPublic,
-            InfoGeneralDTO fonctionClassesGroupe,
-            List<RelationEleveContact> parentEleve,
-            List<RelationEleveContact> relationEleve,
-            List<RelationEleveContact> apprentis) {
+    public UserForDisplayDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, Boolean canEditEmail,
+                             String identifiant, String etab, String email, String emailPersonnel, Date bod,
+                             String avatar, String etat, Boolean mdp, List<String> userPublic,
+                             InfoGeneralDTO fonctionClassesGroupe,
+                             List<RelationEleveContact> parentEleve,
+                             List<RelationEleveContact> relationEleve,
+                             List<RelationEleveContact> apprentis) {
 
         this.id = id;
         this.uid = uid;
@@ -88,8 +88,7 @@ public class UserDTO {
 
         log.debug("UserDTO construit - uid={} | etab={}", uid, etab);
 
-        log.debug("parentEleve (ELEVE → CONTACT) pour uid={} : {} élément(s)",
-                uid, parentEleve != null ? parentEleve.size() : 0);
+        log.debug("parentEleve (ELEVE → CONTACT) pour uid={} : {} élément(s)", uid, parentEleve != null ? parentEleve.size() : 0);
         if (parentEleve != null) {
             for (RelationEleveContact r : parentEleve) {
                 log.debug("   → parentEleve : uid={} | nom={} | type={}",
@@ -99,8 +98,7 @@ public class UserDTO {
             }
         }
 
-        log.debug("relationEleve (CONTACT → ELEVE) pour uid={} : {} élément(s)",
-                uid, relationEleve != null ? relationEleve.size() : 0);
+        log.debug("relationEleve (CONTACT → ELEVE) pour uid={} : {} élément(s)", uid, relationEleve != null ? relationEleve.size() : 0);
         if (relationEleve != null) {
             for (RelationEleveContact r : relationEleve) {
                 log.debug("   → relationEleve : uid={} | nom={} | type={}",
@@ -110,8 +108,7 @@ public class UserDTO {
             }
         }
 
-        log.debug("apprentis pour uid={} : {} élément(s)",
-                uid, apprentis != null ? apprentis.size() : 0);
+        log.debug("apprentis pour uid={} : {} élément(s)", uid, apprentis != null ? apprentis.size() : 0);
         if (apprentis != null) {
             for (RelationEleveContact r : apprentis) {
                 log.debug("   → apprenti : uid={} | nom={} | type={}",
@@ -120,12 +117,6 @@ public class UserDTO {
                         r.getTypeRelation());
             }
         }
-    }
-
-    public UserDTO(Long id, String uid, String userName, String identifiant, String etab, String email, String emailPersonnel, Date bod,
-            String avatar, String etat) {
-        this(id, uid, userName, null, null, null, null, null, identifiant, etab, email, emailPersonnel, bod, avatar, etat,
-                null, null, null, null, null, null);
     }
 
     @Override

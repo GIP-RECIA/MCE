@@ -15,8 +15,28 @@
  */
 package fr.recia.mce.api.escomceapi.ldap;
 
-public interface IExternalUser extends IExternalSubject {
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-    String getEmail();
+import lombok.Data;
+
+@Data
+public class LdapUserDto {
+
+    private String id;
+    private String displayName;
+    private String email;
+    private Map<String, List<String>> attributes = new HashMap<>();
+
+    public List<String> getAttribute(String attr) {
+        if (attributes.containsKey(attr)){
+            return attributes.get(attr);
+        } else if (attributes.containsKey(attr.toLowerCase())){
+            return attributes.get(attr.toLowerCase());
+        }
+        return Collections.emptyList();
+    }
 
 }
