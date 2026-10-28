@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Repository
-public class LdapStructDaoImpl implements IExternalStructDao {
+public class LdapStructDaoImpl {
 
     @Autowired
     private LdapTemplate ldapTemplate;
@@ -41,13 +41,11 @@ public class LdapStructDaoImpl implements IExternalStructDao {
     @Autowired
     private ExternalStructHelper externalStructHelper;
 
-    @Override
     public List<IExternalStructure> loadAllStructure() {
 
         OrFilter filter = new OrFilter();
         filter.or(new PresentFilter(externalStructHelper.getStructUaiAttribute()));
         filter.or(new EqualsFilter(externalStructHelper.getStructTypeAttribute(), "COLLECTIVITE LOCALE"));
-        System.out.println(filter.encode());
 
         if (log.isDebugEnabled()) {
             log.debug("Filtre LDAP appliqué : {}", filter);

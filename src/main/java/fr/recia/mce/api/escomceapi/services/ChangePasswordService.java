@@ -18,7 +18,7 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
-import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
+import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -29,23 +29,24 @@ import org.springframework.stereotype.Service;
 public class ChangePasswordService {
 
     private final PersonneService personneService;
+    private final DatabaseUserService databaseUserService;
     private final PasswordService passwordService;
-    private final UserDTOFactory userDTOFactory;
 
-    public ChangePasswordService(PersonneService personneService, PasswordService passwordService, UserDTOFactory userDTOFactory){
+    public ChangePasswordService(PersonneService personneService, PasswordService passwordService,
+                                 DatabaseUserService databaseUserService){
         this.personneService = personneService;
         this.passwordService = passwordService;
-        this.userDTOFactory = userDTOFactory;
+        this.databaseUserService = databaseUserService;
     }
 
     public void changePassword(String uid, PasswordChangeRequestDTO req) {
-        DatabaseUserDto user = personneService.getUserDatabase(uid);
+        DatabaseUserDto user = databaseUserService.getUserDatabase(uid);
         EnumPublic pub = user.getEnumPublic();
         log.info("[CHANGE_PASSWORD] Diagnostique uid={} : enumPublic brut={}, isNtPass={}, source={}", uid, pub, user.isNtPass(), user.getSource());
         // TODO : pourquoi vérifier si c'est null ???? s'il faut qu'on la recalcule à chaque fois de toute manière
         if (pub == null) {
             try {
-                userDTOFactory.evalPublic(user);
+                personneService.evalPublic(user);
                 pub = user.getEnumPublic();
                 log.info("[CHANGE_PASSWORD] Après evalPublic uid={} : enumPublic={}, connectOk={}, educonnect={}, isNtPass={}, source={}",
                     uid, pub, pub == null ? "N/A" : pub.isConnectOk(), pub == null ? "N/A" : pub.isEduconnect(), user.isNtPass(), user.getSource());
@@ -57,7 +58,7 @@ public class ChangePasswordService {
 
         EnumPublic effectivePub = user.getEnumPublic();
         boolean eduConnect = effectivePub != null && effectivePub.isEduconnect();
-        boolean editable = userDTOFactory.isPasswordEditable(user);
+        boolean editable = personneService.isPasswordEditable(user);
         log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})",
             uid, editable, effectivePub, user.isNtPass(), user.getSource(), eduConnect);
         if (!editable) {

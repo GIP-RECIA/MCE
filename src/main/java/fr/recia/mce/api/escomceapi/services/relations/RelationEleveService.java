@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.services.relations.impl;
+package fr.recia.mce.api.escomceapi.services.relations;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,6 +24,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
+import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -33,10 +36,8 @@ import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
-import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact.SensRel;
-import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -59,16 +60,22 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Service
 @Slf4j
-public class RelationEleveServiceImpl implements IRelationEleveService {
+public class RelationEleveService {
 
     @Autowired
     private APersonneRepository aPersonneRepository;
 
     @Autowired
-    private PersonneService personneService;
+    private ExternalUserHelper extUserHelper;
 
     @Autowired
-    private ExternalUserHelper extUserHelper;
+    private DatabaseUserService databaseUserService;
+
+    @Autowired
+    private LdapUserService ldapUserService;
+
+    @Autowired
+    private LdapUserDaoImpl externalUserDao;
 
     private final String regex;
     private final Pattern pattern;
@@ -77,7 +84,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
     private final int grpTypRel;
 
 
-    public RelationEleveServiceImpl(MCEProperties mceProperties) {
+    public RelationEleveService(MCEProperties mceProperties) {
         RelationProperties relProps = mceProperties.getService().getRelationProperties();
         this.regex = relProps.getRegexUid();
         this.pattern = Pattern.compile(regex);
@@ -169,30 +176,9 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
     }
 
-    /**
-     * Retourne toutes les relations d'un élève. Ordre : LDAP base de données si LDAP vide
-     *
-     * @param eleve
-     *            UID de l'élève
-     * @return collection de relations
-     */
-    @Override
-    public Collection<RelationEleveContact> allRelationEleves(String eleve) {
-        if (eleve == null || eleve.trim().isEmpty())
-            return Collections.emptyList();
-
-        LdapUserDto personne = personneService.getUserLdap(eleve);
-        if (personne == null) {
-            log.warn("Aucune donnée LDAP trouvée pour l'élève {}", eleve);
-            return Collections.emptyList();
-        }
-
-        return allRelationEleves(personne);
-    }
-
-    @Override
     // TODO : a retravailler
-    public Collection<RelationEleveContact> allRelationEleves(LdapUserDto personne) {
+    public Collection<RelationEleveContact> allRelationEleves(String eleve) {
+        LdapUserDto personne = ldapUserService.getUserLdap(eleve);
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
 
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
@@ -219,7 +205,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         // Remplissage des noms via LDAP
         if (!uid2relation.isEmpty()) {
             try {
-                List<LdapUserDto> users = personneService.getExtDao().getByUids(uid2relation.keySet());
+                List<LdapUserDto> users = externalUserDao.getByUids(uid2relation.keySet());
                 for (LdapUserDto u : users) {
                     RelationEleveContact rel = uid2relation.get(u.getId());
                     if (rel != null) {
@@ -267,14 +253,6 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
         return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();
     }
 
-    /**
-     * Retourne tous les élèves associés à un parent.
-     *
-     * @param parent
-     *            identifiant du parent
-     * @return relations parent → élèves
-     */
-    @Override
     public Collection<RelationEleveContact> allEleveEnRelation(Long parent) {
         Collection<DatabaseUserDto> allEnfant;
         Map<String, RelationEleveContact> uidEleve2relation = new HashMap<>();
@@ -313,14 +291,12 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
 
     }
 
-    @Override
     public List<RelationEleveContact> allApprentiEnRelation(String maitre) {
         List<RelationEleveContact> allApprenti = null;
-        LdapUserDto personne = personneService.getUserLdap(maitre);
-
+        LdapUserDto personne = ldapUserService.getUserLdap(maitre);
         Long maitreId = null;
         try {
-            DatabaseUserDto maitreDto = personneService.getUserDatabase(maitre);
+            DatabaseUserDto maitreDto = databaseUserService.getUserDatabase(maitre);
             if (maitreDto != null && maitreDto.getAPersonneBase() != null) {
                 maitreId = maitreDto.getAPersonneBase().getId();
             }
@@ -339,7 +315,7 @@ public class RelationEleveServiceImpl implements IRelationEleveService {
                     if (m.matches()) {
                         String uid = m.group(1);
                         try {
-                            DatabaseUserDto eleve = personneService.getUserDatabase(uid);
+                            DatabaseUserDto eleve = databaseUserService.getUserDatabase(uid);
                             RelationEleveContact re = new RelationEleveContact(SensRel.CONTACT2ELEVE);
                             re.setContact(maitreId);
                             re.setEleve(eleve);

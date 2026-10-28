@@ -46,7 +46,7 @@ import java.util.List;
 
 @Slf4j
 @Repository
-public class LdapUserDaoImp implements IExternalUserDao {
+public class LdapUserDaoImpl {
 
     @Autowired
     private LdapTemplate ldapTemplate;
@@ -62,7 +62,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
      */
     private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
 
-    @Override
     public LdapUserDto getUserByUid(String uid) {
 
         final AndFilter filter = new AndFilter();
@@ -96,7 +95,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         return user;
     }
 
-    @Override
     public List<LdapUserDto> getByUids(Collection<String> uids) {
         if (uids == null || uids.isEmpty()) {
             return Collections.emptyList();
@@ -126,7 +124,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
-    @Override
     public void updatePassword(String uid, String newHashedPassword) {
 
         AndFilter filter = new AndFilter();
@@ -177,7 +174,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
-    @Override
     public void modifEtatLdapPassword(String uid, String ldapHash, String etatCompte, String sambaLm, String sambaNt) {
 
         AndFilter filter = new AndFilter();
@@ -243,7 +239,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
-    @Override
     public void updateEmail(String uid, String newEmail) {
         AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
@@ -292,7 +287,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
-    @Override
     public void updateAvatarLDAP(String uid, String newAvatarUrl) {        AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
 
@@ -337,7 +331,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
-    @Override
     public void updateEtatCompte(String uid, String etat) {
         AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
@@ -382,7 +375,6 @@ public class LdapUserDaoImp implements IExternalUserDao {
         }
     }
 
-    @Override
     public void updateValidationsCharteService(String uid, List<String> values) {
         AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));

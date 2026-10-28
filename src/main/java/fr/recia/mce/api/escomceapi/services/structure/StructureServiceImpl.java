@@ -27,16 +27,16 @@ import org.springframework.stereotype.Service;
 import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
-import fr.recia.mce.api.escomceapi.ldap.repository.IExternalStructDao;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapStructDaoImpl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Getter
 @Slf4j
-public class StructureServiceImpl implements IStructureService {
+public class StructureServiceImpl {
 
-    private final IExternalStructDao externalStructDao;
+    private final LdapStructDaoImpl externalStructDao;
     private final CacheManager cacheManager;
     private final DomaineProperties domaineProperties;
 
@@ -48,7 +48,7 @@ public class StructureServiceImpl implements IStructureService {
     private Map<String, IExternalStructure> siren2structure;
     private Map<String, IExternalStructure> uai2structure;
 
-    public StructureServiceImpl(IExternalStructDao externalStructDao, CacheManager cacheManager, DomaineProperties domaineProperties) {
+    public StructureServiceImpl(LdapStructDaoImpl externalStructDao, CacheManager cacheManager, DomaineProperties domaineProperties) {
         this.externalStructDao = externalStructDao;
         this.cacheManager = cacheManager;
         this.domaineProperties = domaineProperties;
@@ -75,7 +75,6 @@ public class StructureServiceImpl implements IStructureService {
         return allStructures != null;
     }
 
-    @Override
     public IExternalStructure findStructureBySiren(String siren) {
         // Premier chargement des structures si elle ne sont pas encore chargées
         if (!isStructureLoaded()) {
@@ -86,7 +85,6 @@ public class StructureServiceImpl implements IStructureService {
         return siren2structure.get(siren);
     }
 
-    @Override
     public IExternalStructure findStructureByUai(String uai) {
         // Premier chargement des structures si elle ne sont pas encore chargées
         if (!isStructureLoaded()) {
@@ -97,7 +95,6 @@ public class StructureServiceImpl implements IStructureService {
         return uai2structure.get(uai);
     }
 
-    @Override
     public boolean isReseauRecia(IExternalStructure str) {
         String uaiOrSiren = str.getUai();
         log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}", uaiOrSiren, (Object) str.getDomaines());
@@ -121,7 +118,6 @@ public class StructureServiceImpl implements IStructureService {
         return false;
     }
 
-    @Override
     public boolean isReseauRecia(DatabaseUserDto p) {
 
         // TODO : pass ldap user

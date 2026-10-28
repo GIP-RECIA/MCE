@@ -17,22 +17,28 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
+import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
+import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
+import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
+import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
-import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
-import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImp;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
+import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
+import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
+import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
+import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.security.access.AccessDeniedException;
@@ -44,6 +50,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -54,96 +61,259 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Objects;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
+
+import static fr.recia.mce.api.escomceapi.db.services.DatabaseUserService.DB_CACHE_NAME;
+import static fr.recia.mce.api.escomceapi.ldap.services.LdapUserService.LDAP_CACHE_NAME;
 
 @Service
 @Getter
 @Slf4j
 public class PersonneService {
 
-    private static final String DB_CACHE_NAME = "personneDBCache";
-    private static final String LDAP_CACHE_NAME = "personneLDAPCache";
+    // TODO : à mettre en conf
+    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT = "[^@]+@ac-orleans-tours.fr";
 
-    @Autowired
-    private MCEProperties mceProperties;
+    private final MCEProperties mceProperties;
+    private final CharteService charteService;
+    private final APersonneRepository aPersonneRepository;
+    private final ValidationCharteRepository validationCharteRepository;
+    private final LdapUserDaoImpl userLdapDao;
+    private final CacheManager cacheManager;
+    private final LdapUserDaoImpl extDao;
+    private final MailProperties mailProperties;
+    private final StructureServiceImpl structureService;
+    private final RelationEleveService relationEleveService;
+    private final CerbereConfirmationRepository cerbereConfirmationRepository;
+    private final LdapUserService ldapUserService;
+    private final DatabaseUserService databaseUserService;
+    private Pattern groupsWithSSHAPassword;
+    private Pattern groupsWithNtPassword;
 
-    @Autowired
-    private CharteService charteService;
-
-    @Autowired
-    private APersonneRepository aPersonneRepository;
-
-    @Autowired
-    private ValidationCharteRepository validationCharteRepository;
-
-    @Autowired
-    private LdapUserDaoImp userLdapDao;
-
-    @Autowired
-    private CacheManager cacheManager;
-
-    @Autowired
-    private transient IExternalUserDao extDao;
-
-    @Autowired
-    private MailProperties mailProperties;
-
-    /**
-     * Charge un utilisateur depuis la base de données
-     */
-    public DatabaseUserDto getUserDatabase(String uid) {
-        // Récupération dans le cache si possible
-        Cache cache = cacheManager.getCache(DB_CACHE_NAME);
-        if (cache != null) {
-            DatabaseUserDto cached = cache.get(uid, DatabaseUserDto.class);
-            if (cached != null) {
-                log.debug("Cache hit pour 'personneDBCache' : Données DB chargées pour l'uid [{}]", uid);
-                return cached;
-            }
+    public PersonneService(MCEProperties mceProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
+                           ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CharteService charteService,
+                           CacheManager cacheManager, StructureServiceImpl structureService, RelationEleveService relationEleveService,
+                           CerbereConfirmationRepository cerbereConfirmationRepository, LdapUserService ldapUserService, DatabaseUserService databaseUserService) {
+        this.mceProperties = mceProperties;
+        this.mailProperties = mailProperties;
+        this.extDao = extDao;
+        this.userLdapDao = userLdapDao;
+        this.validationCharteRepository = validationCharteRepository;
+        this.aPersonneRepository = aPersonneRepository;
+        this.charteService = charteService;
+        this.cacheManager = cacheManager;
+        this.structureService = structureService;
+        this.relationEleveService = relationEleveService;
+        this.cerbereConfirmationRepository = cerbereConfirmationRepository;
+        this.ldapUserService = ldapUserService;
+        this.databaseUserService = databaseUserService;
+        String regex = mceProperties.getService().getCustomParams().getRegexGroupsWithSshaPass();
+        if (regex != null) {
+            this.groupsWithSSHAPassword = Pattern.compile(regex);
         }
-
-        // Sinon on requête la BDD et on met dans le cache
-        log.debug("Cache miss pour 'personneDBCache' : Récupération des données DB pour l'uid [{}]", uid);
-        DatabaseUserDto personne = aPersonneRepository.getPersonneByUid(uid);
-        if (personne != null) {
-            populateCharteValidationDTO(personne, uid);
-            if (cache != null) {
-                cache.putIfAbsent(uid, personne);
-            }
+        String ntRegex = mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt();
+        if (ntRegex != null) {
+            this.groupsWithNtPassword = Pattern.compile(ntRegex);
         }
-
-        return personne;
     }
 
     /**
-     * Charge un utilisateur depuis le LDAP
+     * Récupère le public d'une personne donnée
      */
-    public LdapUserDto getUserLdap(String uid) {
-        // Récupération dans le cache si possible
-        LdapUserDto userLdap = null;
-        Cache cache = cacheManager.getCache(LDAP_CACHE_NAME);
-        if (cache != null) {
-            userLdap = cache.get(uid, LdapUserDto.class);
-            if (!Objects.isNull(userLdap)) {
-                log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
-                return userLdap;
+    // TODO : à mettre dans le cache quelquepart
+    public EnumPublic evalPublic(final DatabaseUserDto personne) {
+
+        // TODO : Sortir de la méthode
+        LdapUserDto ldapUser = ldapUserService.getUserLdap(personne.getUid());
+
+        StructureDTO.DomSource ds = null;
+        StructureDTO structure = personne.getStructureDto();
+        boolean isLocalUser = false;
+        boolean isCollectivite = false;
+        String source = personne.getSource();
+        if (structure != null) {
+            try {
+                ds = structure.getDomSource();
+            } catch (Exception e) {
+                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
             }
         }
 
-        // Sinon on requête le LDAP et on met dans le cache
+        if (source != null) {
+            isLocalUser = source.startsWith("SarapisUi");
+            isCollectivite = source.endsWith("COLL-CVDL");
+        }
+
+        EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
+        EnumPublic res = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
+
+        if (groupsWithSSHAPassword != null && StructureDTO.DomSource.GIP.equals(ds)) {
+            if (ldapUser != null) {
+                List<String> attrs = ldapUser.getAttribute("isMemberOf");
+                if (attrs != null) {
+                    personne.setSSHAPass(attrs.stream().anyMatch(s -> groupsWithSSHAPassword.matcher(s).matches()));
+                }
+            }
+        }
+
+        if (groupsWithNtPassword != null && (res != null && res.isNtProfile() || StructureDTO.DomSource.GIP.equals(ds))) {
+            if (ldapUser != null) {
+                List<String> attrs = ldapUser.getAttribute("isMemberOf");
+                if (attrs != null) {
+                    personne.setNtPass(attrs.stream().anyMatch(s -> groupsWithNtPassword.matcher(s).matches()));
+                }
+            }
+        }
+
+        return res;
+    }
+
+    public boolean isPasswordEditable(DatabaseUserDto model) {
+        if (model == null) {
+            return false;
+        }
+        return computePassEditable(model, model.getEnumPublic());
+    }
+
+    public boolean canResetPassword(DatabaseUserDto databaseUserDto) {
+        if (databaseUserDto == null) {
+            return false;
+        }
+        // Toujours évaluer le profil pour s'assurer que source est correcte (isEduconnect dépend de source)
+        EnumPublic pub = evalPublic(databaseUserDto);
+        databaseUserDto.setEnumPublic(pub);
+        if (pub == null) {
+            return false;
+        }
+        if (pub.isEduconnect()) {
+            return false;
+        }
+        return isPasswordEditable(databaseUserDto);
+    }
+
+    public List<RelationEleveContact> resolveRespEleves(LdapUserDto ldapUser) {
+        Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(ldapUser.getId());
+        return col != null ? new ArrayList<>(col) : null;
+    }
+
+    public List<RelationEleveContact> resolveEleves(DatabaseUserDto databaseUser) {
+        return new ArrayList<>(relationEleveService.allEleveEnRelation(databaseUser.getApersonne().getId()));
+    }
+
+    public boolean computePassEditable(DatabaseUserDto model, EnumPublic pub) {
+        if (pub == null) {
+            return false;
+        }
+        if (pub.isEduconnect()) {
+            return false;
+        }
+        String acMailPattern = mailProperties.getAcMailPattern();
+        if (acMailPattern == null){
+            acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
+        }
+        if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null && model.getMailFixe().matches(acMailPattern)) {
+            return model.isNtPass();
+        }
+        return pub.isConnectOk() || model.isNtPass();
+    }
+
+    public boolean computeEduConnect(DatabaseUserDto model, EnumPublic pub) {
+        if (pub == null) {
+            return false;
+        }
+        String acMailPattern = mailProperties.getAcMailPattern();
+        if (acMailPattern == null){
+            acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
+        }
+        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION || !model.getMailFixe().matches(acMailPattern)) {
+            return pub.isEduconnect();
+        }
+        return false;
+    }
+
+    public boolean computeCanEditEmail(EnumPublic pub, APersonne base, DatabaseUserDto model) {
+        if (pub.isEleve()){
+            return true;
+        }
+        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()){
+            return true;
+        }
+        return model.getMailFixe() == null || model.getMailFixe().isEmpty();
+    }
+
+    /**
+     * Indique si la personne peut renseigner/modifier un mail personnel.
+     * <p>
+     * Même règle que le « changement d'adresse email ». Pour un non-élève, {@code model.getMailFixe()}
+     * correspond à l'email principal en base ({@code base.getEmail()}), le fallback LDAP n'existant que pour les élèves
+     * (déjà traités par {@code pub.isEleve()}).
+     */
+    public boolean canEditEmail(EnumPublic pub, APersonne base) {
+        if (pub == null) {
+            return false;
+        }
+        return computeCanEditEmail(pub, base, new DatabaseUserDto(base));
+    }
+
+    public boolean computePassEtab(EnumPublic pub, DatabaseUserDto model) {
+        return pub.isPassEtab() && structureService.isReseauRecia(model);
+    }
+
+    public String resolveEmail(DatabaseUserDto model, LdapUserDto extModel) {
+        if (StringUtils.isBlank(model.getMailFromLdap()) && extModel != null) {
+            model.setMailFromLdap(extModel.getEmail());
+        }
+        return model.getMailFixe();
+    }
+
+    public String resolveEmailPersonnel(APersonne base) {
+        List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(base.getId());
+        if (!confirmed.isEmpty()) {
+            return confirmed.get(0).getMail();
+        }
+        return base.getEmailPersonnel();
+    }
+
+    public String resolveEtablissementName(DatabaseUserDto model) {
+        if (model.getStructureDto() == null)
+            return null;
         try {
-            log.debug("Cache miss pour 'personneLDAPCache' : Récupération des données LDAP depuis l'annuaire pour l'uid [{}]", uid);
-            userLdap = getExtDao().getUserByUid(uid);
-            if (cache != null) {
-                cache.putIfAbsent(uid, userLdap);
-            }
+            return model.getStructureDto().getDisplayName();
         } catch (Exception e) {
-            log.error("Échec du chargement des données LDAP pour l'uid [{}] - Détail : {}", uid, e.getMessage());
-
+            log.warn("Impossible de récupérer le nom de l'établissement pour l'utilisateur [uid={}] - Détail : {}",
+                model.getUid(), e.getMessage());
+            return null;
         }
-        return userLdap;
+    }
 
+    public List<String> buildUserPublicLinks(boolean eduConnect, boolean passEtab) {
+        List<String> links = new ArrayList<>();
+        if (eduConnect) {
+            links.add(mceProperties.getService().getCustomParams().getLienEdu());
+            if (passEtab) {
+                links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
+            }
+        } else if (passEtab) {
+            links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
+        }
+        return links;
+    }
+
+    public String resolveAvatarUrl(APersonne base, LdapUserDto extModel) {
+        if (base.getPhoto() != null) {
+            log.debug("URL de l'avatar pour l'UID [{}]: {}", base.getUid(), base.getPhoto());
+            return base.getPhoto();
+        }
+        if (extModel != null) {
+            String avatarAttribute = mceProperties.getLdap().getUserBranch().getAvatarAttribute();
+            List<String> urls = extModel.getAttribute(avatarAttribute);
+            if (urls != null && !urls.isEmpty()) {
+                log.debug("URL de l'avatar (fallback LDAP) pour l'UID [{}]: {}", base.getUid(), urls.get(0));
+                return urls.get(0);
+            }
+        }
+        return null;
     }
 
 

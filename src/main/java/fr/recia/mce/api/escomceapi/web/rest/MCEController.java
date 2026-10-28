@@ -17,6 +17,8 @@
 package fr.recia.mce.api.escomceapi.web.rest;
 
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
+import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
+import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import fr.recia.mce.api.escomceapi.security.AppUser;
 import fr.recia.mce.api.escomceapi.services.ChangePasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
@@ -28,7 +30,7 @@ import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresExceptio
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
-import fr.recia.mce.api.escomceapi.services.relations.IRelationEleveService;
+import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
@@ -60,16 +62,21 @@ public class MCEController {
 
     private final FonctionService fonctionService;
     private final PersonneService personneService;
-    private final IRelationEleveService relationEleveService;
+    private final LdapUserService ldapUserService;
+    private final DatabaseUserService databaseUserService;
+    private final RelationEleveService relationEleveService;
     private final UserDTOFactory userDTOFactory;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
     private final ChangePasswordService changePasswordService;
 
-    public MCEController(FonctionService fonctionService, PersonneService personneService, IRelationEleveService relationEleveService,
-                         UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService, ChangePasswordService changePasswordService) {
+    public MCEController(FonctionService fonctionService, PersonneService personneService, RelationEleveService relationEleveService,
+                         UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService,
+                         ChangePasswordService changePasswordService, LdapUserService ldapUserService, DatabaseUserService databaseUserService) {
         this.fonctionService = fonctionService;
         this.personneService = personneService;
+        this.ldapUserService = ldapUserService;
+        this.databaseUserService = databaseUserService;
         this.relationEleveService = relationEleveService;
         this.userDTOFactory = userDTOFactory;
         this.emailVerificationService = emailVerificationService;
@@ -207,7 +214,7 @@ public class MCEController {
                 return true;
             }
 
-            DatabaseUserDto current = personneService.getUserDatabase(currentUid);
+            DatabaseUserDto current = databaseUserService.getUserDatabase(currentUid);
             if (current != null && current.getAPersonneBase() != null) {
                 Long parentId = current.getAPersonneBase().getId();
                 return relationEleveService.allEleveEnRelation(parentId).stream()
@@ -226,7 +233,7 @@ public class MCEController {
      */
     private boolean canEditFunction(String currentUid, Long fonctionId) {
         try {
-            DatabaseUserDto current = personneService.getUserDatabase(currentUid);
+            DatabaseUserDto current = databaseUserService.getUserDatabase(currentUid);
             if (current == null || current.getAPersonneBase() == null) {
                 return false;
             }

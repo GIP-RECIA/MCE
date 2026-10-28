@@ -48,7 +48,7 @@ public class ResendPolicyService {
     private MailProperties mailProperties;
 
     @Autowired
-    private UserDTOFactory userDTOFactory;
+    private PersonneService personneService;
 
     public int maxAttempts() {
         return mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
@@ -99,9 +99,9 @@ public class ResendPolicyService {
      * </ul>
      */
     public void assertPasswordResetAllowed(DatabaseUserDto databaseUserDto, String uid) {
-        if (!userDTOFactory.canResetPassword(databaseUserDto)) {
+        if (!personneService.canResetPassword(databaseUserDto)) {
             EnumPublic pub = databaseUserDto.getEnumPublic();
-            if (pub == null && userDTOFactory != null) {
+            if (pub == null) {
                 try {
                     //pub = userDTOFactory.evalPublic(databaseUserDto);
                     databaseUserDto.setEnumPublic(pub);

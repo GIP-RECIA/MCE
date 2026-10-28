@@ -38,20 +38,14 @@ public class LdapStructureContextMapper implements ContextMapper<IExternalStruct
 
         DirContextAdapter context = (DirContextAdapter) ctx;
         ExternalStructure structs = new ExternalStructure();
-
         structs.setId(context.getStringAttribute(externalStructHelper.getStructIdAttribute()));
-
         structs.setName(context.getStringAttribute(externalStructHelper.getStructNameAttribute()).replace('$', ' '));
-
         structs.setDisplayName(context.getStringAttribute(externalStructHelper.getStructDisplayNameAttribute()));
-
         structs.setUai(context.getStringAttribute(externalStructHelper.getStructUaiAttribute()));
-
         structs.setType(context.getStringAttribute(externalStructHelper.getStructTypeAttribute()));
 
         String ville = context.getStringAttribute(externalStructHelper.getStructVilleAttribute());
         structs.setVille(ville != null ? ville.toUpperCase() : null);
-
         structs.setDomaines(context.getStringAttributes(externalStructHelper.getStructDomainesAttribute()));
 
         String jointure = context.getStringAttribute(externalStructHelper.getStructJointureAttribute());

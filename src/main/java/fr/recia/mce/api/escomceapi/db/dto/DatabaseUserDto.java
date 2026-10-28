@@ -17,9 +17,9 @@ package fr.recia.mce.api.escomceapi.db.dto;
 
 import java.util.Date;
 
+import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import org.apache.commons.lang3.StringUtils;
 
-import fr.recia.mce.api.escomceapi.db.beans.Personne;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.AStructure;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereEnfant;
@@ -31,13 +31,40 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 @Setter
-public class DatabaseUserDto extends Personne {
+public class DatabaseUserDto {
 
     private APersonne aPersonneBase;
     private CerbereEnfant cerbereEnfant;
     private Login loginBase;
     private StructureDTO structureDto;
     private String mailFromLdap;
+    private String displayName;
+    private String identifiant;
+    private Date dateValidCharte;
+    private String uid;
+    private String mailFixe;
+    private String mail;
+    private boolean mailForward;
+    private boolean charteValide;
+    private String domaineDeConnexion;
+    private EnumPublic enumPublic;
+    private String codeConfirmation;
+
+    private boolean isCfa;
+    private boolean isSSHAPass;
+    private boolean isNtPass;
+
+    private boolean mailFixeConfirm;
+    private boolean mailPersoConfirm;
+    private String mailConfirme;
+    private boolean mailFixeConfiance;
+
+    private String nom;
+    private String prenom;
+    private String aliasLogin;
+    private Date naissance;
+
+    private String avatarUrl;
 
     public DatabaseUserDto(final APersonne aPersonne) {
         this(aPersonne, aPersonne.getAStructure());
@@ -73,7 +100,6 @@ public class DatabaseUserDto extends Personne {
         loginBase = login;
     }
 
-    @Override
     public String getIdentifiant() {
         if (loginBase != null) {
             return loginBase.getNom();
@@ -81,27 +107,22 @@ public class DatabaseUserDto extends Personne {
         return getUid();
     }
 
-    @Override
     public String getNom() {
         return aPersonneBase.getSn();
     }
 
-    @Override
     public String getPrenom() {
         return aPersonneBase.getGivenName();
     }
 
-    @Override
     public String getUid() {
         return aPersonneBase.getUid();
     }
 
-    @Override
     public Date getNaissance() {
         return aPersonneBase.getDateNaissance();
     }
 
-    @Override
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
@@ -109,12 +130,10 @@ public class DatabaseUserDto extends Personne {
         return result;
     }
 
-    @Override
     public String getDisplayName() {
         return aPersonneBase.getDisplayName();
     }
 
-    @Override
     public String getMailFixe() {
         String mail = aPersonneBase.getEmail();
         if (StringUtils.isBlank(mail)) {
@@ -127,12 +146,10 @@ public class DatabaseUserDto extends Personne {
         return mail;
     }
 
-    @Override
     public String getMail() {
         return aPersonneBase.getEmailPersonnel();
     }
 
-    @Override
     public boolean isMailForward() {
         return aPersonneBase.isDoForward();
     }
@@ -143,21 +160,10 @@ public class DatabaseUserDto extends Personne {
      * @param url
      *            nouvelle URL de l'avatar
      */
-    @Override
     public void setAvatarUrl(String url) {
         aPersonneBase.setPhoto(url);
         setDateModification();
-        super.setAvatarUrl(url);
-    }
-
-    @Override
-    public String getAvatarUrl() {
-        String url = super.getAvatarUrl();
-        if (url == null && aPersonneBase != null) {
-            url = aPersonneBase.getPhoto();
-            super.setAvatarUrl(url);
-        }
-        return url;
+        setAvatarUrl(url);
     }
 
     /**
@@ -179,16 +185,11 @@ public class DatabaseUserDto extends Personne {
 
     /**
      * Fixe la date de signature de la charte.
-     * <p>
-     * Portée sur les champs métier du bean {@link Personne} ({@code dateValidCharte}/{@code charteValide}) :
-     * la colonne {@code apersonne.validationCharte} n'est plus utilisée comme source de vérité depuis la
-     * migration vers la table {@code validation_charte}.
-     *
      * @param datedesignature date de signature
      */
     public void setDateValideCharte(final Date datedesignature) {
-        super.setDateValidCharte(datedesignature);
-        super.setCharteValide(datedesignature != null);
+        setDateValidCharte(datedesignature);
+        setCharteValide(datedesignature != null);
         setDateModification();
     }
 
@@ -223,7 +224,6 @@ public class DatabaseUserDto extends Personne {
         return StringUtils.equals(getUid(), other.getUid());
     }
 
-    @Override
     public String typeOfParent() {
         if (cerbereEnfant == null) {
             return null;
@@ -235,7 +235,6 @@ public class DatabaseUserDto extends Personne {
         return rel.intern();
     }
 
-    @Override
     public String lienParente() {
         if (cerbereEnfant == null) {
             return null;
@@ -244,7 +243,6 @@ public class DatabaseUserDto extends Personne {
         return lien == null ? null : lien.intern();
     }
 
-    @Override
     public String getSource() {
         if (aPersonneBase != null) {
             return aPersonneBase.getSource();

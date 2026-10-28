@@ -40,7 +40,7 @@ import fr.recia.mce.api.escomceapi.services.beans.SubSectionEleve;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionProf;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
-import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
+import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -66,7 +66,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
     private ExternalUserHelper extUserHelper;
 
     @Autowired
-    private IStructureService structureService;
+    private StructureServiceImpl structureService;
 
     private final Map<String, ClasseGroupe> bufferUid2mapClasses2 = new HashMap<>();
 

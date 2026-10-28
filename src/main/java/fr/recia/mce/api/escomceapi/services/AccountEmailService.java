@@ -19,6 +19,7 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
+import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,7 +41,7 @@ public class AccountEmailService {
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     @Autowired
-    private PersonneService personneService;
+    private LdapUserService ldapUserService;
 
     public List<String> collectAccountEmails(APersonne person) {
         Set<String> emails = new LinkedHashSet<>();
@@ -89,7 +90,7 @@ public class AccountEmailService {
 
     public String ldapEmailByUid(String uid) {
         try {
-            LdapUserDto ldapUser = personneService.getUserLdap(uid);
+            LdapUserDto ldapUser = ldapUserService.getUserLdap(uid);
             if (ldapUser != null && ldapUser.getEmail() != null && !ldapUser.getEmail().isBlank()) {
                 return ldapUser.getEmail().trim();
             }

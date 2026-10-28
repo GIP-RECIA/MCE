@@ -24,7 +24,7 @@ import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerberePasswordRepository;
 import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
@@ -77,7 +77,7 @@ public class PasswordService {
     }
 
     @Autowired
-    private IExternalUserDao externalUserDao;
+    private LdapUserDaoImpl externalUserDao;
 
     @Autowired
     private APersonneRepository aPersonneRepository;

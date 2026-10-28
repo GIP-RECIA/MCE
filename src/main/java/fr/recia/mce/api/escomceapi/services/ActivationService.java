@@ -21,9 +21,9 @@ import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
-import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationResultDTO;
 import fr.recia.mce.api.escomceapi.web.dto.ActivationStatusResponseDTO;
@@ -51,13 +51,13 @@ public class ActivationService {
     private PersonneService personneService;
 
     @Autowired
+    private DatabaseUserService databaseUserService;
+
+    @Autowired
     private PasswordService passwordService;
 
     @Autowired
     private EmailVerificationService emailVerificationService;
-
-    @Autowired
-    private UserDTOFactory userDTOFactory;
 
     @Autowired
     private CerbereConfirmationRepository cerbereConfirmationRepository;
@@ -166,7 +166,7 @@ public class ActivationService {
         boolean passwordRequise = pub != null && pub.isConnectOk();
         // Règle métier : toute personne pouvant modifier son mail (élèves, sans mail fixe, ou mail personnel déjà présent)
         // doit renseigner son mail personnel à l'activation tant qu'elle n'en a pas fourni. S'applique aussi aux profils SSO (ex. ELEVE_EDUC).
-        boolean peutModifierMail = pub != null && userDTOFactory.canEditEmail(pub, personne);
+        boolean peutModifierMail = pub != null && personneService.canEditEmail(pub, personne);
         boolean aDejaMailPerso = hasPersonalEmail(personne);
         boolean emailRequise = peutModifierMail && !aDejaMailPerso;
 
@@ -218,7 +218,7 @@ public class ActivationService {
         }
 
         String uid = personne.getUid();
-        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(uid);
+        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(uid);
         if (databaseUserDto == null) {
             throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
         }
@@ -244,7 +244,7 @@ public class ActivationService {
             return new ActivationResultDTO(uid, AccountState.VALIDE, false);
         }
 
-        EnumPublic pub = userDTOFactory.evalPublic(databaseUserDto);
+        EnumPublic pub = personneService.evalPublic(databaseUserDto);
         boolean passwordRequise = pub != null && pub.isConnectOk();
 
         boolean emailEnAttente = false;

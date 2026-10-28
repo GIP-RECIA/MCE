@@ -23,6 +23,7 @@ import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.SurType;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
+import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
 import fr.recia.mce.api.escomceapi.services.beans.AttemptEntry;
 import fr.recia.mce.api.escomceapi.services.beans.RecoverUidResult;
@@ -35,7 +36,7 @@ import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
 import fr.recia.mce.api.escomceapi.services.exception.MaxAttemptsExceededException;
 import fr.recia.mce.api.escomceapi.services.exception.ResendCooldownActiveException;
-import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
+import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.RecoverUidRequestDTO;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +73,9 @@ public class PasswordResetService {
 
     @Autowired
     private PersonneService personneService;
+
+    @Autowired
+    private DatabaseUserService databaseUserService;
 
     @Autowired
     private PasswordService passwordService;
@@ -188,7 +192,7 @@ public class PasswordResetService {
         // Vérification de l'état du compte
         assertAccountActive(person, "RESET_PASSWORD");
 
-        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(person.getUid());
+        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(person.getUid());
         resendPolicyService.assertPasswordResetAllowed(databaseUserDto, uid);
 
         // Réutilisation ou création de la confirmation, puis envoi du code
@@ -350,7 +354,7 @@ public class PasswordResetService {
 
         assertAccountActive(person, "PROCESS_RESET_PASSWORD");
 
-        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(person.getUid());
+        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(person.getUid());
         resendPolicyService.assertPasswordResetAllowed(databaseUserDto, person.getUid());
 
         boolean charteRequise = charteService.isCharteRequired(person);
@@ -433,7 +437,7 @@ public class PasswordResetService {
 
         assertAccountActive(person, "NETWORK_PASSWORD_RESET");
 
-        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(person.getUid());
+        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(person.getUid());
 
         // Réservé aux comptes à mot de passe réseau seul : un compte disposant d'un mot de passe local
         // stocké doit passer par le changement avec l'ancien mot de passe.
@@ -474,8 +478,7 @@ public class PasswordResetService {
         }
 
         boolean eligible = false;
-        DatabaseUserDto databaseUserDto = personneService.getUserDatabase(uid);
-        log.error("efhaefgaegeigeageaya : {}", databaseUserDto.isNtPass());
+        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(uid);
         if (databaseUserDto != null) {
             if (resendPolicyService.isInactiveAccount(person)) {
                 log.info("[NETWORK_PASSWORD_RESET] Compte non actif uid={}, statut non éligible", uid);

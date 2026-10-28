@@ -21,7 +21,7 @@ import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
-import fr.recia.mce.api.escomceapi.ldap.repository.IExternalUserDao;
+import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,7 +84,7 @@ public class CharteService {
 
 
     @Autowired
-    private IExternalUserDao externalUserDao;
+    private LdapUserDaoImpl externalUserDao;
 
     @Autowired
     private CacheManager cacheManager;

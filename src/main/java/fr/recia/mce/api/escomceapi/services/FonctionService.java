@@ -20,7 +20,7 @@ import fr.recia.mce.api.escomceapi.db.entities.AFonction;
 import fr.recia.mce.api.escomceapi.db.repositories.AFonctionRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
-import fr.recia.mce.api.escomceapi.services.structure.IStructureService;
+import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ public class FonctionService {
     private AFonctionRepository aFonctionRepository;
 
     @Autowired
-    private IStructureService structureService;
+    private StructureServiceImpl structureService;
 
     public Collection<FonctionDTO> getAllFonctionOfPersonne(Long id) {
         log.debug("Récupération des fonctions pour l'ID personne : {}", id);
