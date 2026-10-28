@@ -98,32 +98,19 @@ public class ResendPolicyService {
      * <li>sans connectOk ni ntPass, aucun mode d'authentification local n'existe (même règle que UserDTOFactoryImpl.computePassEditable).</li>
      * </ul>
      */
-    public void assertPasswordResetAllowed(DatabaseUserDto databaseUserDto, String uid) {
-        if (!personneService.canResetPassword(databaseUserDto)) {
-            EnumPublic pub = databaseUserDto.getEnumPublic();
-            if (pub == null) {
-                try {
-                    //pub = userDTOFactory.evalPublic(databaseUserDto);
-                    databaseUserDto.setEnumPublic(pub);
-                } catch (RuntimeException e) {
-                    log.error("[PASSWORD_RESET] Échec de l'évaluation du profil uid={} : {}", uid, e.getMessage());
-                }
-            }
-            if (pub == null) {
-                log.warn("[PASSWORD_RESET] Profil non défini pour uid={} : réinitialisation refusée", uid);
-                throw new InvalidCodeException("profil non reconnu pour le compte : réinitialisation impossible");
-            }
-            if (pub.isEduconnect()) {
+    public void assertPasswordResetAllowed(UserDto userDto) {
+        if (!personneService.canEditPassword(userDto)) {
+            if (userDto.getEnumPublic().isEduconnect()) {
                 log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}, enumPublic={}, ntPass={}",
-                        uid, pub, databaseUserDto.isNtPass());
+                        userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());
                 throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
             }
             log.warn("[PASSWORD_RESET] Refus : mot de passe local non éditable uid={}, enumPublic={}, ntPass={}",
-                    uid, pub, databaseUserDto.isNtPass());
+                userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());
             throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
         }
         log.info("[PASSWORD_RESET] Autorisation uid={} : enumPublic={}, ntPass={}",
-                uid, databaseUserDto.getEnumPublic(), databaseUserDto.isNtPass());
+            userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());
     }
 
 }

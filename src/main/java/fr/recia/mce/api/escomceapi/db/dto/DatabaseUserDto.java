@@ -93,7 +93,6 @@ public class DatabaseUserDto {
     }
 
     public DatabaseUserDto(final APersonne aPersonne, final CerbereEnfant enfant, final AStructure aStructure, final Login login) {
-        super();
         aPersonneBase = aPersonne;
         structureDto = new StructureDTO(aStructure);
         cerbereEnfant = enfant;

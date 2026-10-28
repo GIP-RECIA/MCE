@@ -148,6 +148,7 @@ public class PasswordResetService {
             throw new InvalidCodeException("Aucun compte associé à cet identifiant");
         }
         String uid = person.getUid();
+        UserDto userDto = personneService.getUser(uid);
 
         if (profil != null && !profil.isBlank()) {
             EnumCategorie requested = EnumCategorie.fromProfile(profil);
@@ -192,8 +193,7 @@ public class PasswordResetService {
         // Vérification de l'état du compte
         assertAccountActive(person, "RESET_PASSWORD");
 
-        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(person.getUid());
-        resendPolicyService.assertPasswordResetAllowed(databaseUserDto, uid);
+        resendPolicyService.assertPasswordResetAllowed(userDto);
 
         // Réutilisation ou création de la confirmation, puis envoi du code
         List<CerbereConfirmation> existing = cerbereConfirmationRepository.findLatestPasswordResetByPersonId(person.getId());
@@ -354,8 +354,9 @@ public class PasswordResetService {
 
         assertAccountActive(person, "PROCESS_RESET_PASSWORD");
 
-        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(person.getUid());
-        resendPolicyService.assertPasswordResetAllowed(databaseUserDto, person.getUid());
+        UserDto userDto = personneService.getUser(login);
+
+        resendPolicyService.assertPasswordResetAllowed(userDto);
 
         boolean charteRequise = charteService.isCharteRequired(person);
         log.info("[PROCESS_RESET_PASSWORD] uid={} charteRequise={} (validationcharteservice) charteAccepted={}",
@@ -374,7 +375,7 @@ public class PasswordResetService {
             log.info("[PROCESS_RESET_PASSWORD] uid={} charte déjà signée, skip", person.getUid());
         }
 
-        passwordService.resetPassword(databaseUserDto, newPassword, confirmPassword);
+        passwordService.resetPassword(userDto.getDatabaseUserDto(), newPassword, confirmPassword);
 
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
@@ -426,30 +427,29 @@ public class PasswordResetService {
     public void changeNetworkPassword(String uid, String newPassword, String confirmPassword) {
         log.info("[NETWORK_PASSWORD_RESET] Début changeNetworkPassword uid={}", uid);
 
+        UserDto userDto = personneService.getUser(uid);
+
         if (uid == null || uid.isBlank()) {
             throw new InvalidCodeException("Le changement de mot de passe réseau a échoué.");
         }
 
-        APersonne person = aPersonneRepository.findByUid(uid);
+        APersonne person = userDto.getDatabaseUserDto().getApersonne();
         if (person == null) {
             throw new InactiveAccountException("Aucun compte associé à cet identifiant");
         }
-
         assertAccountActive(person, "NETWORK_PASSWORD_RESET");
-
-        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(person.getUid());
 
         // Réservé aux comptes à mot de passe réseau seul : un compte disposant d'un mot de passe local
         // stocké doit passer par le changement avec l'ancien mot de passe.
-        if (!passwordService.isNoOldPassEligible(databaseUserDto)) {
+        if (!passwordService.isNoOldPassEligible(userDto.getDatabaseUserDto())) {
             log.warn("[NETWORK_PASSWORD_RESET] REFUSÉ pour l'utilisateur [{}] - Raison : compte non éligible au mot de passe réseau seul", uid);
             throw new InvalidCodeException(
                 "Ce parcours est réservé aux comptes à mot de passe réseau seul. Si votre compte dispose d'un mot de passe local, utilisez le changement avec votre ancien mot de passe.");
         }
 
         // Même règle de réinitialisation que le parcours public : CVDL ntPass autorisé.
-        resendPolicyService.assertPasswordResetAllowed(databaseUserDto, person.getUid());
-        passwordService.resetPassword(databaseUserDto, newPassword, confirmPassword);
+        resendPolicyService.assertPasswordResetAllowed(userDto);
+        passwordService.resetPassword(userDto.getDatabaseUserDto(), newPassword, confirmPassword);
         personneService.clearUserCaches(person.getUid());
 
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", person.getUid());

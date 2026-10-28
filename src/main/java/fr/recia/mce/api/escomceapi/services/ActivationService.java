@@ -166,7 +166,9 @@ public class ActivationService {
         boolean passwordRequise = pub != null && pub.isConnectOk();
         // Règle métier : toute personne pouvant modifier son mail (élèves, sans mail fixe, ou mail personnel déjà présent)
         // doit renseigner son mail personnel à l'activation tant qu'elle n'en a pas fourni. S'applique aussi aux profils SSO (ex. ELEVE_EDUC).
-        boolean peutModifierMail = pub != null && personneService.canEditEmail(pub, personne);
+        //boolean peutModifierMail = pub != null && personneService.computeCanEditEmail(pub, personne);
+        // TOOD : à refaire
+        boolean peutModifierMail = false;
         boolean aDejaMailPerso = hasPersonalEmail(personne);
         boolean emailRequise = peutModifierMail && !aDejaMailPerso;
 
@@ -244,7 +246,9 @@ public class ActivationService {
             return new ActivationResultDTO(uid, AccountState.VALIDE, false);
         }
 
-        EnumPublic pub = personneService.evalPublic(databaseUserDto);
+        // TODO : pass userDto
+        //EnumPublic pub = personneService.evalPublic(databaseUserDto);
+        EnumPublic pub = null;
         boolean passwordRequise = pub != null && pub.isConnectOk();
 
         boolean emailEnAttente = false;

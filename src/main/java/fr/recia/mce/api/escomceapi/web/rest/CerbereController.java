@@ -59,15 +59,13 @@ import java.util.Map;
 @RequestMapping("/api/cerbere")
 public class CerbereController {
 
-    private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
     private final CharteService charteService;
     private final ActivationService activationService;
     private final PersonneService personneService;
 
-    public CerbereController(EmailVerificationService emailVerificationService, CharteService charteService, ActivationService activationService,
+    public CerbereController(CharteService charteService, ActivationService activationService,
                              PersonneService personneService, PasswordResetService passwordResetService) {
-        this.emailVerificationService = emailVerificationService;
         this.charteService = charteService;
         this.activationService = activationService;
         this.personneService = personneService;

@@ -25,6 +25,7 @@ import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
 import fr.recia.mce.api.escomceapi.services.PasswordResetService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
+import fr.recia.mce.api.escomceapi.services.UserDto;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
@@ -62,7 +63,6 @@ public class MCEController {
 
     private final FonctionService fonctionService;
     private final PersonneService personneService;
-    private final LdapUserService ldapUserService;
     private final DatabaseUserService databaseUserService;
     private final RelationEleveService relationEleveService;
     private final UserDTOFactory userDTOFactory;
@@ -72,10 +72,9 @@ public class MCEController {
 
     public MCEController(FonctionService fonctionService, PersonneService personneService, RelationEleveService relationEleveService,
                          UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService,
-                         ChangePasswordService changePasswordService, LdapUserService ldapUserService, DatabaseUserService databaseUserService) {
+                         ChangePasswordService changePasswordService, DatabaseUserService databaseUserService) {
         this.fonctionService = fonctionService;
         this.personneService = personneService;
-        this.ldapUserService = ldapUserService;
         this.databaseUserService = databaseUserService;
         this.relationEleveService = relationEleveService;
         this.userDTOFactory = userDTOFactory;
@@ -90,11 +89,11 @@ public class MCEController {
     @GetMapping()
     public ResponseEntity<UserForDisplayDTO> getMCE(@AuthenticationPrincipal AppUser principal) {
         String uid = principal.getUid();
-        UserForDisplayDTO user = userDTOFactory.from(uid);
+        UserDto userDto = personneService.getUser(uid);
+        UserForDisplayDTO user = userDTOFactory.from(userDto);
         if (user == null) {
             throw new PersonneNotFoundException("Utilisateur non trouvé pour l'uid : " + uid);
         }
-
         return ResponseEntity.ok(user);
     }
 
@@ -110,12 +109,11 @@ public class MCEController {
             log.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", uid, currentUid);
             throw new AccessDeniedException("Vous ne pouvez consulter que votre profil ou celui des personnes en relation avec vous");
         }
-        UserForDisplayDTO enfant = userDTOFactory.from(uid);
-
+        UserDto userDto = personneService.getUser(uid);
+        UserForDisplayDTO enfant = userDTOFactory.from(userDto);
         if (enfant == null) {
             throw new PersonneNotFoundException("Enfant non trouvé pour l'uid : " + uid);
         }
-
         return ResponseEntity.ok(enfant);
     }
 

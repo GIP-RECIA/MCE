@@ -21,6 +21,7 @@ import java.util.List;
 
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
+import fr.recia.mce.api.escomceapi.services.UserDto;
 import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 import jakarta.validation.constraints.NotNull;
 
@@ -93,70 +94,44 @@ public class UserDTOFactory {
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     /**
-     * Retourne le DTO prêt pour affichage
-     */
-    public UserForDisplayDTO from(@NotNull String uid) {
-        log.debug("Création d'un UserForDisplayDTO à partir de l'uid : {}", uid);
-        LdapUserDto ldapUser = ldapUserService.getUserLdap(uid);
-        DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
-        try {
-            EnumPublic ep = personneService.evalPublic(databaseUser);
-            log.debug("Profil public évalué avec succès pour l'utilisateur [uid={}] : {}", databaseUser.getUid(), ep.name());
-        } catch (Exception e) {
-            log.error("Échec de l'évaluation du profil public pour l'utilisateur [uid={}] - Raison : Erreur technique lors du calcul du profil | Détail : {}", databaseUser.getUid(), e.getMessage());
-        }
-        return from(ldapUser, databaseUser);
-    }
-
-    /**
      * Méthode privée qui construit le DTO
      */
-    private UserForDisplayDTO from(LdapUserDto ldapUser, DatabaseUserDto databaseUser) {
-        APersonne base = databaseUser.getAPersonneBase();
+    public UserForDisplayDTO from(UserDto userDto) {
+        APersonne base = userDto.getDatabaseUserDto().getAPersonneBase();
         if (base == null) {
-            log.error("Données de base absentes pour l'utilisateur [uid={}]", databaseUser.getUid());
+            log.error("Données de base absentes pour l'utilisateur [uid={}]", userDto.getDatabaseUserDto().getUid());
             return null;
         }
 
         // Détection objectClass AVANT résolution des relations
         boolean isMaitre = false;
         List<RelationEleveContact> apprentisList = null;
-        if (ldapUser != null) {
-            List<String> objectClasses = ldapUser.getAttribute("objectClass");
+        if (userDto.getLdapUserDto() != null) {
+            List<String> objectClasses = userDto.getLdapUserDto().getAttribute("objectClass");
             isMaitre = EnumObjectClass.containsMaitre(objectClasses);
             if (isMaitre) {
-                apprentisList = iRelationEleveService.allApprentiEnRelation(ldapUser.getId());
-                log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", databaseUser.getUid(), apprentisList != null ? apprentisList.size() : 0);
+                apprentisList = iRelationEleveService.allApprentiEnRelation(userDto.getLdapUserDto().getId());
+                log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", userDto.getDatabaseUserDto().getUid(), apprentisList != null ? apprentisList.size() : 0);
             }
-            log.debug("objectClass [uid={}]: isMaitre={}", databaseUser.getUid(), isMaitre);
+            log.debug("objectClass [uid={}]: isMaitre={}", userDto.getDatabaseUserDto().getUid(), isMaitre);
         }
 
         // isMaitre REMPLACE le profil : pas de parentEleve ni relationEleve
-        List<RelationEleveContact> respEleves = isMaitre ? null : personneService.resolveRespEleves(ldapUser);
-        List<RelationEleveContact> eleves = isMaitre ? null : personneService.resolveEleves(databaseUser);
-
-        EnumPublic pub = databaseUser.getEnumPublic();
-        boolean passEditable = false;
-        boolean canEditEmail = false;
-        boolean eduConnect = false;
-        boolean passEtab = false;
-
-        if (pub != null) {
-            passEditable = personneService.computePassEditable(databaseUser, pub);
-            eduConnect = personneService.computeEduConnect(databaseUser, pub);
-            canEditEmail = personneService.computeCanEditEmail(pub, base, databaseUser);
-            passEtab = personneService.computePassEtab(pub, databaseUser);
-        }
-
-        String resolvedEmail = personneService.resolveEmail(databaseUser, ldapUser);
+        List<RelationEleveContact> respEleves = isMaitre ? null : personneService.resolveRespEleves(userDto.getLdapUserDto());
+        List<RelationEleveContact> eleves = isMaitre ? null : personneService.resolveEleves(userDto.getDatabaseUserDto());
+        boolean passEditable = personneService.canEditPassword(userDto);
+        boolean eduConnect = personneService.computeEduConnect(userDto);
+        boolean canEditEmail = personneService.computeCanEditEmail(userDto);
+        boolean passEtab = personneService.computePassEtab(userDto);
+        String resolvedEmail = personneService.resolveEmail(userDto.getDatabaseUserDto(), userDto.getLdapUserDto());
         String resolvedEmailPersonnel = personneService.resolveEmailPersonnel(base);
-        String etab = personneService.resolveEtablissementName(databaseUser);
-        String userIdentifiant = databaseUser.getIdentifiant();
+        String etab = personneService.resolveEtablissementName(userDto.getDatabaseUserDto());
+        String userIdentifiant = userDto.getDatabaseUserDto().getIdentifiant();
         List<String> userPublic = personneService.buildUserPublicLinks(eduConnect, passEtab);
         return new UserForDisplayDTO(
             base.getId(),
-            databaseUser.getUid(),
-            databaseUser.getDisplayName(),
+            userDto.getDatabaseUserDto().getUid(),
+            userDto.getDatabaseUserDto().getDisplayName(),
             base.getGivenName(),
             base.getSn(),
             base.getCivilite(),
@@ -166,12 +141,12 @@ public class UserDTOFactory {
             etab,
             resolvedEmail,
             resolvedEmailPersonnel,
-            databaseUser.getNaissance(),
-            personneService.resolveAvatarUrl(base, ldapUser),
+            userDto.getDatabaseUserDto().getNaissance(),
+            personneService.resolveAvatarUrl(base, userDto.getLdapUserDto()),
             base.getEtat(),
             passEditable,
             userPublic,
-            showGeneralInfo(ldapUser, databaseUser),
+            showGeneralInfo(userDto.getLdapUserDto(), userDto.getDatabaseUserDto()),
             respEleves,
             eleves,
             apprentisList

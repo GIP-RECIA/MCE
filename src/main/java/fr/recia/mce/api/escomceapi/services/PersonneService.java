@@ -36,6 +36,8 @@ import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
+import fr.recia.mce.api.escomceapi.web.dto.UserForDisplayDTO;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -118,78 +120,46 @@ public class PersonneService {
         }
     }
 
-    /**
-     * Récupère le public d'une personne donnée
-     */
-    // TODO : à mettre dans le cache quelquepart
-    public EnumPublic evalPublic(final DatabaseUserDto personne) {
+    public UserDto getUser(String uid){
+        // Récupération dans le cache si possible
+        Cache cache = cacheManager.getCache("personneCache");
+        if (cache != null) {
+            UserDto cached = cache.get(uid, UserDto.class);
+            if (cached != null) {
+                log.debug("Cache hit pour 'personneCache' : Données chargées pour l'uid [{}]", uid);
+                return cached;
+            }
+        }
 
-        // TODO : Sortir de la méthode
-        LdapUserDto ldapUser = ldapUserService.getUserLdap(personne.getUid());
-
+        // Sinon on requête la BDD et on met dans le cache
+        log.debug("Cache miss pour 'personneCache' : Récupération des données pour l'uid [{}]", uid);
+        LdapUserDto ldapUser = ldapUserService.getUserLdap(uid);
+        DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
         StructureDTO.DomSource ds = null;
-        StructureDTO structure = personne.getStructureDto();
+        StructureDTO structure = databaseUser.getStructureDto();
         boolean isLocalUser = false;
         boolean isCollectivite = false;
-        String source = personne.getSource();
+        String source = databaseUser.getSource();
         if (structure != null) {
             try {
                 ds = structure.getDomSource();
             } catch (Exception e) {
-                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", personne.getUid(), e.getMessage());
+                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", databaseUser.getUid(), e.getMessage());
             }
         }
-
         if (source != null) {
             isLocalUser = source.startsWith("SarapisUi");
             isCollectivite = source.endsWith("COLL-CVDL");
         }
-
-        EnumCategorie enumCat = EnumCategorie.fromString(personne.getAPersonneBase().getCategorie());
-        EnumPublic res = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
-
-        if (groupsWithSSHAPassword != null && StructureDTO.DomSource.GIP.equals(ds)) {
-            if (ldapUser != null) {
-                List<String> attrs = ldapUser.getAttribute("isMemberOf");
-                if (attrs != null) {
-                    personne.setSSHAPass(attrs.stream().anyMatch(s -> groupsWithSSHAPassword.matcher(s).matches()));
-                }
-            }
+        EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getAPersonneBase().getCategorie());
+        EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
+        UserDto personne = new UserDto(databaseUser, ldapUser, ep);
+        if (cache != null) {
+            cache.putIfAbsent(uid, personne);
         }
 
-        if (groupsWithNtPassword != null && (res != null && res.isNtProfile() || StructureDTO.DomSource.GIP.equals(ds))) {
-            if (ldapUser != null) {
-                List<String> attrs = ldapUser.getAttribute("isMemberOf");
-                if (attrs != null) {
-                    personne.setNtPass(attrs.stream().anyMatch(s -> groupsWithNtPassword.matcher(s).matches()));
-                }
-            }
-        }
-
-        return res;
-    }
-
-    public boolean isPasswordEditable(DatabaseUserDto model) {
-        if (model == null) {
-            return false;
-        }
-        return computePassEditable(model, model.getEnumPublic());
-    }
-
-    public boolean canResetPassword(DatabaseUserDto databaseUserDto) {
-        if (databaseUserDto == null) {
-            return false;
-        }
-        // Toujours évaluer le profil pour s'assurer que source est correcte (isEduconnect dépend de source)
-        EnumPublic pub = evalPublic(databaseUserDto);
-        databaseUserDto.setEnumPublic(pub);
-        if (pub == null) {
-            return false;
-        }
-        if (pub.isEduconnect()) {
-            return false;
-        }
-        return isPasswordEditable(databaseUserDto);
+        log.debug("Récupération du user : {}", uid);
+        return personne;
     }
 
     public List<RelationEleveContact> resolveRespEleves(LdapUserDto ldapUser) {
@@ -201,63 +171,43 @@ public class PersonneService {
         return new ArrayList<>(relationEleveService.allEleveEnRelation(databaseUser.getApersonne().getId()));
     }
 
-    public boolean computePassEditable(DatabaseUserDto model, EnumPublic pub) {
-        if (pub == null) {
-            return false;
-        }
-        if (pub.isEduconnect()) {
+    public boolean canEditPassword(UserDto userDto) {
+        if (userDto.getEnumPublic().isEduconnect()) {
             return false;
         }
         String acMailPattern = mailProperties.getAcMailPattern();
         if (acMailPattern == null){
             acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         }
-        if (pub == EnumPublic.EDUCATION && model.getMailFixe() != null && model.getMailFixe().matches(acMailPattern)) {
-            return model.isNtPass();
+        if (userDto.getEnumPublic() == EnumPublic.EDUCATION && userDto.getDatabaseUserDto().getMailFixe() != null && userDto.getDatabaseUserDto().getMailFixe().matches(acMailPattern)) {
+            return userDto.getDatabaseUserDto().isNtPass();
         }
-        return pub.isConnectOk() || model.isNtPass();
+        return userDto.getEnumPublic().isConnectOk() || userDto.getDatabaseUserDto().isNtPass();
     }
 
-    public boolean computeEduConnect(DatabaseUserDto model, EnumPublic pub) {
-        if (pub == null) {
-            return false;
-        }
+    public boolean computeEduConnect(UserDto userDto) {
         String acMailPattern = mailProperties.getAcMailPattern();
         if (acMailPattern == null){
             acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         }
-        if (model.getMailFixe() == null || pub != EnumPublic.EDUCATION || !model.getMailFixe().matches(acMailPattern)) {
-            return pub.isEduconnect();
+        if (userDto.getDatabaseUserDto().getMailFixe() == null || userDto.getEnumPublic() != EnumPublic.EDUCATION || !userDto.getDatabaseUserDto().getMailFixe().matches(acMailPattern)) {
+            return userDto.getEnumPublic().isEduconnect();
         }
         return false;
     }
 
-    public boolean computeCanEditEmail(EnumPublic pub, APersonne base, DatabaseUserDto model) {
-        if (pub.isEleve()){
+    public boolean computeCanEditEmail(UserDto userDto) {
+        if (userDto.getEnumPublic().isEleve()){
             return true;
         }
-        if (base.getEmailPersonnel() != null && !base.getEmailPersonnel().isEmpty()){
+        if (userDto.getDatabaseUserDto().getAPersonneBase().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getAPersonneBase().getEmailPersonnel().isEmpty()){
             return true;
         }
-        return model.getMailFixe() == null || model.getMailFixe().isEmpty();
+        return userDto.getDatabaseUserDto().getMailFixe() == null || userDto.getDatabaseUserDto().getMailFixe().isEmpty();
     }
 
-    /**
-     * Indique si la personne peut renseigner/modifier un mail personnel.
-     * <p>
-     * Même règle que le « changement d'adresse email ». Pour un non-élève, {@code model.getMailFixe()}
-     * correspond à l'email principal en base ({@code base.getEmail()}), le fallback LDAP n'existant que pour les élèves
-     * (déjà traités par {@code pub.isEleve()}).
-     */
-    public boolean canEditEmail(EnumPublic pub, APersonne base) {
-        if (pub == null) {
-            return false;
-        }
-        return computeCanEditEmail(pub, base, new DatabaseUserDto(base));
-    }
-
-    public boolean computePassEtab(EnumPublic pub, DatabaseUserDto model) {
-        return pub.isPassEtab() && structureService.isReseauRecia(model);
+    public boolean computePassEtab(UserDto userDto) {
+        return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getDatabaseUserDto());
     }
 
     public String resolveEmail(DatabaseUserDto model, LdapUserDto extModel) {
