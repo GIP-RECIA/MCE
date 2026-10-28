@@ -62,9 +62,9 @@ public class EmailVerificationService {
     private ResendPolicyService resendPolicyService;
 
     @Transactional
-    public void sendVerificationEmail(String uid, String email) {
-        APersonne person = aPersonneRepository.findByUid(uid);
-
+    public void sendVerificationEmail(UserDto userDto, String email) {
+        final String uid = userDto.getLdapUserDto().getId();
+        APersonne person = aPersonneRepository.findByUid(userDto.getDatabaseUserDto().getUid());
         // On ne renvoie pas un code si on vient d'en envoyer un autre récemment
         List<CerbereConfirmation> cerbereConfirmationsForPerson = cerbereConfirmationRepository.findPendingEmailVerificationByPersonId(person.getId());
         resendPolicyService.assertResendAllowed(cerbereConfirmationsForPerson, uid, "VERIFY_EMAIL");
@@ -96,8 +96,9 @@ public class EmailVerificationService {
     }
 
     @Transactional(noRollbackFor = MaxAttemptsExceededException.class)
-    public void verifyEmail(String uid, String code, boolean doForward) {
-        APersonne person = aPersonneRepository.findByUid(uid);
+    public void verifyEmail(UserDto userDto, String code, boolean doForward) {
+        APersonne person = aPersonneRepository.findByUid(userDto.getDatabaseUserDto().getUid());
+        final String uid = person.getUid();
         String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
 
@@ -129,7 +130,7 @@ public class EmailVerificationService {
 
         // On vérifie que la personne peut modifier le mail puis on applique la modification
         String email = confirmation.getMail();
-        personneService.assertUpdateEmail(uid, email);
+        personneService.validateEmailForUpdate(userDto, email);
         person.setEmailPersonnel(email);
         person.setDoForward(doForward);
 

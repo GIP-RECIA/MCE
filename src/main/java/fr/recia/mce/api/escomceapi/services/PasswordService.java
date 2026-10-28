@@ -140,7 +140,7 @@ public class PasswordService {
 
         String uid = person.getUid() != null ? person.getUid() : "unknown";
 
-        String etat = person.getAPersonneBase().getEtat();
+        String etat = person.getEtat();
         if (!AccountState.same(etat, VALID_ACCOUNT_STATE)) {
             specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Compte non actif (etat={})", uid, etat);
             throw new IllegalArgumentException("Votre compte n'est pas dans un état valide");
@@ -441,20 +441,22 @@ public class PasswordService {
     }
 
     private boolean isNtPasswordProfile(DatabaseUserDto person) {
-        EnumPublic res = person.getEnumPublic();
-        boolean isCvdl = res != null && res.isNtProfile();
-        StructureDTO.DomSource ds = null;
-        if (person.getStructureDto() != null) {
-            try {
-                ds = person.getStructureDto().getDomSource();
-            } catch (Exception e) {
-                log.debug("vérificationSamba — domSource indisponible pour uid={} : {}", person.getUid(), e.getMessage());
-            }
-        }
-        boolean isGip = StructureDTO.DomSource.GIP.equals(ds);
-        log.debug("vérificationSamba — éligibilité profil uid={} : enumPublic={}, domSource={}, ntPass=({} || {})",
-                person.getUid(), res, ds, isCvdl, isGip);
-        return isCvdl || isGip;
+        return true;
+        // TODO
+//        EnumPublic res = person.getEnumPublic();
+//        boolean isCvdl = res != null && res.isNtProfile();
+//        StructureDTO.DomSource ds = null;
+//        if (person.getStructureDto() != null) {
+//            try {
+//                ds = person.getStructureDto().getDomSource();
+//            } catch (Exception e) {
+//                log.debug("vérificationSamba — domSource indisponible pour uid={} : {}", person.getUid(), e.getMessage());
+//            }
+//        }
+//        boolean isGip = StructureDTO.DomSource.GIP.equals(ds);
+//        log.debug("vérificationSamba — éligibilité profil uid={} : enumPublic={}, domSource={}, ntPass=({} || {})",
+//                person.getUid(), res, ds, isCvdl, isGip);
+//        return isCvdl || isGip;
     }
 
     // ---------------------------------------------------------------
@@ -566,7 +568,7 @@ public class PasswordService {
 
         String uid = personne.getUid() != null ? personne.getUid() : "unknown";
 
-        String stored = personne.getAPersonneBase().getPassword();
+        String stored = personne.getPassword();
 
         if (stored == null || stored.isBlank()) {
             specialLog.warn(
@@ -714,19 +716,21 @@ public class PasswordService {
      */
     // TODO : regarder par ici pour les spécificités mot de passe réseau
     private boolean isNoOldPass(DatabaseUserDto person) {
-        if (person == null || person.getEnumPublic() == null) {
-            return false;
-        }
-        if (!person.isNtPass()) {
-            return false;
-        }
-        log.error("efhaefgaegeigeageaya : {}", person);
-        // CVDL est le seul profil sans connexion locale : !pub.isConnectOk() est toujours vrai pour CVDL (redondant).
-        if (!EnumPublic.CVDL.equals(person.getEnumPublic())) {
-            return false;
-        }
-        String stored = person.getAPersonneBase().getPassword();
-        return stored == null || stored.isBlank() || stored.startsWith(ACTIVE_PASSWORD);
+        // TODO
+        return true;
+//        if (person == null || person.getEnumPublic() == null) {
+//            return false;
+//        }
+//        if (!person.isNtPass()) {
+//            return false;
+//        }
+//        log.error("efhaefgaegeigeageaya : {}", person);
+//        // CVDL est le seul profil sans connexion locale : !pub.isConnectOk() est toujours vrai pour CVDL (redondant).
+//        if (!EnumPublic.CVDL.equals(person.getEnumPublic())) {
+//            return false;
+//        }
+//        String stored = person.getAPersonneBase().getPassword();
+//        return stored == null || stored.isBlank() || stored.startsWith(ACTIVE_PASSWORD);
     }
 
     /**
@@ -790,10 +794,8 @@ public class PasswordService {
     public void savePasswordToHistory(DatabaseUserDto personne, String hashLdap) {
         specialLog.info("Audit [SAVE_PASSWORD_HISTORY] : Sauvegarde du mot de passe dans l'historique pour l'utilisateur [{}]", personne.getUid());
 
-        APersonne aPersonne = personne.getAPersonneBase();
         Date today = new Date();
-
-        List<CerberePassword> existing = cerberePasswordRepository.findByAPersonne(aPersonne);
+        List<CerberePassword> existing = cerberePasswordRepository.findByAPersonneId(personne.getId());
 
         boolean alreadyToday = existing.stream().anyMatch(cp -> {
             if (cp.getDebut() == null)
@@ -809,8 +811,9 @@ public class PasswordService {
         if (alreadyToday) {
             specialLog.warn("Audit [SAVE_PASSWORD_HISTORY] : Une entrée existe pour aujourd'hui, mise à jour du hash pour l'utilisateur [{}]",
                     personne.getUid());
-            cerberePasswordRepository.updatePasswordForToday(aPersonne.getId(), hashLdap);
+            cerberePasswordRepository.updatePasswordForToday(personne.getId(), hashLdap);
         } else {
+            APersonne aPersonne = aPersonneRepository.findByUid(personne.getUid());
             CerberePassword cp = new CerberePassword(aPersonne, hashLdap, today);
             cerberePasswordRepository.saveAndFlush(cp);
         }
@@ -821,8 +824,7 @@ public class PasswordService {
      */
     @Transactional
     public void closeLastPassword(DatabaseUserDto personne) {
-        List<CerberePassword> history = cerberePasswordRepository
-                .findByAPersonne(personne.getAPersonneBase());
+        List<CerberePassword> history = cerberePasswordRepository.findByAPersonneId(personne.getId());
 
         if (history != null && !history.isEmpty()) {
             CerberePassword last = history.getFirst();
@@ -849,7 +851,7 @@ public class PasswordService {
      */
     public boolean isPasswordAlreadyUsed(DatabaseUserDto personne, String newPasswordClair) {
         log.debug("Vérification si le mot de passe a déjà été utilisé pour l'utilisateur [{}]", personne.getUid());
-        List<CerberePassword> history = cerberePasswordRepository.findByAPersonne(personne.getAPersonneBase());
+        List<CerberePassword> history = cerberePasswordRepository.findByAPersonneId(personne.getId());
 
         for (CerberePassword cp : history) {
             if (verifyPasswordInternal(newPasswordClair, cp.getPassword())) {
@@ -882,7 +884,7 @@ public class PasswordService {
     }
 
     private void updatePasswordInDatabase(DatabaseUserDto person, PasswordResult result) {
-        Long id = person.getAPersonneBase().getId();
+        Long id = person.getId();
         log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null,
                 result.sambaNt != null);
 
@@ -911,9 +913,9 @@ public class PasswordService {
         try {
             // L'état est relu en base (source de vérité) au moment de l'écriture LDAP : le hash réel n'est
             // écrit que si le compte est Valide, sinon la sentinelle {SCRIPT}LOCK (verrouillage LDAP).
-            String etat = aPersonneRepository.findById(person.getAPersonneBase().getId())
+            String etat = aPersonneRepository.findById(person.getId())
                     .map(APersonne::getEtat)
-                    .orElse(person.getAPersonneBase().getEtat());
+                    .orElse(person.getEtat());
             externalUserDao.modifEtatLdapPassword(uid, result.ldapHash, etat, result.sambaLm, result.sambaNt);
         } catch (Exception e) {
             specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid,

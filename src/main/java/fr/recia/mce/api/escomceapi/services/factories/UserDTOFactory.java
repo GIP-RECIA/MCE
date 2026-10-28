@@ -31,7 +31,6 @@ import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumObjectClass;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
@@ -61,7 +60,7 @@ public class UserDTOFactory {
     private IClasseGroupeService classeGroupeService;
 
     @Autowired
-    private RelationEleveService iRelationEleveService;
+    private RelationEleveService relationEleveService;
 
     @Autowired
     private StructureServiceImpl structureService;
@@ -88,59 +87,52 @@ public class UserDTOFactory {
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     /**
-     * Méthode privée qui construit le DTO
+     * Méthode qui construit le DTO à afficher par le front
      */
     public UserForDisplayDTO from(UserDto userDto) {
-        APersonne base = userDto.getDatabaseUserDto().getAPersonneBase();
-        if (base == null) {
-            log.error("Données de base absentes pour l'utilisateur [uid={}]", userDto.getDatabaseUserDto().getUid());
-            return null;
-        }
-
-        // Détection objectClass AVANT résolution des relations
+        final DatabaseUserDto databaseUser = userDto.getDatabaseUserDto();
         boolean isMaitre = false;
         List<RelationEleveContact> apprentisList = null;
         if (userDto.getLdapUserDto() != null) {
             List<String> objectClasses = userDto.getLdapUserDto().getAttribute("objectClass");
             isMaitre = EnumObjectClass.containsMaitre(objectClasses);
             if (isMaitre) {
-                apprentisList = iRelationEleveService.allApprentiEnRelation(userDto.getLdapUserDto().getId());
+                apprentisList = relationEleveService.allApprentiEnRelation(userDto.getLdapUserDto().getId());
                 log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", userDto.getDatabaseUserDto().getUid(), apprentisList != null ? apprentisList.size() : 0);
             }
             log.debug("objectClass [uid={}]: isMaitre={}", userDto.getDatabaseUserDto().getUid(), isMaitre);
         }
 
-        // isMaitre REMPLACE le profil : pas de parentEleve ni relationEleve
-        List<RelationEleveContact> respEleves = isMaitre ? null : personneService.resolveRespEleves(userDto.getLdapUserDto());
-        List<RelationEleveContact> eleves = isMaitre ? null : personneService.resolveEleves(userDto.getDatabaseUserDto());
-        boolean passEditable = personneService.canEditPassword(userDto);
-        boolean eduConnect = personneService.computeEduConnect(userDto);
-        boolean canEditEmail = personneService.computeCanEditEmail(userDto);
-        boolean passEtab = personneService.computePassEtab(userDto);
-        String resolvedEmail = personneService.resolveEmail(userDto.getDatabaseUserDto(), userDto.getLdapUserDto());
-        String resolvedEmailPersonnel = personneService.resolveEmailPersonnel(base);
-        String etab = personneService.resolveEtablissementName(userDto.getDatabaseUserDto());
-        String userIdentifiant = userDto.getDatabaseUserDto().getIdentifiant();
+        List<RelationEleveContact> respEleves = isMaitre ? null : personneService.resolveRespEleves(userDto);
+        List<RelationEleveContact> eleves = isMaitre ? null : personneService.resolveEleves(userDto);
+        final boolean passEditable = personneService.canEditPassword(userDto);
+        final boolean eduConnect = personneService.computeEduConnect(userDto);
+        final boolean canEditEmail = personneService.computeCanEditEmail(userDto);
+        final boolean passEtab = personneService.computePassEtab(userDto);
+        final String resolvedEmail = databaseUser.getEmail();
+        final String resolvedEmailPersonnel = databaseUser.getEmailPersonnel();
+        final String etab = databaseUser.getStructureDisplayName();
+        final String userIdentifiant = databaseUser.getUid();
         List<String> userPublic = personneService.buildUserPublicLinks(eduConnect, passEtab);
         return new UserForDisplayDTO(
-            base.getId(),
-            userDto.getDatabaseUserDto().getUid(),
-            userDto.getDatabaseUserDto().getDisplayName(),
-            base.getGivenName(),
-            base.getSn(),
-            base.getCivilite(),
-            base.getCategorie(),
+            databaseUser.getId(),
+            databaseUser.getUid(),
+            databaseUser.getDisplayName(),
+            databaseUser.getGivenName(),
+            databaseUser.getSn(),
+            databaseUser.getCivilite(),
+            databaseUser.getCategorie(),
             canEditEmail,
             userIdentifiant,
             etab,
             resolvedEmail,
             resolvedEmailPersonnel,
-            userDto.getDatabaseUserDto().getNaissance(),
-            personneService.resolveAvatarUrl(base, userDto.getLdapUserDto()),
-            base.getEtat(),
+            databaseUser.getDateNaissance(),
+            databaseUser.getPhoto(),
+            databaseUser.getEtat(),
             passEditable,
             userPublic,
-            showGeneralInfo(userDto.getLdapUserDto(), userDto.getDatabaseUserDto()),
+            showGeneralInfo(userDto.getLdapUserDto(), databaseUser),
             respEleves,
             eleves,
             apprentisList
@@ -148,12 +140,10 @@ public class UserDTOFactory {
     }
 
     private InfoGeneralDTO showGeneralInfo(LdapUserDto ldapUserDto, DatabaseUserDto databaseUserDto) {
-        APersonne base = databaseUserDto.getAPersonneBase();
-        List<FonctionDTO> listFonctions;
-        Long id = base.getId();
+        Long id = databaseUserDto.getId();
         log.debug("Récupération des informations générales pour l'ID utilisateur : {}", id);
         Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
-        listFonctions = new ArrayList<>(fonctions);
+        List<FonctionDTO> listFonctions = new ArrayList<>(fonctions);
         log.debug("{} fonction(s) trouvée(s) pour l'ID utilisateur : {}", listFonctions.size(), id);
         ClasseGroupeDTO classes = ldapUserDto != null ? classeGroupeService.calculCG(ldapUserDto) : null;
         return new InfoGeneralDTO(listFonctions, classes);

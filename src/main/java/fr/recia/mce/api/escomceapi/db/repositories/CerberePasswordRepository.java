@@ -26,8 +26,8 @@ import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 @Repository
 public interface CerberePasswordRepository extends AbstractRepository<CerberePassword, Long> {
 
-    @Query("FROM CerberePassword cp WHERE cp.aPersonne = :aPersonne ORDER BY cp.debut DESC")
-    List<CerberePassword> findByAPersonne(@Param("aPersonne") APersonne aPersonne);
+    @Query("FROM CerberePassword cp WHERE cp.aPersonne.id = :id ORDER BY cp.debut DESC")
+    List<CerberePassword> findByAPersonneId(@Param("id") Long id);
 
     @Modifying(clearAutomatically = true)
     @Query(value = "UPDATE cerbere_password SET password = :password WHERE idPersonne = :idPersonne AND debut = CURRENT_DATE", nativeQuery = true)

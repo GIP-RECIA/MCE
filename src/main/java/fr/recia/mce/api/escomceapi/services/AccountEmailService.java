@@ -40,13 +40,13 @@ public class AccountEmailService {
 
     public List<String> collectAccountEmails(UserDto userDto) {
         Set<String> emails = new LinkedHashSet<>();
-        if (userDto.getDatabaseUserDto().getApersonne().getEmail() != null && !userDto.getDatabaseUserDto().getApersonne().getEmail().isBlank()) {
-            emails.add(userDto.getDatabaseUserDto().getApersonne().getEmail().trim().toLowerCase());
+        if (userDto.getDatabaseUserDto().getEmail() != null && !userDto.getDatabaseUserDto().getEmail().isBlank()) {
+            emails.add(userDto.getDatabaseUserDto().getEmail().trim().toLowerCase());
         }
-        if (userDto.getDatabaseUserDto().getApersonne().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getApersonne().getEmailPersonnel().isBlank()) {
-            emails.add(userDto.getDatabaseUserDto().getApersonne().getEmailPersonnel().trim().toLowerCase());
+        if (userDto.getDatabaseUserDto().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getEmailPersonnel().isBlank()) {
+            emails.add(userDto.getDatabaseUserDto().getEmailPersonnel().trim().toLowerCase());
         }
-        for (CerbereConfirmation c : cerbereConfirmationRepository.findConfirmedByPersonId(userDto.getDatabaseUserDto().getApersonne().getId())) {
+        for (CerbereConfirmation c : cerbereConfirmationRepository.findConfirmedByPersonId(userDto.getDatabaseUserDto().getId())) {
             if (c.getMail() != null && !c.getMail().isBlank()) {
                 emails.add(c.getMail().trim().toLowerCase());
             }

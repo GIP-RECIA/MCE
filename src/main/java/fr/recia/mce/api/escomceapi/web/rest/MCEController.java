@@ -16,17 +16,13 @@
 
 package fr.recia.mce.api.escomceapi.web.rest;
 
-import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.security.AppUser;
 import fr.recia.mce.api.escomceapi.services.ChangePasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
-import fr.recia.mce.api.escomceapi.services.PasswordResetService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.UserDto;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
-import fr.recia.mce.api.escomceapi.services.exception.ChampsObligatoiresException;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
@@ -62,23 +58,18 @@ public class MCEController {
 
     private final FonctionService fonctionService;
     private final PersonneService personneService;
-    private final DatabaseUserService databaseUserService;
     private final RelationEleveService relationEleveService;
     private final UserDTOFactory userDTOFactory;
     private final EmailVerificationService emailVerificationService;
-    private final PasswordResetService passwordResetService;
     private final ChangePasswordService changePasswordService;
 
     public MCEController(FonctionService fonctionService, PersonneService personneService, RelationEleveService relationEleveService,
-                         UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, PasswordResetService passwordResetService,
-                         ChangePasswordService changePasswordService, DatabaseUserService databaseUserService) {
+                         UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, ChangePasswordService changePasswordService) {
         this.fonctionService = fonctionService;
         this.personneService = personneService;
-        this.databaseUserService = databaseUserService;
         this.relationEleveService = relationEleveService;
         this.userDTOFactory = userDTOFactory;
         this.emailVerificationService = emailVerificationService;
-        this.passwordResetService = passwordResetService;
         this.changePasswordService = changePasswordService;
     }
 
@@ -87,9 +78,9 @@ public class MCEController {
      */
     @GetMapping()
     public ResponseEntity<UserForDisplayDTO> getMCE(@AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
-        UserDto userDto = personneService.getUser(uid);
-        UserForDisplayDTO user = userDTOFactory.from(userDto);
+        final String uid = principal.getUid();
+        final UserDto userDto = personneService.getUser(uid);
+        final UserForDisplayDTO user = userDTOFactory.from(userDto);
         if (user == null) {
             throw new PersonneNotFoundException("Utilisateur non trouvé pour l'uid : " + uid);
         }
@@ -117,12 +108,13 @@ public class MCEController {
     }
 
     /**
-     * Met à jour la date de fin d'une fonction donné de l'utilisateur (utile pour désactiver une fonction)
+     * Met à jour la date de fin d'une fonction donnée de l'utilisateur (utile pour désactiver une fonction)
      */
     @PutMapping("/fonction/{id}/dateFin")
     public ResponseEntity<Void> updateDateFin(@PathVariable Long id, @RequestBody boolean active, @AuthenticationPrincipal AppUser principal) {
-        String currentUid = principal.getUid();
-        if (!canEditFunction(currentUid, id)) {
+        final String currentUid = principal.getUid();
+        final UserDto userDto = personneService.getUser(currentUid);
+        if (!canEditFunction(userDto, id)) {
             log.warn("Audit [UPDATE_DATEFIN] : Tentative de modification non autorisée de la fonction id={} par [{}]", id, currentUid);
             throw new AccessDeniedException("Vous ne pouvez modifier que vos propres fonctions");
         }
@@ -131,40 +123,46 @@ public class MCEController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    /**
+     * Change le mot de passe d'un utilisateur
+     */
     @PostMapping("/change-password")
     public ResponseEntity<Void> changePass(@Valid @RequestBody PasswordChangeRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
-        changePasswordService.changePassword(uid, request);
+        final String uid = principal.getUid();
+        final UserDto userDto = personneService.getUser(uid);
+        changePasswordService.changePassword(userDto, request);
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Envoi le code de validation pour confirmer le changement de mail d'un utilisateur
+     */
     @PutMapping("/update-email")
     public ResponseEntity<?> updateEmail(@Valid @RequestBody EmailUpdateRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
+        final String uid = principal.getUid();
         if (!request.getEmail().equals(request.getConfirmEmail())) {
             log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
-            return ResponseEntity.badRequest()
-                .body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
+            return ResponseEntity.badRequest().body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
         }
-        personneService.validateEmailForUpdate(uid, request.getEmail());
-        emailVerificationService.sendVerificationEmail(uid, request.getEmail());
+        final UserDto userDto = personneService.getUser(uid);
+        personneService.validateEmailForUpdate(userDto, request.getEmail());
+        emailVerificationService.sendVerificationEmail(userDto, request.getEmail());
         return ResponseEntity.status(HttpStatus.ACCEPTED)
             .body(new ErrorResponse("VERIFICATION_SENT", "Un email de vérification a été envoyé à " + request.getEmail()));
     }
 
+    /**
+     * Valide le changement de mail d'un utilisateur avec un code de validation
+     */
     @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
-        if (uid == null || uid.isBlank()) {
-            log.warn("[VERIFY_EMAIL] ÉCHEC : aucun identifiant");
-            throw new ChampsObligatoiresException("L'identifiant est obligatoire");
-        }
+        final String uid = principal.getUid();
+        final UserDto userDto = personneService.getUser(uid);
         log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
-        emailVerificationService.verifyEmail(uid, request.getCode(), request.isDoForward());
+        emailVerificationService.verifyEmail(userDto, request.getCode(), request.isDoForward());
         log.info("[VERIFY_EMAIL] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifié avec succès"));
     }
-
 
     @PostMapping("/avatar")
     public ResponseEntity<Void> updateAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal AppUser principal) throws Exception {
@@ -180,8 +178,8 @@ public class MCEController {
      */
     @GetMapping("/network-password/status")
     public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus(@AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
-        NetworkPasswordResetStatusDTO status = passwordResetService.getNetworkPasswordResetStatus(uid);
+       final String uid = principal.getUid();
+        NetworkPasswordResetStatusDTO status = changePasswordService.getNetworkPasswordResetStatus(uid);
         log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
         return ResponseEntity.ok(status);
     }
@@ -192,9 +190,9 @@ public class MCEController {
     @PostMapping("/network-password/reset")
     // TODO : ca ne devrait pas être une route entière mais une opération supplémentaire qui s'applique en même temps que le changement de mot de passe
     public ResponseEntity<?> networkPasswordReset(@Valid @RequestBody NetworkPasswordResetRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-        String uid = principal.getUid();
+        final String uid = principal.getUid();
         log.info("[NETWORK_PASSWORD_RESET] Application pour uid={}", uid);
-        passwordResetService.changeNetworkPassword(uid, request.getNewPassword(), request.getConfirmPassword());
+        changePasswordService.changeNetworkPassword(uid, request.getNewPassword(), request.getConfirmPassword());
         log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", uid);
         return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS", "Votre mot de passe réseau a été modifié avec succès"));
     }
@@ -211,14 +209,10 @@ public class MCEController {
                 return true;
             }
 
-            DatabaseUserDto current = databaseUserService.getUserDatabase(currentUid);
-            if (current != null && current.getAPersonneBase() != null) {
-                Long parentId = current.getAPersonneBase().getId();
-                return relationEleveService.allEleveEnRelation(parentId).stream()
-                    .map(RelationEleveContact::getUidRelation)
-                    .anyMatch(rel -> rel != null && rel.equals(uid));
-            }
-            return false;
+            final Long parentId = personneService.getUser(currentUid).getDatabaseUserDto().getId();
+            return relationEleveService.allEleveEnRelation(parentId).stream()
+                .map(RelationEleveContact::getUidRelation)
+                .anyMatch(rel -> rel != null && rel.equals(uid));
         } catch (Exception e) {
             log.warn("Erreur lors du contrôle d'accès au profil relation {} par {} : {}", uid, currentUid, e.getMessage());
             return false;
@@ -228,17 +222,13 @@ public class MCEController {
     /**
      * Indique si un utilisateur a le droit de modifier une fonction donnée
      */
-    private boolean canEditFunction(String currentUid, Long fonctionId) {
+    private boolean canEditFunction(UserDto userDto, Long fonctionId) {
         try {
-            DatabaseUserDto current = databaseUserService.getUserDatabase(currentUid);
-            if (current == null || current.getAPersonneBase() == null) {
-                return false;
-            }
-            final Long selfPersonId = current.getAPersonneBase().getId();
+            final Long selfPersonId = userDto.getDatabaseUserDto().getId();
             final Long ownerPersonId = fonctionService.getPersonIdOfFonction(fonctionId);
             return selfPersonId.equals(ownerPersonId);
         } catch (Exception e) {
-            log.warn("Erreur lors du contrôle de modification de la fonction id={} par {} : {}", fonctionId, currentUid, e.getMessage());
+            log.warn("Erreur lors du contrôle de modification de la fonction id={} par {} : {}", fonctionId, userDto.getLdapUserDto().getId(), e.getMessage());
             return false;
         }
     }

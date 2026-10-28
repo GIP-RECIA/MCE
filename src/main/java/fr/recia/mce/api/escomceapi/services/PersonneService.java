@@ -19,7 +19,6 @@ import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
-import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
@@ -131,23 +130,16 @@ public class PersonneService {
         log.debug("Cache miss pour 'personneCache' : Récupération des données pour l'uid [{}]", uid);
         LdapUserDto ldapUser = userLdapDao.getUserLdap(uid);
         DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
-        StructureDTO.DomSource ds = null;
-        StructureDTO structure = databaseUser.getStructureDto();
         boolean isLocalUser = false;
         boolean isCollectivite = false;
         String source = databaseUser.getSource();
-        if (structure != null) {
-            try {
-                ds = structure.getDomSource();
-            } catch (Exception e) {
-                log.error("Échec de la récupération de la source du domaine pour la structure de l'utilisateur [uid={}] - Détail : {}", databaseUser.getUid(), e.getMessage());
-            }
-        }
+        // TODO
+        StructureDTO.DomSource ds = StructureDTO.DomSource.AC;
         if (source != null) {
             isLocalUser = source.startsWith("SarapisUi");
             isCollectivite = source.endsWith("COLL-CVDL");
         }
-        EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getAPersonneBase().getCategorie());
+        EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
         EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
         UserDto personne = new UserDto(databaseUser, ldapUser, ep);
         if (cache != null) {
@@ -158,13 +150,13 @@ public class PersonneService {
         return personne;
     }
 
-    public List<RelationEleveContact> resolveRespEleves(LdapUserDto ldapUser) {
-        Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(ldapUser.getId());
+    public List<RelationEleveContact> resolveRespEleves(UserDto userDto) {
+        Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(userDto.getLdapUserDto().getId());
         return col != null ? new ArrayList<>(col) : null;
     }
 
-    public List<RelationEleveContact> resolveEleves(DatabaseUserDto databaseUser) {
-        return new ArrayList<>(relationEleveService.allEleveEnRelation(databaseUser.getApersonne().getId()));
+    public List<RelationEleveContact> resolveEleves(UserDto userDto) {
+        return new ArrayList<>(relationEleveService.allEleveEnRelation(userDto.getDatabaseUserDto().getId()));
     }
 
     public boolean canEditPassword(UserDto userDto) {
@@ -175,7 +167,7 @@ public class PersonneService {
         if (acMailPattern == null){
             acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         }
-        if (userDto.getEnumPublic() == EnumPublic.EDUCATION && userDto.getDatabaseUserDto().getMailFixe() != null && userDto.getDatabaseUserDto().getMailFixe().matches(acMailPattern)) {
+        if (userDto.getEnumPublic() == EnumPublic.EDUCATION && userDto.getDatabaseUserDto().getEmail() != null && userDto.getDatabaseUserDto().getEmail().matches(acMailPattern)) {
             return userDto.getDatabaseUserDto().isNtPass();
         }
         return userDto.getEnumPublic().isConnectOk() || userDto.getDatabaseUserDto().isNtPass();
@@ -186,7 +178,7 @@ public class PersonneService {
         if (acMailPattern == null){
             acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
         }
-        if (userDto.getDatabaseUserDto().getMailFixe() == null || userDto.getEnumPublic() != EnumPublic.EDUCATION || !userDto.getDatabaseUserDto().getMailFixe().matches(acMailPattern)) {
+        if (userDto.getDatabaseUserDto().getEmail() == null || userDto.getEnumPublic() != EnumPublic.EDUCATION || !userDto.getDatabaseUserDto().getEmail().matches(acMailPattern)) {
             return userDto.getEnumPublic().isEduconnect();
         }
         return false;
@@ -196,41 +188,14 @@ public class PersonneService {
         if (userDto.getEnumPublic().isEleve()){
             return true;
         }
-        if (userDto.getDatabaseUserDto().getAPersonneBase().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getAPersonneBase().getEmailPersonnel().isEmpty()){
+        if (userDto.getDatabaseUserDto().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getEmailPersonnel().isEmpty()){
             return true;
         }
-        return userDto.getDatabaseUserDto().getMailFixe() == null || userDto.getDatabaseUserDto().getMailFixe().isEmpty();
+        return userDto.getDatabaseUserDto().getEmail() == null || userDto.getDatabaseUserDto().getEmail().isEmpty();
     }
 
     public boolean computePassEtab(UserDto userDto) {
         return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getDatabaseUserDto());
-    }
-
-    public String resolveEmail(DatabaseUserDto model, LdapUserDto extModel) {
-        if (StringUtils.isBlank(model.getMailFromLdap()) && extModel != null) {
-            model.setMailFromLdap(extModel.getEmail());
-        }
-        return model.getMailFixe();
-    }
-
-    public String resolveEmailPersonnel(APersonne base) {
-        List<CerbereConfirmation> confirmed = cerbereConfirmationRepository.findConfirmedByPersonId(base.getId());
-        if (!confirmed.isEmpty()) {
-            return confirmed.get(0).getMail();
-        }
-        return base.getEmailPersonnel();
-    }
-
-    public String resolveEtablissementName(DatabaseUserDto model) {
-        if (model.getStructureDto() == null)
-            return null;
-        try {
-            return model.getStructureDto().getDisplayName();
-        } catch (Exception e) {
-            log.warn("Impossible de récupérer le nom de l'établissement pour l'utilisateur [uid={}] - Détail : {}",
-                model.getUid(), e.getMessage());
-            return null;
-        }
     }
 
     public List<String> buildUserPublicLinks(boolean eduConnect, boolean passEtab) {
@@ -244,49 +209,6 @@ public class PersonneService {
             links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
         }
         return links;
-    }
-
-    public String resolveAvatarUrl(APersonne base, LdapUserDto extModel) {
-        if (base.getPhoto() != null) {
-            log.debug("URL de l'avatar pour l'UID [{}]: {}", base.getUid(), base.getPhoto());
-            return base.getPhoto();
-        }
-        if (extModel != null) {
-            String avatarAttribute = mceProperties.getLdap().getUserBranch().getAvatarAttribute();
-            List<String> urls = extModel.getAttribute(avatarAttribute);
-            if (urls != null && !urls.isEmpty()) {
-                log.debug("URL de l'avatar (fallback LDAP) pour l'UID [{}]: {}", base.getUid(), urls.get(0));
-                return urls.get(0);
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * Reflète sur le DTO l'état de la validation de charte (date + flag) lu depuis la table dédiée
-     * {@code validationcharteservice}, pour le service courant de la personne. N'écrit plus la colonne
-     * {@code apersonne.validationCharte}.
-     */
-    private void populateCharteValidationDTO(DatabaseUserDto personne, String uid) {
-        try {
-            APersonne base = personne.getApersonne();
-            if (base == null || base.getId() == null) {
-                return;
-            }
-            String serviceId = charteService.resolveService(base);
-            if (serviceId == null) {
-                return;
-            }
-            ValidationCharte validation = validationCharteRepository
-                .findByApersonneIdAndServiceId(base.getId(), serviceId);
-            if (validation != null) {
-                personne.setDateValidCharte(validation.getValidatedAt());
-                personne.setCharteValide(true);
-            }
-        } catch (Exception e) {
-            log.warn("Impossible de refléter la validation de charte sur le DTO pour l'uid [{}] : {}", uid, e.getMessage());
-        }
     }
 
     /**
@@ -438,22 +360,15 @@ public class PersonneService {
     /**
      * Vérifie que l'utilisateur a bien le droit de changer son mail
      */
-    public void validateEmailForUpdate(String uid, String newEmail) {
-        DatabaseUserDto databaseUserDto = aPersonneRepository.getPersonneByUid(uid);
-        if (databaseUserDto == null) {
-            log.error("Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable en base de données", uid);
-            throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
-        }
-
-        if (!canEditPersonalEmail(databaseUserDto)) {
-            log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", uid);
+    public void validateEmailForUpdate(UserDto userDto, String newEmail) {
+        final DatabaseUserDto personne = userDto.getDatabaseUserDto();
+        if (!canEditPersonalEmail(userDto)) {
+            log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", personne.getUid());
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
         }
-
         if (!newEmail.matches(mailProperties.getRegexValideAddr())) {
             throw new IllegalArgumentException("Le format de l'adresse email n'est pas valide");
         }
-
         String domain = newEmail.substring(newEmail.lastIndexOf('@') + 1);
         String[] excludedDomains = mailProperties.getRegexsDomainesExclus().split("\\s+");
         for (String excluded : excludedDomains) {
@@ -463,36 +378,24 @@ public class PersonneService {
         }
     }
 
-    public void assertUpdateEmail(String uid, String newEmail) {
-        log.info("Mise à jour de l'email pour l'utilisateur [uid={}] vers : {}", uid, newEmail);
-        validateEmailForUpdate(uid, newEmail);
-        clearUserCaches(uid);
-        log.info("Audit [UPDATE_EMAIL] : SUCCÈS pour l'utilisateur [{}]", uid);
-    }
-
-    private boolean canEditPersonalEmail(DatabaseUserDto personne) {
-        APersonne base = personne.getAPersonneBase();
-        if (base == null) {
-            return false;
-        }
-
-        EnumPublic publicProfile = personne.getEnumPublic();
+    private boolean canEditPersonalEmail(UserDto userDto) {
+        EnumPublic publicProfile = userDto.getEnumPublic();
         if (publicProfile != null && publicProfile.isEleve()) {
             return true;
         }
 
         if (publicProfile == null) {
-            EnumCategorie cat = EnumCategorie.fromString(base.getCategorie());
+            EnumCategorie cat = EnumCategorie.fromString(userDto.getDatabaseUserDto().getCategorie());
             if (cat == EnumCategorie.ELEVE) {
                 return true;
             }
         }
 
-        if (StringUtils.isNotBlank(base.getEmailPersonnel())) {
+        if (StringUtils.isNotBlank(userDto.getDatabaseUserDto().getEmailPersonnel())) {
             return true;
         }
 
-        return StringUtils.isBlank(personne.getMailFixe());
+        return StringUtils.isBlank(userDto.getDatabaseUserDto().getEmail());
     }
 
     @Transactional

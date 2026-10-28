@@ -259,8 +259,8 @@ public class RelationEleveService {
             for (DatabaseUserDto enfant : allEnfant) {
 
                 String uid = enfant.getUid();
-                String typeRel = enfant.typeOfParent();
-                String lienParente = enfant.lienParente();
+                String typeRel = enfant.getTypeOfParent();
+                String lienParente = enfant.getLienParente();
 
                 RelationEleveContact rep = uidEleve2relation.get(uid);
 
@@ -293,8 +293,8 @@ public class RelationEleveService {
         Long maitreId = null;
         try {
             DatabaseUserDto maitreDto = databaseUserService.getUserDatabase(maitre);
-            if (maitreDto != null && maitreDto.getAPersonneBase() != null) {
-                maitreId = maitreDto.getAPersonneBase().getId();
+            if (maitreDto != null) {
+                maitreId = maitreDto.getId();
             }
         } catch (Exception e) {
             log.warn("Échec du chargement des détails du maître pour l'UID [{}] : Détail : {}", maitre, e.getMessage());

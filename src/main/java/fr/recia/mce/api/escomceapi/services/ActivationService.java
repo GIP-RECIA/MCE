@@ -124,25 +124,6 @@ public class ActivationService {
             throw new PersonneNotFoundException("Utilisateur introuvable : " + login);
         }
         if (AccountState.same(personne.getEtat(), AccountState.VALIDE)) {
-            // Compte déjà actif mais charte non signée (ex. arrivée via le redirect du CharteInterceptor) :
-            // seul le bloc charte doit s'afficher, sans redemander mot de passe ni email, sinon l'écran
-            // « Compte activé » reboucle en boucle avec l'auto-redirect returnTo.
-            // NEUTRALISÉ (charte) : l'étape CHARTE n'est plus proposée.
-            // Réactivation : retirer ce commentaire pour rétablir le contrôle.
-            /*
-            if (charteService.isCharteRequired(personne)) {
-                log.info("[ACTIVATION][STATUS] uid={} déjà Valide mais charte non signée, étape CHARTE", personne.getUid());
-                return ActivationStatusResponseDTO.builder()
-                        .uid(personne.getUid())
-                        .etat(personne.getEtat())
-                        .charteRequise(true)
-                        .charteSignee(false)
-                        .emailRequise(false)
-                        .passwordRequise(false)
-                        .etapeSuivante(STEP_CHARTE)
-                        .build();
-            }
-            */
             // Re-entry SSO : compte déjà activé — le parcours est terminé, on ne re-sert pas les étapes.
             log.info("[ACTIVATION][STATUS] uid={} déjà Valide, parcours terminé (FIN)", personne.getUid());
             return ActivationStatusResponseDTO.builder()
@@ -219,25 +200,8 @@ public class ActivationService {
             throw new IllegalArgumentException("Ce compte a été supprimé et ne peut pas être activé : " + login);
         }
 
-        String uid = personne.getUid();
-        DatabaseUserDto databaseUserDto = databaseUserService.getUserDatabase(uid);
-        if (databaseUserDto == null) {
-            throw new InactiveAccountException("Impossible de charger votre profil. Réessayez plus tard.");
-        }
-
-        // NEUTRALISÉ (charte) : la signature n'est plus exigée pour activer un compte.
-        // Réactivation : retirer ce commentaire pour rétablir le contrôle.
-        /*
-        if (charteService.isCharteRequired(personne)) {
-            if (!request.isCharteAccepted()) {
-                throw new CharteNotAcceptedException("Vous devez accepter les conditions générales d'utilisation avant de poursuivre l'activation");
-            }
-            personneService.signCharte(uid);
-            // signCharte pose toujours une date courante : on la reflète sur le DTO déjà chargé
-            // pour éviter un 2ᵉ chargement complet (DB + LDAP) après l'éviction du cache.
-            personneDTO.setDateValideCharte(new Date());
-        }
-        */
+        final String uid = personne.getUid();
+        final UserDto userDto = personneService.getUser(uid);
 
         // Re-entry d'un compte déjà actif (ex. charte à (re)signer, arrivée via le redirect du CharteInterceptor) :
         // seule la charte manquait — on ne redemande ni mot de passe ni email et on ne réécrit pas l'état du compte.
@@ -246,16 +210,13 @@ public class ActivationService {
             return new ActivationResultDTO(uid, AccountState.VALIDE, false);
         }
 
-        // TODO : pass userDto
-        //EnumPublic pub = personneService.evalPublic(databaseUserDto);
-        EnumPublic pub = null;
-        boolean passwordRequise = pub != null && pub.isConnectOk();
+        boolean passwordRequise = userDto.getEnumPublic() != null && userDto.getEnumPublic().isConnectOk();
 
         boolean emailEnAttente = false;
         if (StringUtils.isNotBlank(request.getEmail())) {
             String email = request.getEmail().trim();
-            personneService.validateEmailForUpdate(uid, email);
-            emailVerificationService.sendVerificationEmail(uid, email);
+            personneService.validateEmailForUpdate(userDto, email);
+            emailVerificationService.sendVerificationEmail(userDto, email);
             emailEnAttente = true;
         }
 
@@ -266,7 +227,7 @@ public class ActivationService {
             // L'état Valide est posé AVANT l'écriture du mot de passe en LDAP : le hash réel est écrit,
             // et non la sentinelle {SCRIPT}LOCK (les écritures base restent dans cette même transaction).
             personneService.valideCompte(uid);
-            passwordService.resetPassword(databaseUserDto, request.getNewPassword(), request.getConfirmPassword());
+            passwordService.resetPassword(userDto.getDatabaseUserDto(), request.getNewPassword(), request.getConfirmPassword());
             personneService.clearUserCaches(uid);
         } else {
             // Profils sans mot de passe local (EduConnect/SSO) : activation avec le marqueur actif,
@@ -274,7 +235,7 @@ public class ActivationService {
             personneService.setEtatValidWithoutPassword(uid);
         }
 
-        log.info("[ACTIVATION][PASSWORD] SUCCÈS uid={}, profil={}, password={}, emailRéconfirmé={}", uid, pub, passwordRequise, emailEnAttente);
+        log.info("[ACTIVATION][PASSWORD] SUCCÈS uid={}, profil={}, password={}, emailRéconfirmé={}", uid, userDto.getEnumPublic(), passwordRequise, emailEnAttente);
         return new ActivationResultDTO(uid, AccountState.VALIDE, emailEnAttente);
     }
 

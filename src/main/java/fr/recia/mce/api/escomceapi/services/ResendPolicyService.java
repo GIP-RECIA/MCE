@@ -54,7 +54,7 @@ public class ResendPolicyService {
         return mceProperties.getSecurity().getResetPolicy().getMaxAttempts();
     }
 
-    public boolean isInactiveAccount(APersonne person) {
+    public boolean isInactiveAccount(DatabaseUserDto person) {
         return !AccountState.same(person.getEtat(), VALID_ACCOUNT_STATE);
     }
 
