@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
@@ -43,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Repository
@@ -54,6 +57,11 @@ public class LdapUserDaoImpl {
     @Autowired
     private ExternalUserHelper externalUserHelper;
 
+    @Autowired
+    private CacheManager cacheManager;
+
+    public static final String LDAP_CACHE_NAME = "personneLDAPCache";
+
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 
     /**
@@ -61,6 +69,34 @@ public class LdapUserDaoImpl {
      * Elle ne matche aucune regex de parsing {@code \{((SSHA)|(ARGON2))\}(.+)} : aucun bind LDAP ne passe.
      */
     private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
+
+    /**
+     * Charge un utilisateur depuis le LDAP
+     */
+    public LdapUserDto getUserLdap(String uid) {
+        // Récupération dans le cache si possible
+        LdapUserDto userLdap = null;
+        Cache cache = cacheManager.getCache(LDAP_CACHE_NAME);
+        if (cache != null) {
+            userLdap = cache.get(uid, LdapUserDto.class);
+            if (!Objects.isNull(userLdap)) {
+                log.debug("Cache hit pour 'personneLDAPCache' : Données LDAP chargées pour l'uid [{}]", uid);
+                return userLdap;
+            }
+        }
+
+        // Sinon on requête le LDAP et on met dans le cache
+        try {
+            log.debug("Cache miss pour 'personneLDAPCache' : Récupération des données LDAP depuis l'annuaire pour l'uid [{}]", uid);
+            userLdap = getUserByUid(uid);
+            if (cache != null) {
+                cache.putIfAbsent(uid, userLdap);
+            }
+        } catch (Exception e) {
+            log.error("Échec du chargement des données LDAP pour l'uid [{}] - Détail : {}", uid, e.getMessage());
+        }
+        return userLdap;
+    }
 
     public LdapUserDto getUserByUid(String uid) {
 
@@ -72,12 +108,7 @@ public class LdapUserDaoImpl {
         }
 
         ContextMapper<LdapUserDto> mapper = new LdapUserContextMapper(this.externalUserHelper);
-
-        LdapQuery query = LdapQueryBuilder.query()
-                .attributes(externalUserHelper.getAttributes()
-                        .toArray(new String[0]))
-                .base(externalUserHelper.getUserDNSubPath()).filter(filter);
-
+        LdapQuery query = LdapQueryBuilder.query().attributes(externalUserHelper.getAttributes().toArray(new String[0])).base(externalUserHelper.getUserDNSubPath()).filter(filter);
         LdapUserDto user;
 
         try {
@@ -121,56 +152,6 @@ public class LdapUserDaoImpl {
         } catch (Exception e) {
             log.error("Erreur lors de la recherche LDAP batch pour les uids={} - Détail : {}", uids, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP lors de la recherche batch", e);
-        }
-    }
-
-    public void updatePassword(String uid, String newHashedPassword) {
-
-        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
-
-        LdapQuery query = LdapQueryBuilder.query()
-                .base(externalUserHelper.getUserDNSubPath())
-                .filter(filter);
-
-        ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(
-                        DirContext.REPLACE_ATTRIBUTE,
-                        new BasicAttribute("userPassword", newHashedPassword))
-        };
-
-        // ContextMapper pour récupérer le DN réel de l'utilisateur
-        ContextMapper<String> dnMapper = ctx -> {
-            DirContextAdapter adapter = (DirContextAdapter) ctx;
-            return adapter.getDn().toString();
-        };
-
-        List<String> dns;
-        try {
-            dns = ldapTemplate.search(query, dnMapper);
-        } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}",
-                    uid, e.getMessage());
-            throw new RuntimeException("LDAP password update failed: " + e.getMessage());
-        }
-
-        if (dns == null || dns.isEmpty()) {
-            specialLog.error(
-                    "Audit [UPDATE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour",
-                    uid);
-            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
-        }
-
-        String dn = dns.get(0);
-        log.debug("DN résolu pour uid={} : {}", uid, dn);
-
-        try {
-            ldapTemplate.modifyAttributes(dn, mods);
-            specialLog.info("Audit [UPDATE_PASSWORD] : SUCCÈS pour l'utilisateur [{}]", uid);
-        } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}",
-                    uid, e.getMessage());
-            throw new RuntimeException("LDAP password update failed: " + e.getMessage());
         }
     }
 
@@ -236,54 +217,6 @@ public class LdapUserDaoImpl {
             specialLog.error("Audit [MODIF_ETAT_LDAP_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}",
                     uid, e.getMessage());
             throw new RuntimeException("LDAP password/etat update failed: " + e.getMessage());
-        }
-    }
-
-    public void updateEmail(String uid, String newEmail) {
-        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
-
-        LdapQuery query = LdapQueryBuilder.query()
-                .base(externalUserHelper.getUserDNSubPath())
-                .filter(filter);
-
-        ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(
-                        DirContext.REPLACE_ATTRIBUTE,
-                        new BasicAttribute(externalUserHelper.getUserEmailAttribute(), newEmail))
-        };
-
-        ContextMapper<String> dnMapper = ctx -> {
-            DirContextAdapter adapter = (DirContextAdapter) ctx;
-            return adapter.getDn().toString();
-        };
-
-        List<String> dns;
-        try {
-            dns = ldapTemplate.search(query, dnMapper);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}", uid,
-                    e.getMessage());
-            throw new RuntimeException("LDAP email update failed: " + e.getMessage());
-        }
-
-        if (dns == null || dns.isEmpty()) {
-            log.error(
-                    "Audit [UPDATE_EMAIL] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour",
-                    uid);
-            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
-        }
-
-        String dn = dns.get(0);
-        log.debug("DN résolu pour uid={} : {}", uid, dn);
-
-        try {
-            ldapTemplate.modifyAttributes(dn, mods);
-            log.debug("Email LDAP mis à jour pour uid={} au DN={} avec le nouvel email={}", uid, dn, newEmail);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid,
-                    e.getMessage());
-            throw new RuntimeException("LDAP email update failed: " + e.getMessage());
         }
     }
 

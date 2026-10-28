@@ -18,7 +18,6 @@ package fr.recia.mce.api.escomceapi.web.rest;
 
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
-import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import fr.recia.mce.api.escomceapi.security.AppUser;
 import fr.recia.mce.api.escomceapi.services.ChangePasswordService;
 import fr.recia.mce.api.escomceapi.services.EmailVerificationService;

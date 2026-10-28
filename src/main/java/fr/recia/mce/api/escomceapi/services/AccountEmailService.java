@@ -18,8 +18,6 @@ package fr.recia.mce.api.escomceapi.services;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerbereConfirmation;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
-import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
-import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,23 +38,20 @@ public class AccountEmailService {
     @Autowired
     private CerbereConfirmationRepository cerbereConfirmationRepository;
 
-    @Autowired
-    private LdapUserService ldapUserService;
-
-    public List<String> collectAccountEmails(APersonne person) {
+    public List<String> collectAccountEmails(UserDto userDto) {
         Set<String> emails = new LinkedHashSet<>();
-        if (person.getEmail() != null && !person.getEmail().isBlank()) {
-            emails.add(person.getEmail().trim().toLowerCase());
+        if (userDto.getDatabaseUserDto().getApersonne().getEmail() != null && !userDto.getDatabaseUserDto().getApersonne().getEmail().isBlank()) {
+            emails.add(userDto.getDatabaseUserDto().getApersonne().getEmail().trim().toLowerCase());
         }
-        if (person.getEmailPersonnel() != null && !person.getEmailPersonnel().isBlank()) {
-            emails.add(person.getEmailPersonnel().trim().toLowerCase());
+        if (userDto.getDatabaseUserDto().getApersonne().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getApersonne().getEmailPersonnel().isBlank()) {
+            emails.add(userDto.getDatabaseUserDto().getApersonne().getEmailPersonnel().trim().toLowerCase());
         }
-        for (CerbereConfirmation c : cerbereConfirmationRepository.findConfirmedByPersonId(person.getId())) {
+        for (CerbereConfirmation c : cerbereConfirmationRepository.findConfirmedByPersonId(userDto.getDatabaseUserDto().getApersonne().getId())) {
             if (c.getMail() != null && !c.getMail().isBlank()) {
                 emails.add(c.getMail().trim().toLowerCase());
             }
         }
-        String ldapMail = ldapEmail(person);
+        String ldapMail = ldapEmail(userDto);
         if (ldapMail != null) {
             emails.add(ldapMail.trim().toLowerCase());
         }
@@ -68,34 +63,28 @@ public class AccountEmailService {
      *
      * @return true si l'email fourni est associé au compte (via une source connue)
      */
-    public boolean isEmailAssociatedWithAccount(APersonne person, String providedEmail) {
+    public boolean isEmailAssociatedWithAccount(UserDto userDto, String providedEmail) {
         if (providedEmail == null || providedEmail.isBlank()) {
             return false;
         }
         String candidate = providedEmail.trim();
-        return collectAccountEmails(person).stream()
-                .anyMatch(email -> sameEmail(candidate, email));
+        return collectAccountEmails(userDto).stream().anyMatch(email -> sameEmail(candidate, email));
     }
 
-    boolean sameEmail(String a, String b) {
+    public boolean sameEmail(String a, String b) {
         return a != null && b != null && a.equalsIgnoreCase(b.trim());
     }
 
     /**
      * Récupère l'email principal de l'utilisateur depuis l'annuaire LDAP. Retourne {@code null} si la personne est absente de l'annuaire ou sans email.
      */
-    public String ldapEmail(APersonne person) {
-        return ldapEmailByUid(person.getUid());
-    }
-
-    public String ldapEmailByUid(String uid) {
+    public String ldapEmail(UserDto userDto) {
         try {
-            LdapUserDto ldapUser = ldapUserService.getUserLdap(uid);
-            if (ldapUser != null && ldapUser.getEmail() != null && !ldapUser.getEmail().isBlank()) {
-                return ldapUser.getEmail().trim();
+            if (userDto.getLdapUserDto().getEmail() != null && !userDto.getLdapUserDto().getEmail().isBlank()) {
+                return userDto.getLdapUserDto().getEmail().trim();
             }
         } catch (Exception e) {
-            log.warn("[LDAP_EMAIL] Impossible de récupérer l'email LDAP pour uid={} : {}", uid, e.getMessage());
+            log.warn("[LDAP_EMAIL] Impossible de récupérer l'email LDAP pour uid={} : {}", userDto.getLdapUserDto().getId(), e.getMessage());
         }
         return null;
     }

@@ -160,7 +160,7 @@ public class PasswordResetService {
         }
 
         // Collecte de tous les emails associés au compte (LDAP + personnel + confirmés)
-        List<String> accountEmails = accountEmailService.collectAccountEmails(person);
+        List<String> accountEmails = accountEmailService.collectAccountEmails(userDto);
 
         // L'email est obligatoire pour réinitialiser : si le compte ne porte aucun email,
         // impossible d'envoyer un code — l'utilisateur doit contacter un administrateur
@@ -182,7 +182,7 @@ public class PasswordResetService {
             }
         }
 
-        if (!accountEmailService.isEmailAssociatedWithAccount(person, email)) {
+        if (!accountEmailService.isEmailAssociatedWithAccount(userDto, email)) {
             log.warn("[RESET_PASSWORD] Email non associé à ce compte : uid={}", uid);
             throw new InvalidCodeException("Cette adresse email n'est pas associée à votre compte");
         }
@@ -249,10 +249,10 @@ public class PasswordResetService {
                 request.getNom().trim(), request.getPrenom().trim(), categorie.getDbname(), sirens);
             for (Object[] candidate : candidates) {
                 String uid = (String) candidate[0];
-                if (accountEmailService.sameEmail(email, accountEmailService.ldapEmailByUid(uid))) {
-                    APersonne person = aPersonneRepository.findByUid(uid);
-                    if (person != null) {
-                        matches.add(person);
+                UserDto userDto = personneService.getUser(uid);
+                if (accountEmailService.sameEmail(email, accountEmailService.ldapEmail(userDto))) {
+                    if (userDto.getDatabaseUserDto().getApersonne() != null) {
+                        matches.add(userDto.getDatabaseUserDto().getApersonne());
                     }
                 }
             }

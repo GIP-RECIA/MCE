@@ -30,14 +30,12 @@ import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
-import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
-import fr.recia.mce.api.escomceapi.web.dto.UserForDisplayDTO;
-import jakarta.validation.constraints.NotNull;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -67,7 +65,7 @@ import java.util.TimeZone;
 import java.util.regex.Pattern;
 
 import static fr.recia.mce.api.escomceapi.db.services.DatabaseUserService.DB_CACHE_NAME;
-import static fr.recia.mce.api.escomceapi.ldap.services.LdapUserService.LDAP_CACHE_NAME;
+import static fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl.LDAP_CACHE_NAME;
 
 @Service
 @Getter
@@ -88,7 +86,6 @@ public class PersonneService {
     private final StructureServiceImpl structureService;
     private final RelationEleveService relationEleveService;
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
-    private final LdapUserService ldapUserService;
     private final DatabaseUserService databaseUserService;
     private Pattern groupsWithSSHAPassword;
     private Pattern groupsWithNtPassword;
@@ -96,7 +93,7 @@ public class PersonneService {
     public PersonneService(MCEProperties mceProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
                            ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CharteService charteService,
                            CacheManager cacheManager, StructureServiceImpl structureService, RelationEleveService relationEleveService,
-                           CerbereConfirmationRepository cerbereConfirmationRepository, LdapUserService ldapUserService, DatabaseUserService databaseUserService) {
+                           CerbereConfirmationRepository cerbereConfirmationRepository, DatabaseUserService databaseUserService) {
         this.mceProperties = mceProperties;
         this.mailProperties = mailProperties;
         this.extDao = extDao;
@@ -108,7 +105,6 @@ public class PersonneService {
         this.structureService = structureService;
         this.relationEleveService = relationEleveService;
         this.cerbereConfirmationRepository = cerbereConfirmationRepository;
-        this.ldapUserService = ldapUserService;
         this.databaseUserService = databaseUserService;
         String regex = mceProperties.getService().getCustomParams().getRegexGroupsWithSshaPass();
         if (regex != null) {
@@ -133,7 +129,7 @@ public class PersonneService {
 
         // Sinon on requête la BDD et on met dans le cache
         log.debug("Cache miss pour 'personneCache' : Récupération des données pour l'uid [{}]", uid);
-        LdapUserDto ldapUser = ldapUserService.getUserLdap(uid);
+        LdapUserDto ldapUser = userLdapDao.getUserLdap(uid);
         DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
         StructureDTO.DomSource ds = null;
         StructureDTO structure = databaseUser.getStructureDto();
@@ -653,6 +649,7 @@ public class PersonneService {
         return formatter.format(date);
     }
 
+    // TODO : constantes autour des caches
     public void clearUserCaches(String uid) {
         log.info("[clearUserCaches] DEBUT uid={}", uid);
         Cache dbCache = cacheManager.getCache(DB_CACHE_NAME);
@@ -662,6 +659,10 @@ public class PersonneService {
         Cache ldapCache = cacheManager.getCache(LDAP_CACHE_NAME);
         if (ldapCache != null) {
             ldapCache.evict(uid);
+        }
+        Cache userCache = cacheManager.getCache("personeCache");
+        if (userCache != null) {
+            userCache.evict(uid);
         }
         log.info("[clearUserCaches] FIN uid={}", uid);
     }

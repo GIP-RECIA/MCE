@@ -26,7 +26,6 @@ import java.util.regex.Pattern;
 
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
-import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -70,9 +69,6 @@ public class RelationEleveService {
 
     @Autowired
     private DatabaseUserService databaseUserService;
-
-    @Autowired
-    private LdapUserService ldapUserService;
 
     @Autowired
     private LdapUserDaoImpl externalUserDao;
@@ -178,7 +174,7 @@ public class RelationEleveService {
 
     // TODO : a retravailler
     public Collection<RelationEleveContact> allRelationEleves(String eleve) {
-        LdapUserDto personne = ldapUserService.getUserLdap(eleve);
+        LdapUserDto personne = externalUserDao.getUserLdap(eleve);
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
 
         String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
@@ -293,7 +289,7 @@ public class RelationEleveService {
 
     public List<RelationEleveContact> allApprentiEnRelation(String maitre) {
         List<RelationEleveContact> allApprenti = null;
-        LdapUserDto personne = ldapUserService.getUserLdap(maitre);
+        LdapUserDto personne = externalUserDao.getUserLdap(maitre);
         Long maitreId = null;
         try {
             DatabaseUserDto maitreDto = databaseUserService.getUserDatabase(maitre);

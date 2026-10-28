@@ -20,10 +20,8 @@ import java.util.Collection;
 import java.util.List;
 
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
-import fr.recia.mce.api.escomceapi.ldap.services.LdapUserService;
 import fr.recia.mce.api.escomceapi.services.UserDto;
 import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
-import jakarta.validation.constraints.NotNull;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,7 +33,6 @@ import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.enums.EnumObjectClass;
-import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
@@ -80,9 +77,6 @@ public class UserDTOFactory {
 
     @Autowired
     private DatabaseUserService databaseUserService;
-
-    @Autowired
-    private LdapUserService ldapUserService;
 
     @Autowired
     private MCEProperties mceProperties;
