@@ -204,8 +204,8 @@ This project includes:
   spring-security-crypto under Apache License, Version 2.0
   spring-security-test under Apache License, Version 2.0
   spring-security-web under Apache License, Version 2.0
-  spring-session-core under Apache License, Version 2.0
-  spring-session-data-redis under Apache License, Version 2.0
+  spring-session-core under Broadcom Foundation License
+  spring-session-data-redis under Broadcom Foundation License
   springdoc-openapi-common under The Apache License, Version 2.0
   springdoc-openapi-ui under The Apache License, Version 2.0
   springdoc-openapi-webmvc-core under The Apache License, Version 2.0
