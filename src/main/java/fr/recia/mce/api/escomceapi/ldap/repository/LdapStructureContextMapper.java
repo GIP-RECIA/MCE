@@ -16,21 +16,21 @@
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
+import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import org.springframework.stereotype.Service;
 
 import javax.naming.NamingException;
 
 @Service
-public class LdapStructureContextMapper implements ContextMapper<ExternalStructure> {
+public class LdapStructureContextMapper implements ContextMapper<LdapStructureDto> {
 
     @Override
-    public ExternalStructure mapFromContext(Object ctx) throws NamingException {
+    public LdapStructureDto mapFromContext(Object ctx) throws NamingException {
         DirContextAdapter context = (DirContextAdapter) ctx;
-        ExternalStructure structs = new ExternalStructure();
+        LdapStructureDto structs = new LdapStructureDto();
         structs.setId(context.getStringAttribute(ConstLDAP.STRUCT_SIREN));
         structs.setName(context.getStringAttribute(ConstLDAP.STRUCT_NOM_COURANT).replace('$', ' '));
         structs.setDisplayName(context.getStringAttribute(ConstLDAP.STRUCT_NOM_COURANT));

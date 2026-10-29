@@ -41,21 +41,6 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service de gestion des relations entre élèves et contacts.
- *
- * <p>
- * Ce service agrège les relations issues :
- * <ul>
- * <li>de l'annuaire LDAP</li>
- * <li>de la base de données en fallback si LDAP est vide</li>
- * </ul>
- *
- * <p>
- * Il permet notamment :
- * <ul>
- * <li>de récupérer les relations d'un élève vers ses contacts</li>
- * <li>de récupérer les élèves liés à un parent/contact</li>
- * <li>de récupérer les apprentis d'un maître</li>
- * </ul>
  */
 @Service
 @Slf4j
@@ -70,21 +55,23 @@ public class RelationEleveService {
     @Autowired
     private LdapUserDaoImpl externalUserDao;
 
-    private final String regex;
-    private final Pattern pattern;
+    private final Pattern patternUid;
     private final Pattern patternRelation;
     private final int grpUid;
     private final int grpTypRel;
 
     public RelationEleveService(MCEProperties mceProperties) {
         RelationProperties relProps = mceProperties.getService().getRelationProperties();
-        this.regex = relProps.getRegexUid();
-        this.pattern = Pattern.compile(regex);
+        this.patternUid = Pattern.compile(relProps.getRegexUid());
         this.patternRelation = Pattern.compile(relProps.getRegexRelation());
         this.grpUid = relProps.getGroupUid();
         this.grpTypRel = relProps.getGroupTypRel();
     }
 
+    /**
+     * Analyse les relations LDAP tuteur/maitre et alimente la map des relations.
+     * L'attribut à matcher n'est pas le même que élève/parent car il y a moins d'informations
+     */
     private void analyseMaitre(final LdapUserDto personne, final String ldapAttr, final String type, final boolean autorite, final Map<String, RelationEleveContact> uid2relation) {
         List<String> listAttrs = personne.getAttribute(ldapAttr);
         if (listAttrs == null) {
@@ -92,7 +79,7 @@ public class RelationEleveService {
         } else {
             for (String val : listAttrs) {
                 if (val != null) {
-                    Matcher m = pattern.matcher(val);
+                    Matcher m = patternUid.matcher(val);
                     if (m.matches()) {
                         String uid = m.group(1);
                         RelationEleveContact re = uid2relation.get(uid);
@@ -108,13 +95,11 @@ public class RelationEleveService {
                             re.setAutoriteParental(true);
                         }
                     } else {
-                        log.warn("Analyse LDAP : La valeur d'attribut '{}' pour l'ID élève {} ne correspond pas au modèle UID attendu : {}", val,
-                                personne.getId(), pattern.pattern());
+                        log.warn("Analyse LDAP : La valeur d'attribut '{}' pour l'ID élève {} ne correspond pas au modèle UID attendu : {}", val, personne.getId(), patternUid.pattern());
                     }
                 }
             }
         }
-
     }
 
     /**
@@ -126,7 +111,6 @@ public class RelationEleveService {
             log.warn("Analyse LDAP : Aucun attribut trouvé pour l'attribut '{}' sur l'ID élève : {}", ldapAttr, personne.getId());
         } else {
             for (String val : listAttrs) {
-
                 if (val != null) {
                     Matcher m = patternRelation.matcher(val);
                     if (!m.matches()) {
@@ -136,7 +120,6 @@ public class RelationEleveService {
                     } else {
                         String uid = m.group(grpUid);
                         RelationEleveContact re = uid2relation.get(uid);
-
                         if (re == null) {
                             re = new RelationEleveContact(SensRel.ELEVE2CONTACT);
                             re.setUidRelation(uid);
@@ -144,26 +127,22 @@ public class RelationEleveService {
                         }
                         re.setAutoriteParental(true);
                         String code = m.group(grpTypRel);
-                        re.setTypeRelation(code);
+                        re.setTypeRelation(LienParente.getLabelByCode(code));
                     }
                 }
             }
         }
-        if (log.isDebugEnabled()) {
-            log.debug("valeursLDAP : {}", uid2relation);
-        }
+        log.debug("valeursLDAP : {}", uid2relation);
     }
 
     /**
      * Donne les personnes en relation avec un élève
      */
-    public Collection<RelationEleveContact> allRelationEleves(String eleve) {
-        LdapUserDto personne = externalUserDao.getUserLdap(eleve);
+    public List<RelationEleveContact> allRelationEleves(String eleve) {
+        final LdapUserDto personne = externalUserDao.getUserLdap(eleve);
+        final boolean hasRelation = personne.getAttribute(ConstLDAP.ELEVE_RELATION) != null;
+        final boolean hasTuteur = personne.getAttribute(ConstLDAP.TUTEUR_ELVES) != null;
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
-        String eleveRelation = ConstLDAP.ELEVE_RELATION;
-        String eleveTuteurEntr = ConstLDAP.TUTEUR_ELVES;
-        boolean hasRelation = personne.getAttribute(eleveRelation) != null;
-        boolean hasTuteur = personne.getAttribute(eleveTuteurEntr) != null;
 
         if (!hasRelation && !hasTuteur) {
             log.debug("Aucun attribut de relation LDAP présent pour l'utilisateur {}", personne.getId());
@@ -171,15 +150,13 @@ public class RelationEleveService {
         }
 
         if (hasRelation){
-            analyse(personne, eleveRelation, uid2relation);
+            analyse(personne, ConstLDAP.ELEVE_RELATION, uid2relation);
         }
-
-        // TODO : Maitre en dur
         if (hasTuteur){
-            analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
+            analyseMaitre(personne, ConstLDAP.TUTEUR_ELVES, LienParente.Maitre.getLabel(), false, uid2relation);
         }
 
-        // Remplissage des noms via LDAP
+        // Remplissage des noms des personnes des relations via une nouvelle requête LDAP
         if (!uid2relation.isEmpty()) {
             try {
                 List<LdapUserDto> users = externalUserDao.getByUids(uid2relation.keySet());
@@ -190,15 +167,12 @@ public class RelationEleveService {
                     }
                 }
             } catch (Exception e) {
-                log.error("Erreur lors de la récupération batch LDAP : {}", e.getMessage());
+                log.error("Erreur lors de la récupération LDAP des personnes en relation", e);
             }
         }
 
-        if (!uid2relation.isEmpty()) {
-            log.debug("LDAP a trouvé {} relation(s) pour l'utilisateur {}", uid2relation.size(), personne.getId());
-        }
-
-        return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();
+        log.debug("LDAP a trouvé {} relation(s) pour l'utilisateur {}", uid2relation.size(), personne.getId());
+        return uid2relation.isEmpty() ? Collections.emptyList() : new ArrayList<>(uid2relation.values());
     }
 
     /**
@@ -222,7 +196,7 @@ public class RelationEleveService {
                     rep.setDisplayNameRelation(enfant.getDisplayName());
                     uidEleve2relation.put(uid, rep);
                 }
-                if ("Autorite_parentale".equals(typeRel)) {
+                if (TypeRelation.Autorite_Parentale.toString().equals(typeRel)) {
                     rep.setAutoriteParental(true);
                 }
                 rep.setTypeRelation(lienParente);
@@ -236,37 +210,24 @@ public class RelationEleveService {
     }
 
     /**
-     * Donne les apprentis en relation avec un tuteur
+     * Donne les apprentis en relation avec un tuteur depuis la vue du tuteur
      */
-    public List<RelationEleveContact> allApprentiEnRelation(String maitre) {
+    public List<RelationEleveContact> allApprentiEnRelation(LdapUserDto maitreLdap, DatabaseUserDto maitreDatabase) {
         List<RelationEleveContact> allApprenti = null;
-        LdapUserDto personne = externalUserDao.getUserLdap(maitre);
-        Long maitreId = null;
-        try {
-            DatabaseUserDto maitreDto = databaseUserService.getUserDatabase(maitre);
-            if (maitreDto != null) {
-                maitreId = maitreDto.getId();
-            }
-        } catch (Exception e) {
-            log.warn("Échec du chargement des détails du maître pour l'UID [{}] : Détail : {}", maitre, e.getMessage());
-        }
-
-        List<String> dnApprentis = personne.getAttribute(ConstLDAP.TUTEUR_ELVES);
-
+        List<String> dnApprentis = maitreLdap.getAttribute(ConstLDAP.TUTEUR_ELVES);
         if (dnApprentis != null) {
             allApprenti = new ArrayList<>(dnApprentis.size());
-
             for (String val : dnApprentis) {
                 if (val != null) {
-                    Matcher m = pattern.matcher(val);
+                    Matcher m = patternUid.matcher(val);
                     if (m.matches()) {
                         String uid = m.group(1);
                         try {
                             DatabaseUserDto eleve = databaseUserService.getUserDatabase(uid);
                             RelationEleveContact re = new RelationEleveContact(SensRel.CONTACT2ELEVE);
-                            re.setContact(maitreId);
+                            re.setContact(maitreDatabase.getId());
                             re.setEleve(eleve);
-                            re.setTypeRelation("Apprenti");
+                            re.setTypeRelation(LienParente.Apprenti.getLabel());
                             re.setDisplayNameRelation(eleve.getDisplayName());
                             re.setAutoriteParental(false);
                             allApprenti.add(re);
@@ -275,13 +236,12 @@ public class RelationEleveService {
                         }
                     } else {
                         if (log.isDebugEnabled()) {
-                            log.debug("Analyse LDAP : Le DN de l'apprenti '{}' ne correspond pas au modèle UID : {}", val, pattern.pattern());
+                            log.debug("Analyse LDAP : Le DN de l'apprenti '{}' ne correspond pas au modèle UID : {}", val, patternUid.pattern());
                         }
                     }
                 }
             }
         }
-
         return allApprenti;
     }
 

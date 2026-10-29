@@ -15,8 +15,6 @@
  */
 package fr.recia.mce.api.escomceapi.ldap;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +24,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ExternalStructure {
+public class LdapStructureDto {
 
     private String id;
     private String name;

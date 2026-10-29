@@ -16,7 +16,7 @@
 package fr.recia.mce.api.escomceapi.db.dto;
 
 import fr.recia.mce.api.escomceapi.db.beans.Structure;
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
+import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
 import lombok.Getter;
 import lombok.Setter;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -35,7 +35,7 @@ public class FonctionDTO implements Comparable<FonctionDTO> {
     private String siren;
 
     private String source;
-    private ExternalStructure struct;
+    private LdapStructureDto struct;
 
     @Override
     public int compareTo(@NonNull FonctionDTO arg0) {

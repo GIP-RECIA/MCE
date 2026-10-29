@@ -40,7 +40,7 @@ import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
+import fr.recia.mce.api.escomceapi.services.structure.StructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserForDisplayDTO;
 import lombok.Getter;
@@ -62,7 +62,7 @@ public class UserDTOFactory {
     private RelationEleveService relationEleveService;
 
     @Autowired
-    private StructureServiceImpl structureService;
+    private StructureService structureService;
 
     @Autowired
     private FonctionService fonctionService;

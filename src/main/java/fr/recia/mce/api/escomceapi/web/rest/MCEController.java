@@ -49,7 +49,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
-import java.util.Collection;
 
 @Slf4j
 @RestController
@@ -57,17 +56,13 @@ import java.util.Collection;
 public class MCEController {
 
     private final FonctionService fonctionService;
-    private final PersonneService personneService;
-    private final RelationEleveService relationEleveService;
-    private final UserDTOFactory userDTOFactory;
+    private final PersonneService personneService;private final UserDTOFactory userDTOFactory;
     private final EmailVerificationService emailVerificationService;
     private final ChangePasswordService changePasswordService;
 
-    public MCEController(FonctionService fonctionService, PersonneService personneService, RelationEleveService relationEleveService,
-                         UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, ChangePasswordService changePasswordService) {
+    public MCEController(FonctionService fonctionService, PersonneService personneService, UserDTOFactory userDTOFactory, EmailVerificationService emailVerificationService, ChangePasswordService changePasswordService) {
         this.fonctionService = fonctionService;
         this.personneService = personneService;
-        this.relationEleveService = relationEleveService;
         this.userDTOFactory = userDTOFactory;
         this.emailVerificationService = emailVerificationService;
         this.changePasswordService = changePasswordService;

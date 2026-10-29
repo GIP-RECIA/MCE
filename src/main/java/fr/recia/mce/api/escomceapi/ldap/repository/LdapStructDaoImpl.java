@@ -27,7 +27,7 @@ import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.stereotype.Repository;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
+import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -40,7 +40,7 @@ public class LdapStructDaoImpl {
     @Autowired
     private LdapStructureContextMapper ldapStructureContextMapper;
 
-    public List<ExternalStructure> loadAllStructure() {
+    public List<LdapStructureDto> loadAllStructure() {
         OrFilter filter = new OrFilter();
         filter.or(new PresentFilter(ConstLDAP.STRUCT_UAI));
         // TODO : string en dur
@@ -48,7 +48,7 @@ public class LdapStructDaoImpl {
 
         LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.STRUCTURE_BRANCH).filter(filter);
         try {
-            List<ExternalStructure> structs = ldapTemplate.search(query, ldapStructureContextMapper);
+            List<LdapStructureDto> structs = ldapTemplate.search(query, ldapStructureContextMapper);
             log.debug("Recherche LDAP réussie : {} structures trouvées avec le filtre [{}]", structs.size(), filter);
             return structs;
         } catch (Exception e) {

@@ -55,16 +55,9 @@ public class RelationEleveContact {
     /**
      * Constructeur utilisé par la requête JPQL parent = le parent/tuteur enfant = l'élève
      */
-    public RelationEleveContact(
-            String sensStr,
-            APersonne parent,
-            APersonne enfant,
-            String typeRelation,
-            String lienParente,
-            boolean autoriteParental) {
+    public RelationEleveContact(String sensStr, APersonne parent, APersonne enfant, String typeRelation, String lienParente, boolean autoriteParental) {
 
         this.isEleve2Contact = false;
-
         this.contact = (parent != null) ? parent.getId() : null;
         this.typeRelation = typeRelation;
         this.lienParente = lienParente;
@@ -73,9 +66,7 @@ public class RelationEleveContact {
         // On met les infos du PARENT dans uidRelation et displayNameRelation
         if (parent != null) {
             this.uidRelation = parent.getUid();
-            this.displayNameRelation = parent.getDisplayName() != null
-                    ? parent.getDisplayName()
-                    : (parent.getSn() + " " + parent.getGivenName()).trim();
+            this.displayNameRelation = parent.getDisplayName() != null ? parent.getDisplayName() : (parent.getSn() + " " + parent.getGivenName()).trim();
         }
 
         // On garde l'enfant dans le champ eleve pour cohérence interne

@@ -21,12 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapStructDaoImpl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Getter
 @Slf4j
-public class StructureServiceImpl {
+public class StructureService {
 
     private final LdapStructDaoImpl externalStructDao;
     private final CacheManager cacheManager;
@@ -44,11 +44,11 @@ public class StructureServiceImpl {
     private final Set<String> setIncludeEtabRecia = new HashSet<>();
     private final Set<String> setExcludeEtabRecia = new HashSet<>();
 
-    private List<ExternalStructure> allStructures;
-    private Map<String, ExternalStructure> siren2structure;
-    private Map<String, ExternalStructure> uai2structure;
+    private List<LdapStructureDto> allStructures;
+    private Map<String, LdapStructureDto> siren2structure;
+    private Map<String, LdapStructureDto> uai2structure;
 
-    public StructureServiceImpl(LdapStructDaoImpl externalStructDao, CacheManager cacheManager, DomaineProperties domaineProperties) {
+    public StructureService(LdapStructDaoImpl externalStructDao, CacheManager cacheManager, DomaineProperties domaineProperties) {
         this.externalStructDao = externalStructDao;
         this.cacheManager = cacheManager;
         this.domaineProperties = domaineProperties;
@@ -62,7 +62,7 @@ public class StructureServiceImpl {
             allStructures = externalStructDao.loadAllStructure();
             siren2structure = new HashMap<>();
             uai2structure = new HashMap<>();
-            for (ExternalStructure struct : allStructures) {
+            for (LdapStructureDto struct : allStructures) {
                 siren2structure.put(struct.getId(), struct);
                 if (struct.getUai() != null) {
                     uai2structure.put(struct.getUai(), struct);
@@ -75,7 +75,7 @@ public class StructureServiceImpl {
         return allStructures != null;
     }
 
-    public ExternalStructure findStructureBySiren(String siren) {
+    public LdapStructureDto findStructureBySiren(String siren) {
         // Premier chargement des structures si elle ne sont pas encore chargées
         if (!isStructureLoaded()) {
             log.warn("Premier chargement du cache des structures, accès via SIREN");
@@ -85,7 +85,7 @@ public class StructureServiceImpl {
         return siren2structure.get(siren);
     }
 
-    public ExternalStructure findStructureByUai(String uai) {
+    public LdapStructureDto findStructureByUai(String uai) {
         // Premier chargement des structures si elle ne sont pas encore chargées
         if (!isStructureLoaded()) {
             log.warn("Premier chargement du cache des structures, accès via UAI");
@@ -95,7 +95,7 @@ public class StructureServiceImpl {
         return uai2structure.get(uai);
     }
 
-    public boolean isReseauRecia(ExternalStructure str) {
+    public boolean isReseauRecia(LdapStructureDto str) {
         String uaiOrSiren = str.getUai();
         log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}", uaiOrSiren, (Object) str.getDomaines());
 
@@ -143,7 +143,7 @@ public class StructureServiceImpl {
             if (log.isDebugEnabled()) {
                 log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}' (uid={})...", index, uais.size(), uai, p.getUid());
             }
-            ExternalStructure str = findStructureByUai(uai);
+            LdapStructureDto str = findStructureByUai(uai);
 
             if (str == null) {
                 if (log.isDebugEnabled()) {
@@ -174,7 +174,7 @@ public class StructureServiceImpl {
         return false;
     }
 
-    private boolean isDomaineRecia(ExternalStructure struct) {
+    private boolean isDomaineRecia(LdapStructureDto struct) {
 
         if (struct == null)
             return false;

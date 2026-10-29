@@ -26,19 +26,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
+import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.ClasseGroupe;
 import fr.recia.mce.api.escomceapi.services.beans.EnseignementProf;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionEleve;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionProf;
-import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
+import fr.recia.mce.api.escomceapi.services.structure.StructureService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +61,7 @@ public class ClasseGroupeService {
     private PersonneService personneService;
 
     @Autowired
-    private StructureServiceImpl structureService;
+    private StructureService structureService;
 
     private final Map<String, ClasseGroupe> bufferUid2mapClasses2 = new HashMap<>();
 
@@ -125,7 +125,7 @@ public class ClasseGroupeService {
         for (String key : allKeys) {
             // Get or create the ClasseGroupe object
             ClasseGroupe existingGroup = cgMap.getOrDefault(key, new ClasseGroupe(key, new ArrayList<>(), new ArrayList<>()));
-            ExternalStructure struct = structureService.findStructureBySiren(key);
+            LdapStructureDto struct = structureService.findStructureBySiren(key);
             existingGroup.setNameEtab(struct.getName());
 
             if (classes.containsKey(key)) {
@@ -160,7 +160,7 @@ public class ClasseGroupeService {
                 ens.setCg(sourceData);
                 matListCG.add(ens);
             });
-            ExternalStructure struct = structureService.findStructureBySiren(siren);
+            LdapStructureDto struct = structureService.findStructureBySiren(siren);
             mapListSectionProf.put(struct.getName(), matListCG);
         });
         sectionProf.setEtabs(mapListSectionProf);
@@ -233,7 +233,7 @@ public class ClasseGroupeService {
 
         // Set the name (only if it hasn't been set yet)
         if (sourceData.getNameEtab() != null) {
-            ExternalStructure struct = structureService.findStructureBySiren(siren);
+            LdapStructureDto struct = structureService.findStructureBySiren(siren);
             sourceData.setNameEtab(struct.getName());
         }
 

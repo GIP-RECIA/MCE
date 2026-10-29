@@ -34,7 +34,7 @@ import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.InvalidAvatarException;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
-import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
+import fr.recia.mce.api.escomceapi.services.structure.StructureService;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +50,6 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -83,7 +82,7 @@ public class PersonneService {
     private final CacheManager cacheManager;
     private final LdapUserDaoImpl extDao;
     private final MailProperties mailProperties;
-    private final StructureServiceImpl structureService;
+    private final StructureService structureService;
     private final RelationEleveService relationEleveService;
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final DatabaseUserService databaseUserService;
@@ -92,7 +91,7 @@ public class PersonneService {
 
     public PersonneService(MCEProperties mceProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
                            ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CharteService charteService,
-                           CacheManager cacheManager, StructureServiceImpl structureService, RelationEleveService relationEleveService,
+                           CacheManager cacheManager, StructureService structureService, RelationEleveService relationEleveService,
                            CerbereConfirmationRepository cerbereConfirmationRepository, DatabaseUserService databaseUserService) {
         this.mceProperties = mceProperties;
         this.mailProperties = mailProperties;
@@ -142,7 +141,7 @@ public class PersonneService {
         }
         EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
         EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
-        List<RelationEleveContact> apprentisList = getApprentis(ldapUser);
+        List<RelationEleveContact> apprentisList = getApprentis(ldapUser, databaseUser);
         List<RelationEleveContact> respEleves = resolveRespEleves(ldapUser.getId());
         List<RelationEleveContact> eleves = resolveEleves(databaseUser.getId());
         UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), ep, apprentisList, respEleves, eleves);
@@ -154,13 +153,13 @@ public class PersonneService {
         return personne;
     }
 
-    private List<RelationEleveContact> getApprentis(LdapUserDto ldapUser){
+    private List<RelationEleveContact> getApprentis(LdapUserDto ldapUser, DatabaseUserDto databaseUser){
         boolean isMaitre = false;
         List<RelationEleveContact> apprentisList = new ArrayList<>();
         List<String> objectClasses = ldapUser.getAttribute("objectClass");
         isMaitre = EnumObjectClass.containsMaitre(objectClasses);
         if (isMaitre) {
-            apprentisList = relationEleveService.allApprentiEnRelation(ldapUser.getId());
+            apprentisList = relationEleveService.allApprentiEnRelation(ldapUser, databaseUser);
             log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", ldapUser.getId(), apprentisList != null ? apprentisList.size() : 0);
         }
         log.debug("objectClass [uid={}]: isMaitre={}", ldapUser.getId(), isMaitre);
@@ -171,8 +170,7 @@ public class PersonneService {
      * Donne les parents d'un élève
      */
     private List<RelationEleveContact> resolveRespEleves(String uid) {
-        Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(uid);
-        return col != null ? new ArrayList<>(col) : null;
+        return relationEleveService.allRelationEleves(uid);
     }
 
     /**
