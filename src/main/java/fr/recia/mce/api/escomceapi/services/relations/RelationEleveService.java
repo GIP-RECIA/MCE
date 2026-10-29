@@ -249,21 +249,19 @@ public class RelationEleveService {
         return uid2relation.isEmpty() ? Collections.emptyList() : uid2relation.values();
     }
 
-    public Collection<RelationEleveContact> allEleveEnRelation(Long parent) {
+    /**
+     * Donne les élèves en relation d'un parent
+     */
+    public List<RelationEleveContact> allEleveEnRelation(Long parent) {
         Collection<DatabaseUserDto> allEnfant;
         Map<String, RelationEleveContact> uidEleve2relation = new HashMap<>();
-
         try {
             allEnfant = aPersonneRepository.findAllEnfantOf(parent);
-
             for (DatabaseUserDto enfant : allEnfant) {
-
                 String uid = enfant.getUid();
                 String typeRel = enfant.getTypeOfParent();
                 String lienParente = enfant.getLienParente();
-
                 RelationEleveContact rep = uidEleve2relation.get(uid);
-
                 if (rep == null) {
                     rep = new RelationEleveContact(SensRel.CONTACT2ELEVE);
                     rep.setContact(parent);
@@ -275,15 +273,13 @@ public class RelationEleveService {
                 if ("Autorite_parentale".equals(typeRel)) {
                     rep.setAutoriteParental(true);
                 }
-                if (lienParente != null) {
-                    rep.setTypeRelation(lienParente);
-                }
+                rep.setTypeRelation(lienParente);
             }
         } catch (Exception e) {
             log.error("Échec du chargement des enfants pour l'ID parent [{}] : Erreur technique - Détail : {}", parent, e.getMessage());
         }
 
-        return uidEleve2relation.values();
+        return new ArrayList<>(uidEleve2relation.values());
 
     }
 

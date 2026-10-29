@@ -18,23 +18,18 @@ package fr.recia.mce.api.escomceapi.services.beans;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
-@AllArgsConstructor
+@Data
 @NoArgsConstructor
+@AllArgsConstructor
 public class ClasseGroupe {
 
     private String nameEtab;
     private List<String> classes;
     private List<String> groupes;
-
-    @Override
-    public String toString() {
-        return "ClasseGroupe [name=" + nameEtab + ", classes=" + classes + ", groupes=" + groupes + "]";
-    }
 
 }

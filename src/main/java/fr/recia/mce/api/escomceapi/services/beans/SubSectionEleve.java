@@ -17,11 +17,13 @@ package fr.recia.mce.api.escomceapi.services.beans;
 
 import java.util.List;
 
+import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
+@Data
+@NoArgsConstructor
 public class SubSectionEleve {
 
     private List<ClasseGroupe> etabs;

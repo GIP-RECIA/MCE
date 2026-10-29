@@ -37,54 +37,15 @@ public interface APersonneRepository extends AbstractRepository<APersonne, Long>
             "OR a IN (SELECT l.aPersonneByAPersonneAlias FROM Login l WHERE LOWER(l.nom) = LOWER(:login))")
     APersonne findByLogin(@Param("login") final String login);
 
-    /**
-     * Recherche précise d'identité pour le parcours {@code recover-uid} : retrouve les personnes
-     * (non supprimées) qui correspondent au nom, prénom, catégorie et établissement(s) fournis.
-     * <p>
-     * Utilisée conjointement à un contrôle d'email pour ne renvoyer un code que si la cible est
-     * unique. Retourne {@code [uid, prenom+nom, personId, emailA, emailPersonnel]}.
-     */
-    @Query("SELECT a.uid, a.displayName, a.id, a.email, a.emailPersonnel " +
-            "FROM APersonne a " +
-            "WHERE LOWER(a.sn) = LOWER(:nom) AND LOWER(a.givenName) = LOWER(:prenom) " +
-            "AND a.etat != 'Delete' AND LOWER(a.categorie) = LOWER(:categorie) " +
-            "AND a.aStructure.siren IN (:sirens)")
-    List<Object[]> searchByNomPrenomAndCategorieAndSirens(@Param("nom") String nom, @Param("prenom") String prenom,
-            @Param("categorie") String categorie,
-            @Param("sirens") Collection<String> sirens);
-
-    @Query("SELECT a FROM APersonne a " +
-            "WHERE LOWER(a.sn) = LOWER(:nom) AND LOWER(a.givenName) = LOWER(:prenom) " +
-            "AND a.etat != 'Delete' AND LOWER(a.categorie) = LOWER(:categorie) " +
-            "AND a.aStructure.siren IN (:sirens) " +
-            "AND (LOWER(a.email) = LOWER(:email) OR LOWER(a.emailPersonnel) = LOWER(:email) " +
-            "OR EXISTS (SELECT c.id FROM CerbereConfirmation c " +
-            "WHERE c.aPersonne = a AND c.confirmation IS NOT NULL AND LOWER(c.mail) = LOWER(:email)))")
-    List<APersonne> searchByIdentityAndEmail(@Param("nom") String nom, @Param("prenom") String prenom,
-            @Param("categorie") String categorie, @Param("sirens") Collection<String> sirens,
-            @Param("email") String email);
-
-    @Query("SELECT a FROM APersonne a " +
-            "WHERE LOWER(a.sn) = LOWER(:nom) AND LOWER(a.givenName) = LOWER(:prenom) " +
-            "AND a.etat != 'Delete' AND a.aStructure.siren IN (:sirens) " +
-            "AND (LOWER(a.email) = LOWER(:email) OR LOWER(a.emailPersonnel) = LOWER(:email) " +
-            "OR EXISTS (SELECT c.id FROM CerbereConfirmation c " +
-            "WHERE c.aPersonne = a AND c.confirmation IS NOT NULL AND LOWER(c.mail) = LOWER(:email)))")
-    List<APersonne> searchByIdentityAndEmailWithoutCategory(@Param("nom") String nom,
-            @Param("prenom") String prenom, @Param("sirens") Collection<String> sirens,
-            @Param("email") String email);
-
-    @Query("SELECT DISTINCT a.categorie FROM APersonne a ORDER BY a.categorie")
-    List<String> findDistinctCategories();
-
-    @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto(a, s, l) " +
+    @Query("SELECT new fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto(a, s, l, c) " +
             "FROM APersonne a " +
             "JOIN Login l ON a = l.aPersonneByAPersonneLogin " +
             "JOIN AStructure s ON s = a.aStructure " +
+            "LEFT JOIN CerbereEnfant c ON c.aPersonneByIdParent=a " +
             "WHERE a.uid = :uid")
     DatabaseUserDto getPersonneByUid(final String uid);
 
-    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto(a, ce, s, l) " +
+    @Query("SELECT DISTINCT new fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto(a, s, l, ce) " +
             "FROM APersonne a, CerbereEnfant ce, AStructure s, Login l " +
             "WHERE ce.aPersonneByIdParent.id = :parent " +
             "AND ce.aPersonneByIdEnfant = a " +

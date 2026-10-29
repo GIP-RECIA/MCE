@@ -17,14 +17,10 @@ package fr.recia.mce.api.escomceapi.services.classegroupe;
 
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionEleve;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionProf;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Getter
-@Setter
-@AllArgsConstructor
+@Data
 @NoArgsConstructor
 public class ClasseGroupeDTO {
 

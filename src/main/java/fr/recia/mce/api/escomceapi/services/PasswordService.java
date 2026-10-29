@@ -17,8 +17,6 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
-import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;

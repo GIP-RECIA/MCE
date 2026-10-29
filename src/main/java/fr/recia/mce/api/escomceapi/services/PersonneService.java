@@ -17,10 +17,10 @@ package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
-import fr.recia.mce.api.escomceapi.db.dto.StructureDTO;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
+import fr.recia.mce.api.escomceapi.db.enums.DomSource;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
@@ -126,7 +126,7 @@ public class PersonneService {
             }
         }
 
-        // Sinon on requête la BDD et on met dans le cache
+        // Sinon on requête BDD et LDAP et on met dans le cache
         log.debug("Cache miss pour 'personneCache' : Récupération des données pour l'uid [{}]", uid);
         LdapUserDto ldapUser = userLdapDao.getUserLdap(uid);
         DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
@@ -134,7 +134,7 @@ public class PersonneService {
         boolean isCollectivite = false;
         String source = databaseUser.getSource();
         // TODO
-        StructureDTO.DomSource ds = StructureDTO.DomSource.AC;
+        DomSource ds = DomSource.AC;
         if (source != null) {
             isLocalUser = source.startsWith("SarapisUi");
             isCollectivite = source.endsWith("COLL-CVDL");
@@ -150,13 +150,19 @@ public class PersonneService {
         return personne;
     }
 
+    /**
+     * Donne les parents d'un élève
+     */
     public List<RelationEleveContact> resolveRespEleves(UserDto userDto) {
         Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(userDto.getLdapUserDto().getId());
         return col != null ? new ArrayList<>(col) : null;
     }
 
+    /**
+     * Donne les élèves d'un parent
+     */
     public List<RelationEleveContact> resolveEleves(UserDto userDto) {
-        return new ArrayList<>(relationEleveService.allEleveEnRelation(userDto.getDatabaseUserDto().getId()));
+        return relationEleveService.allEleveEnRelation(userDto.getDatabaseUserDto().getId());
     }
 
     public boolean canEditPassword(UserDto userDto) {

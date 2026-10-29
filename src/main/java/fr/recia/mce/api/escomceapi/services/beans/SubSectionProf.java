@@ -18,11 +18,13 @@ package fr.recia.mce.api.escomceapi.services.beans;
 import java.util.List;
 import java.util.Map;
 
+import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
+@Data
+@NoArgsConstructor
 public class SubSectionProf {
 
     private Map<String, List<EnseignementProf>> etabs;

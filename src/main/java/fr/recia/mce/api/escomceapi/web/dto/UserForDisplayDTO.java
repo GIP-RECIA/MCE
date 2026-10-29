@@ -21,15 +21,14 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Getter
-@Setter
-@NoArgsConstructor
+@Data
 public class UserForDisplayDTO {
 
     @JsonIgnore
@@ -52,8 +51,11 @@ public class UserForDisplayDTO {
     private Boolean mdp;
     private List<String> userPublic;
     private InfoGeneralDTO fonctionClassesGroupe;
+    /* Parents d'un élève */
     private List<RelationEleveContact> parentEleve;
+    /* Elèves d'un parent */
     private List<RelationEleveContact> relationEleve;
+    /* Apprentis du tuteur */
     private List<RelationEleveContact> apprentis;
 
     public UserForDisplayDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, Boolean canEditEmail,
@@ -85,54 +87,6 @@ public class UserForDisplayDTO {
         this.parentEleve = parentEleve;
         this.relationEleve = relationEleve;
         this.apprentis = apprentis;
-
-        log.debug("UserDTO construit - uid={} | etab={}", uid, etab);
-
-        log.debug("parentEleve (ELEVE → CONTACT) pour uid={} : {} élément(s)", uid, parentEleve != null ? parentEleve.size() : 0);
-        if (parentEleve != null) {
-            for (RelationEleveContact r : parentEleve) {
-                log.debug("   → parentEleve : uid={} | nom={} | type={}",
-                        r.getUidRelation(),
-                        r.getDisplayNameRelation(),
-                        r.getTypeRelation());
-            }
-        }
-
-        log.debug("relationEleve (CONTACT → ELEVE) pour uid={} : {} élément(s)", uid, relationEleve != null ? relationEleve.size() : 0);
-        if (relationEleve != null) {
-            for (RelationEleveContact r : relationEleve) {
-                log.debug("   → relationEleve : uid={} | nom={} | type={}",
-                        r.getUidRelation(),
-                        r.getDisplayNameRelation(),
-                        r.getTypeRelation());
-            }
-        }
-
-        log.debug("apprentis pour uid={} : {} élément(s)", uid, apprentis != null ? apprentis.size() : 0);
-        if (apprentis != null) {
-            for (RelationEleveContact r : apprentis) {
-                log.debug("   → apprenti : uid={} | nom={} | type={}",
-                        r.getUidRelation(),
-                        r.getDisplayNameRelation(),
-                        r.getTypeRelation());
-            }
-        }
     }
 
-    @Override
-    public String toString() {
-        return "UserDTO{" +
-                "id=" + id +
-                ", uid='" + uid + '\'' +
-                ", userName='" + userName + '\'' +
-                ", identifiant='" + identifiant + '\'' +
-                ", etab='" + etab + '\'' +
-                ", email='" + email + '\'' +
-                ", etat='" + etat + '\'' +
-                ", mdp=" + mdp +
-                ", parentEleveSize=" + (parentEleve != null ? parentEleve.size() : 0) +
-                ", relationEleveSize=" + (relationEleve != null ? relationEleve.size() : 0) +
-                ", apprentisSize=" + (apprentis != null ? apprentis.size() : 0) +
-                '}';
-    }
 }

@@ -45,10 +45,11 @@ public class DatabaseUserDto {
     private String password;
     private String typeOfParent;
     private String lienParente;
+    private String login;
     private String structureDisplayName;
     private boolean ntPass;
 
-    public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure, final Login login) {
+    public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure, final Login login, final CerbereEnfant cerbereEnfant) {
         this.id = aPersonne.getId();
         this.uid = aPersonne.getUid();
         this.displayName = aPersonne.getDisplayName();
@@ -63,9 +64,10 @@ public class DatabaseUserDto {
         this.photo = aPersonne.getPhoto();
         this.source = aPersonne.getSource();
         this.password = aPersonne.getPassword();
-        this.lienParente = lienParente(aPersonne);
-        this.typeOfParent = typeOfParent(aPersonne);
-        this.structureDisplayName = aPersonne.getAStructure().getNom();
+        this.lienParente = cerbereEnfant == null ? null : cerbereEnfant.getLienParente();
+        this.typeOfParent = cerbereEnfant == null ? null : cerbereEnfant.getTypeRelation();
+        this.login = login.getNom();
+        this.structureDisplayName = aStructure.getNom().replace('$', ' ');
         // TODO
         this.ntPass = false;
     }
@@ -75,38 +77,6 @@ public class DatabaseUserDto {
     }
 
     public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure) {
-    }
-
-    public DatabaseUserDto(final APersonne aPersonne, final Login login) {
-    }
-
-    public DatabaseUserDto(final Login login) {
-    }
-
-    public DatabaseUserDto(final APersonne aPersonne, final CerbereEnfant enfant, final AStructure aStructure, final Login login) {
-    }
-
-    private String typeOfParent(APersonne aPersonne) {
-        // TODO
-        CerbereEnfant cerbereEnfant = null;
-        if (cerbereEnfant == null) {
-            return null;
-        }
-        String rel = cerbereEnfant.getTypeRelation();
-        if (rel == null) {
-            return null;
-        }
-        return rel.intern();
-    }
-
-    public String lienParente(APersonne aPersonne) {
-        // TODO
-        CerbereEnfant cerbereEnfant = null;
-        if (cerbereEnfant == null) {
-            return null;
-        }
-        String lien = cerbereEnfant.getLienParente();
-        return lien == null ? null : lien.intern();
     }
 
 }

@@ -18,8 +18,6 @@ package fr.recia.mce.api.escomceapi.db.enums;
 import lombok.AccessLevel;
 import lombok.Getter;
 
-import fr.recia.mce.api.escomceapi.db.dto.StructureDTO.DomSource;
-
 /**
  * Profil "public" d'une personne.
  *

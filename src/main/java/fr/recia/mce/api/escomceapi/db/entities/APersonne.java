@@ -101,7 +101,7 @@ public class APersonne implements Serializable {
     @Column(name = "cn")
     private String cn;
 
-    @Column(name = "dateNaissance", length = 10)
+    @Column(name = "dateNaissance")
     private Date dateNaissance;
 
     @Column(name = "displayName")

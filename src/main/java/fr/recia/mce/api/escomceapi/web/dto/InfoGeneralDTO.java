@@ -20,18 +20,16 @@ import java.util.List;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
-@NoArgsConstructor
 public class InfoGeneralDTO {
 
     private List<FonctionDTO> listFonctions;
-
     private ClasseGroupeDTO sectionClassesGroupes;
 
 }

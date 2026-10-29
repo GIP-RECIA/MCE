@@ -80,11 +80,12 @@ public class MCEController {
     public ResponseEntity<UserForDisplayDTO> getMCE(@AuthenticationPrincipal AppUser principal) {
         final String uid = principal.getUid();
         final UserDto userDto = personneService.getUser(uid);
-        final UserForDisplayDTO user = userDTOFactory.from(userDto);
-        if (user == null) {
+        final UserForDisplayDTO userToDisplay = userDTOFactory.from(userDto);
+        log.debug("DTO sent is : {}", userToDisplay);
+        if (userToDisplay == null) {
             throw new PersonneNotFoundException("Utilisateur non trouvé pour l'uid : " + uid);
         }
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userToDisplay);
     }
 
     /**
