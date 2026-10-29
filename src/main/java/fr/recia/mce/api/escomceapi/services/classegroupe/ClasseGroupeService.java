@@ -49,13 +49,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class ClasseGroupeService {
 
-    String[] classAttrs;
-    String regexClasse;
-
-    String[] groupAttrs;
-    String regexGroup;
-
-    private ServiceProperties serviceProperties;
+    private final Pattern patternClasse;
+    private final Pattern patternGroup;
+    private final ServiceProperties serviceProperties;
 
     @Autowired
     private PersonneService personneService;
@@ -63,59 +59,46 @@ public class ClasseGroupeService {
     @Autowired
     private StructureService structureService;
 
-    private final Map<String, ClasseGroupe> bufferUid2mapClasses2 = new HashMap<>();
-
     public ClasseGroupeService(MCEProperties mceProperties) {
         this.serviceProperties = mceProperties.getService();
+        this.patternClasse = Pattern.compile(mceProperties.getService().getClasseProperties().getRegexSirenAndClasse());
+        this.patternGroup = Pattern.compile(mceProperties.getService().getGrpPedagoProperties().getRegexSirenAndClasse());
     }
 
     public ClasseGroupeDTO calculCG(LdapUserDto person) {
-        log.debug("DEBUG: Entrée dans calculCG pour {}", person != null ? person.getId() : "null");
-        if (person == null) {
-            return null;
-        }
-        String uid = person.getId();
-
-        if (log.isDebugEnabled()) {
-            log.debug("DEBUG: Inspection des attributs de l'utilisateur : {}", uid);
-            log.debug("DEBUG: Attributs complets disponibles pour uid={} : {}", uid, person.toString());
-        }
+        final String uid = person.getId();
+        log.debug("Inspection des attributs de l'utilisateur : {}", uid);
+        log.debug("Attributs complets disponibles pour uid={} : {}", uid, person);
 
         ClasseGroupeDTO cg = new ClasseGroupeDTO();
         SubSectionEleve sectionEleve = new SubSectionEleve();
         SubSectionProf sectionProf = new SubSectionProf();
-
         Map<String, Map<String, ClasseGroupe>> profMap = new HashMap<>();
         Map<String, ClasseGroupe> cgMap = new HashMap<>();
-
         Map<String, List<String>> classes = new HashMap<>();
         Map<String, List<String>> groups = new HashMap<>();
 
-        String profil = person.getAttribute("ENTPersonProfils").stream().findFirst().orElse("");
-        log.debug("DEBUG: Profil utilisateur détecté pour uid={} : {}", uid, profil);
+        String profil = person.getAttribute(ConstLDAP.PROFILS).stream().findFirst().orElse("");
+        log.debug("Profil utilisateur détecté pour uid={} : {}", uid, profil);
 
+        // TODO : a mon avis il n'y a pas besoin de tous ces attributs à chaque fois
+        String[] classAttrs;
+        String[] groupAttrs;
         if (profil.contains("ENS")) {
-            classAttrs = new String[]{"ENTAuxEnsClasses", "ENTAuxEnsClassesMatieres", "ENTAuxEnsGroupes"};
-            groupAttrs = new String[]{"ENTAuxEnsClasses", "ENTAuxEnsClassesMatieres", "ENTAuxEnsGroupes"};
+            classAttrs = new String[]{ConstLDAP.ENS_CLASSES, ConstLDAP.ENS_CLASSES_MATIERES, ConstLDAP.ENS_GROUPES};
+            groupAttrs = new String[]{ConstLDAP.ENS_CLASSES, ConstLDAP.ENS_CLASSES_MATIERES, ConstLDAP.ENS_GROUPES};
         } else {
-            classAttrs = this.serviceProperties.getClasseProperties().getLdapAttributsClasse().split("\\s+");
-            groupAttrs = this.serviceProperties.getGrpPedagoProperties().getLdapAttributsClasse().split("\\s+");
+            classAttrs = new String[]{ConstLDAP.ELEVE_CLASSES, ConstLDAP.ENS_CLASSES_MATIERES};
+            groupAttrs = new String[]{ConstLDAP.ELEVE_GROUPES, ConstLDAP.ENS_GROUPES_MATIERES, ConstLDAP.ENS_GROUPES};
         }
 
-        regexClasse = this.serviceProperties.getClasseProperties().getRegexSirenAndClasse();
-        regexGroup = this.serviceProperties.getGrpPedagoProperties().getRegexSirenAndClasse();
+        log.debug("Traitement des attributs classe/groupe pour uid={}", uid);
+        retriveClassesGroupsOfPerson(classAttrs, patternClasse, person, classes, groups, profMap, classAttrs, groupAttrs);
+        retriveClassesGroupsOfPerson(groupAttrs, patternGroup, person, classes, groups, profMap, classAttrs, groupAttrs);
 
-        // process each ldap attribute classe and groupes
-        log.debug("DEBUG: Traitement des attributs classe/groupe pour uid={}", uid);
-        retriveClassesGroupsOfPerson(classAttrs, regexClasse, person, classes, groups,
-                profMap);
-
-        retriveClassesGroupsOfPerson(groupAttrs, regexGroup, person, classes, groups,
-                profMap);
-
-        log.debug("DEBUG: Classes détectées pour uid={} : {}", uid, classes);
-        log.debug("DEBUG: Groupes détectés pour uid={} : {}", uid, groups);
-        log.debug("DEBUG: ProfMap (structure/matière) pour uid={} : {}", uid, profMap);
+        log.debug("Classes détectées pour uid={} : {}", uid, classes);
+        log.debug("Groupes détectés pour uid={} : {}", uid, groups);
+        log.debug("ProfMap (structure/matière) pour uid={} : {}", uid, profMap);
 
         // Create a set of all keys (union of both class and group keys for eleve)
         Set<String> allKeys = new HashSet<>();
@@ -127,11 +110,9 @@ public class ClasseGroupeService {
             ClasseGroupe existingGroup = cgMap.getOrDefault(key, new ClasseGroupe(key, new ArrayList<>(), new ArrayList<>()));
             LdapStructureDto struct = structureService.findStructureBySiren(key);
             existingGroup.setNameEtab(struct.getName());
-
             if (classes.containsKey(key)) {
                 existingGroup.getClasses().addAll(classes.get(key));
             }
-
             if (groups.containsKey(key)) {
                 existingGroup.getGroupes().addAll(groups.get(key));
             }
@@ -143,18 +124,12 @@ public class ClasseGroupeService {
 
         // Populate SubSectionProf with profMap data
         Map<String, List<EnseignementProf>> mapListSectionProf = new HashMap<>();
-
         profMap.forEach((siren, matMap) -> {
             List<EnseignementProf> matListCG = mapListSectionProf.getOrDefault(siren, new ArrayList<>());
-
             matMap.forEach((matiere, sourceData) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("DEBUG: Traitement matière code={} pour siren={} (uid={})", matiere, siren, uid);
-                }
+                log.debug("Traitement matière code={} pour siren={} (uid={})", matiere, siren, uid);
                 String nameMatiere = findMatiere(person, siren, matiere);
-                if (log.isDebugEnabled()) {
-                    log.debug("DEBUG: Matière trouvée pour code={} (uid={}) : {}", matiere, uid, nameMatiere);
-                }
+                log.debug("Matière trouvée pour code={} (uid={}) : {}", matiere, uid, nameMatiere);
                 EnseignementProf ens = new EnseignementProf();
                 ens.setMatiere(nameMatiere);
                 ens.setCg(sourceData);
@@ -167,7 +142,7 @@ public class ClasseGroupeService {
 
         // Populate sectionEleve with cgMap data
         List<ClasseGroupe> listCG = new ArrayList<>(cgMap.values());
-        List<String> enseignementEleve = calculEnseignementSuivis(person, ConstLDAP.ELEVE_ENSEIGNEMENTS);
+        List<String> enseignementEleve = calculEnseignementSuivis(person);
         sectionEleve.setEtabs(listCG);
         sectionEleve.setEnseignementSuivis(enseignementEleve);
 
@@ -178,48 +153,31 @@ public class ClasseGroupeService {
         return cg;
     }
 
-    private void retriveClassesGroupsOfPerson(String[] attributs, String regexCG,
-            LdapUserDto person,
-            Map<String, List<String>> classes, Map<String, List<String>> groups,
-            Map<String, Map<String, ClasseGroupe>> profMap) {
-        Pattern pattern = Pattern.compile(regexCG);
-        if (log.isDebugEnabled()) {
-            log.debug("DEBUG: retriveClassesGroupsOfPerson pour uid={} avec attributs={}", person.getId(), (Object) attributs);
-        }
-
+    private void retriveClassesGroupsOfPerson(String[] attributs, Pattern pattern, LdapUserDto person, Map<String, List<String>> classes,
+                                              Map<String, List<String>> groups, Map<String, Map<String, ClasseGroupe>> profMap, String[] classAttrs, String[] groupAttrs) {
+        log.debug("retriveClassesGroupsOfPerson pour uid={} avec attributs={}", person.getId(), attributs);
         Map<String, ClasseGroupe> cgMap = new HashMap<>();
-
         for (String ldapAttr : attributs) {
             List<String> ldapLines = person.getAttribute(ldapAttr);
-            if (log.isDebugEnabled()) {
-                log.debug("DEBUG: Traitement attribut LDAP {} pour uid={} : {}", ldapAttr, person.getId(), ldapLines);
-            }
+            log.debug("Traitement attribut LDAP {} pour uid={} : {}", ldapAttr, person.getId(), ldapLines);
 
             if (ldapLines != null) {
-
                 for (String val : ldapLines) {
                     Matcher matcher = pattern.matcher(val);
                     if (matcher.find()) {
                         String siren = matcher.group(1);
                         String value = matcher.group(2);
                         String matiere = matcher.group(4);
-
-                        if (log.isDebugEnabled()) {
-                            log.debug("DEBUG: Match trouvé pour uid={} : siren={}, value={}, matiere={}", person.getId(), siren, value, matiere);
-                        }
+                        log.debug("Match trouvé pour uid={} : siren={}, value={}, matiere={}", person.getId(), siren, value, matiere);
                         if (siren != null) {
-
                             if (matiere != null) {
-                                handleProf(profMap, siren, value, matiere, ldapAttr, cgMap, person.getId());
+                                handleProf(profMap, siren, value, matiere, ldapAttr, cgMap, person.getId(), classAttrs, groupAttrs);
                             } else {
-                                handleEleve(cgMap, siren, value, ldapAttr, classes, groups, person.getId());
+                                handleEleve(cgMap, siren, value, ldapAttr, classes, groups, person.getId(), classAttrs, groupAttrs);
                             }
                         }
-
                     } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("DEBUG: Aucune correspondance pour la valeur {} avec le pattern (uid={})", val, person.getId());
-                        }
+                        log.debug("Aucune correspondance pour la valeur {} avec le pattern (uid={})", val, person.getId());
                     }
                 }
             }
@@ -227,22 +185,17 @@ public class ClasseGroupeService {
 
     }
 
-    private void handleEleve(Map<String, ClasseGroupe> eleveMap, String siren, String value, String ldapAttr, Map<String, List<String>> classes, Map<String, List<String>> groups, String uid) {
+    private void handleEleve(Map<String, ClasseGroupe> eleveMap, String siren, String value, String ldapAttr, Map<String, List<String>> classes,
+                             Map<String, List<String>> groups, String uid, String[] classAttrs, String[] groupAttrs) {
 
         ClasseGroupe sourceData = eleveMap.computeIfAbsent(siren, k -> new ClasseGroupe());
-
-        // Set the name (only if it hasn't been set yet)
         if (sourceData.getNameEtab() != null) {
             LdapStructureDto struct = structureService.findStructureBySiren(siren);
             sourceData.setNameEtab(struct.getName());
         }
 
         // Check if it’s a class or a group and add to respective lists
-        if (log.isDebugEnabled()) {
-            log.debug("DEBUG: handleEleve pour uid={} : ldapAttr={}, classAttrs={}, groupAttrs={}", uid, ldapAttr, Arrays.toString(classAttrs),
-                    Arrays.toString(groupAttrs));
-        }
-
+        log.debug("handleEleve pour uid={} : ldapAttr={}, classAttrs={}, groupAttrs={}", uid, ldapAttr, Arrays.toString(classAttrs), Arrays.toString(groupAttrs));
         boolean isClassAttr = Arrays.asList(classAttrs).contains(ldapAttr);
         boolean isGroupAttr = Arrays.asList(groupAttrs).contains(ldapAttr);
 
@@ -266,14 +219,12 @@ public class ClasseGroupeService {
 
     }
 
-    private void handleProf(Map<String, Map<String, ClasseGroupe>> profMap, String siren, String value, String matiere, String ldapAttr, Map<String, ClasseGroupe> cgMap, String uid) {
-        if (log.isDebugEnabled()) {
-            log.debug("DEBUG: handleProf appelé pour uid={} : siren={} matiere={} value={} ldapAttr={}", uid, siren, matiere, value, ldapAttr);
-        }
+    private void handleProf(Map<String, Map<String, ClasseGroupe>> profMap, String siren, String value, String matiere, String ldapAttr,
+                            Map<String, ClasseGroupe> cgMap, String uid, String[] classAttrs, String[] groupAttrs) {
+        log.debug("handleProf appelé pour uid={} : siren={} matiere={} value={} ldapAttr={}", uid, siren, matiere, value, ldapAttr);
 
         profMap.putIfAbsent(siren, new HashMap<>());
         Map<String, ClasseGroupe> matMap = profMap.get(siren);
-
         matMap.putIfAbsent(matiere, new ClasseGroupe());
         ClasseGroupe sourceData = matMap.get(matiere);
         sourceData.setNameEtab(siren);
@@ -297,8 +248,8 @@ public class ClasseGroupeService {
         profMap.putIfAbsent(siren, cgMap);
     }
 
-    private List<String> calculEnseignementSuivis(LdapUserDto person, String attrEnsSuivi) {
-        List<String> valuesAttr = person.getAttribute(attrEnsSuivi);
+    private List<String> calculEnseignementSuivis(LdapUserDto person) {
+        List<String> valuesAttr = person.getAttribute(ConstLDAP.ELEVE_ENSEIGNEMENTS);
         List<String> enseignements = new ArrayList<>();
         if (valuesAttr != null) {
             enseignements.addAll(valuesAttr);
@@ -306,62 +257,50 @@ public class ClasseGroupeService {
         return enseignements;
     }
 
+    // TODO : méthode à refaire beaucoup trop complexe
     private String findMatiere(LdapUserDto person, String siren, String code) {
 
         String nomMatiere = null;
-
-        // TODO : pourquoi 2 manières de trouver ?
         // 1. Essayer de trouver via la liste des codes matieres (configuration)
         List<String> listCodeMatieres = person.getAttribute(ConstLDAP.ENS_MATIERE_ETAB);
         if (listCodeMatieres != null) {
             for (String codeMat : listCodeMatieres) {
-                Pattern pattern = Pattern.compile(regexClasse);
-                Matcher matcher = pattern.matcher(codeMat);
+                Matcher matcher = patternClasse.matcher(codeMat);
                 if (matcher.find()) {
                     String struct = matcher.group(1);
                     String value = matcher.group(2);
                     String matiere = matcher.group(4);
-
                     if (struct.equals(siren) && value.equals(code)) {
                         nomMatiere = matiere;
                     }
                 }
             }
         }
-
         if (nomMatiere != null) {
-            if (log.isDebugEnabled()) {
-                log.debug("DEBUG: findMatiere trouvé via configuration pour uid={} siren={} code={} : {}", person.getId(), siren, code, nomMatiere);
-            }
+            log.debug("findMatiere trouvé via configuration pour uid={} siren={} code={} : {}", person.getId(), siren, code, nomMatiere);
             return nomMatiere;
         }
 
         // 2. Essayer de trouver via l'attribut ENTAuxEnsMatiereEnseignEtab
-        List<String> attrMatiereEnseignEtab = person.getAttribute("ENTAuxEnsMatiereEnseignEtab");
-        if (log.isDebugEnabled()) {
-            log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour uid={} siren={} code={} : attr={}", person.getId(), siren, code, attrMatiereEnseignEtab);
-        }
+        List<String> attrMatiereEnseignEtab = person.getAttribute(ConstLDAP.ENS_MATIERE_ETAB);
+        log.debug("Recherche dans ENTAuxEnsMatiereEnseignEtab pour uid={} siren={} code={} : attr={}", person.getId(), siren, code, attrMatiereEnseignEtab);
         if (attrMatiereEnseignEtab != null) {
+            // TODO : pattern en dur
             Pattern patternMatiere = Pattern.compile("ENTStructureSIREN=(\\w+).+\\$([^$]+)");
             for (String matEtab : attrMatiereEnseignEtab) {
                 Matcher matcher = patternMatiere.matcher(matEtab);
                 if (matcher.find()) {
                     String struct = matcher.group(1);
                     String libelleMatiere = matcher.group(2);
-
                     if (struct.equals(siren)) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("DEBUG: trouvé via ENTAuxEnsMatiereEnseignEtab pour uid={} : siren={} nom={}", person.getId(), struct, libelleMatiere);
-                        }
+                        log.debug("trouvé via ENTAuxEnsMatiereEnseignEtab pour uid={} : siren={} nom={}", person.getId(), struct, libelleMatiere);
                         return libelleMatiere;
                     }
                 }
             }
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("DEBUG: findMatiere non trouvé pour uid={} siren={} code={}", person.getId(), siren, code);
-        }
-        return code; // Retourner le code si aucun nom trouvé
+        log.debug("findMatiere non trouvé pour uid={} siren={} code={}", person.getId(), siren, code);
+        return code;
     }
 }
