@@ -15,84 +15,54 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 
-import com.google.common.collect.Lists;
-
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
-import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
+import org.springframework.stereotype.Service;
 
+import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
 
+@Service
 public class LdapUserContextMapper implements ContextMapper<LdapUserDto> {
-
-    private ExternalUserHelper externalUserHelper;
-
-    public LdapUserContextMapper(ExternalUserHelper externalUserHelper) {
-        super();
-        this.externalUserHelper = externalUserHelper;
-    }
 
     @Override
     public LdapUserDto mapFromContext(Object ctx) throws NamingException {
         DirContextAdapter context = (DirContextAdapter) ctx;
-        Map<String, List<String>> attrs = new HashMap<>();
         LdapUserDto person = new LdapUserDto();
 
-        person.setId(context.getStringAttribute(externalUserHelper.getUserIdAttribute()));
-        attrs.put(externalUserHelper.getUserIdAttribute(),
-                Lists.newArrayList(person.getId()));
-
-        person.setDisplayName(context.getStringAttribute(externalUserHelper.getUserDisplayNameAttribute()));
-        attrs.put(externalUserHelper.getUserDisplayNameAttribute(),
-                Lists.newArrayList(person.getDisplayName()));
-
-        if (context.attributeExists(externalUserHelper.getUserEmailAttribute())) {
-            person.setEmail(context.getStringAttribute(externalUserHelper.getUserEmailAttribute()));
-            attrs.put(externalUserHelper.getUserEmailAttribute(),
-                    Lists.newArrayList(person.getEmail()));
-
+        // UID, displayName et email
+        person.setId(context.getStringAttribute(ConstLDAP.UID));
+        person.setDisplayName(context.getStringAttribute(ConstLDAP.DISPLAY_NAME));
+        if (context.attributeExists(ConstLDAP.MAIL)) {
+            person.setEmail(context.getStringAttribute(ConstLDAP.MAIL));
         }
 
-        if (externalUserHelper.getUserGroupAttribute() != null && !externalUserHelper.getUserGroupAttribute().isEmpty()
-                && context.attributeExists(externalUserHelper.getUserGroupAttribute())) {
-            attrs.put(externalUserHelper.getUserGroupAttribute(),
-                    Lists.newArrayList(context.getStringAttributes(externalUserHelper.getUserGroupAttribute())));
-        }
-
-        if (externalUserHelper.getOtherUserDisplayedAttributes() != null
-                && !externalUserHelper.getOtherUserDisplayedAttributes().isEmpty()) {
-            for (String attr : externalUserHelper.getOtherUserDisplayedAttributes()) {
-                if (context.attributeExists(attr)) {
-                    attrs.put(attr, Arrays.asList(context.getStringAttributes(attr)));
-                }
+        // Autres attributs
+        Map<String, List<String>> attributes = new HashMap<>();
+        Attributes ldapAttributes = context.getAttributes();
+        NamingEnumeration<? extends Attribute> allAttributes = ldapAttributes.getAll();
+        while (allAttributes.hasMore()) {
+            Attribute attribute = allAttributes.next();
+            String attributeName = attribute.getID();
+            List<String> values = new ArrayList<>();
+            NamingEnumeration<?> allValues = attribute.getAll();
+            while (allValues.hasMore()) {
+                Object value = allValues.next();
+                values.add(value.toString());
             }
+            attributes.put(attributeName, values);
         }
-
-        if (externalUserHelper.getOtherUserAttributes() != null
-                && !externalUserHelper.getOtherUserAttributes().isEmpty()) {
-            for (String attr : externalUserHelper.getOtherUserAttributes()) {
-                if (context.attributeExists(attr)) {
-                    attrs.put(attr, Arrays.asList(context.getStringAttributes(attr)));
-                }
-            }
-        }
-
-        if (externalUserHelper.getUserEtatCompteAttribute() != null
-                && !externalUserHelper.getUserEtatCompteAttribute().isEmpty()
-                && context.attributeExists(externalUserHelper.getUserEtatCompteAttribute())) {
-            attrs.put(externalUserHelper.getUserEtatCompteAttribute(),
-                    Arrays.asList(context.getStringAttributes(externalUserHelper.getUserEtatCompteAttribute())));
-        }
-
-        person.setAttributes(attrs);
+        person.setAttributes(attributes);
 
         return person;
     }

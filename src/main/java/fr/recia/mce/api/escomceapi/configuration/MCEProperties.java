@@ -17,7 +17,6 @@ package fr.recia.mce.api.escomceapi.configuration;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.AvatarProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.CorsProperties;
-import fr.recia.mce.api.escomceapi.configuration.bean.CustomLdapProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.SecurityProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
 import lombok.Data;
@@ -35,7 +34,6 @@ public class MCEProperties {
 
     private CorsProperties cors = new CorsProperties();
     private AvatarProperties avatar = new AvatarProperties();
-    private CustomLdapProperties ldap = new CustomLdapProperties();
     private ServiceProperties service = new ServiceProperties();
     private SecurityProperties security = new SecurityProperties();
 

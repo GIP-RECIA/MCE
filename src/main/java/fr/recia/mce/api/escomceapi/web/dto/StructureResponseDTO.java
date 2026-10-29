@@ -16,7 +16,7 @@
 package fr.recia.mce.api.escomceapi.web.dto;
 
 import fr.recia.mce.api.escomceapi.db.enums.SurType;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
+import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import lombok.Getter;
 
 @Getter
@@ -32,7 +32,7 @@ public class StructureResponseDTO {
     private final String domsource;
     private final String[] domaines;
 
-    public StructureResponseDTO(IExternalStructure s) {
+    public StructureResponseDTO(ExternalStructure s) {
         this.siren = s.getId();
         this.uai = s.getUai();
         this.nom = s.getName();

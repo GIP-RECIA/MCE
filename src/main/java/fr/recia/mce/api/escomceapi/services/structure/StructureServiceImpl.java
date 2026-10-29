@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
+import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapStructDaoImpl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -44,9 +44,9 @@ public class StructureServiceImpl {
     private final Set<String> setIncludeEtabRecia = new HashSet<>();
     private final Set<String> setExcludeEtabRecia = new HashSet<>();
 
-    private List<IExternalStructure> allStructures;
-    private Map<String, IExternalStructure> siren2structure;
-    private Map<String, IExternalStructure> uai2structure;
+    private List<ExternalStructure> allStructures;
+    private Map<String, ExternalStructure> siren2structure;
+    private Map<String, ExternalStructure> uai2structure;
 
     public StructureServiceImpl(LdapStructDaoImpl externalStructDao, CacheManager cacheManager, DomaineProperties domaineProperties) {
         this.externalStructDao = externalStructDao;
@@ -62,7 +62,7 @@ public class StructureServiceImpl {
             allStructures = externalStructDao.loadAllStructure();
             siren2structure = new HashMap<>();
             uai2structure = new HashMap<>();
-            for (IExternalStructure struct : allStructures) {
+            for (ExternalStructure struct : allStructures) {
                 siren2structure.put(struct.getId(), struct);
                 if (struct.getUai() != null) {
                     uai2structure.put(struct.getUai(), struct);
@@ -75,27 +75,27 @@ public class StructureServiceImpl {
         return allStructures != null;
     }
 
-    public IExternalStructure findStructureBySiren(String siren) {
+    public ExternalStructure findStructureBySiren(String siren) {
         // Premier chargement des structures si elle ne sont pas encore chargées
         if (!isStructureLoaded()) {
-            log.warn("Tentative de recherche de structure par SIREN [{}], mais le cache des structures n'est pas encore chargé.", siren);
+            log.warn("Premier chargement du cache des structures, accès via SIREN");
             loadAllStructures();
         }
         log.debug("Recherche de structure avec le SIREN : {}", siren);
         return siren2structure.get(siren);
     }
 
-    public IExternalStructure findStructureByUai(String uai) {
+    public ExternalStructure findStructureByUai(String uai) {
         // Premier chargement des structures si elle ne sont pas encore chargées
         if (!isStructureLoaded()) {
-            log.warn("Tentative de recherche de structure par UAI [{}], mais le cache des structures n'est pas encore chargé.", uai);
+            log.warn("Premier chargement du cache des structures, accès via UAI");
             loadAllStructures();
         }
         log.debug("Recherche de structure avec l'UAI : {}", uai);
         return uai2structure.get(uai);
     }
 
-    public boolean isReseauRecia(IExternalStructure str) {
+    public boolean isReseauRecia(ExternalStructure str) {
         String uaiOrSiren = str.getUai();
         log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}", uaiOrSiren, (Object) str.getDomaines());
 
@@ -143,7 +143,7 @@ public class StructureServiceImpl {
             if (log.isDebugEnabled()) {
                 log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}' (uid={})...", index, uais.size(), uai, p.getUid());
             }
-            IExternalStructure str = findStructureByUai(uai);
+            ExternalStructure str = findStructureByUai(uai);
 
             if (str == null) {
                 if (log.isDebugEnabled()) {
@@ -174,7 +174,7 @@ public class StructureServiceImpl {
         return false;
     }
 
-    private boolean isDomaineRecia(IExternalStructure struct) {
+    private boolean isDomaineRecia(ExternalStructure struct) {
 
         if (struct == null)
             return false;

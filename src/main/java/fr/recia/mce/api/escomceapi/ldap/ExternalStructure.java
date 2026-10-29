@@ -26,7 +26,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ExternalStructure implements IExternalStructure {
+public class ExternalStructure {
 
     private String id;
     private String name;
@@ -37,22 +37,5 @@ public class ExternalStructure implements IExternalStructure {
     private String[] domaines;
     private String source;
     private Map<String, List<String>> attributes = new HashMap<>();
-
-    @Override
-    public List<String> getAttribute(String attr) {
-        if (attributes.containsKey(attr))
-            return attributes.get(attr);
-        else if (attributes.containsKey(attr.toLowerCase()))
-            return attributes.get(attr.toLowerCase());
-        return Collections.emptyList();
-    }
-
-    @Override
-    public String toString() {
-        return "ExternalStructure [id=" + id + ", name=" + name + ", displayName=" + displayName + ", uai=" + uai
-                + ", type=" + type
-                + ", domaines=" + Arrays.toString(domaines)
-                + ", attributes=" + attributes + "]";
-    }
 
 }

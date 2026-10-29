@@ -25,6 +25,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,6 @@ import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties.RelationProperties;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
-import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact.SensRel;
@@ -65,9 +65,6 @@ public class RelationEleveService {
     private APersonneRepository aPersonneRepository;
 
     @Autowired
-    private ExternalUserHelper extUserHelper;
-
-    @Autowired
     private DatabaseUserService databaseUserService;
 
     @Autowired
@@ -79,7 +76,6 @@ public class RelationEleveService {
     private final int grpUid;
     private final int grpTypRel;
 
-
     public RelationEleveService(MCEProperties mceProperties) {
         RelationProperties relProps = mceProperties.getService().getRelationProperties();
         this.regex = relProps.getRegexUid();
@@ -89,13 +85,8 @@ public class RelationEleveService {
         this.grpTypRel = relProps.getGroupTypRel();
     }
 
-    private void analyseMaitre(final LdapUserDto personne, final String ldapAttr,
-            final String type,
-            final boolean autorite,
-            final Map<String, RelationEleveContact> uid2relation) {
-
+    private void analyseMaitre(final LdapUserDto personne, final String ldapAttr, final String type, final boolean autorite, final Map<String, RelationEleveContact> uid2relation) {
         List<String> listAttrs = personne.getAttribute(ldapAttr);
-
         if (listAttrs == null) {
             log.warn("Analyse LDAP : Aucun attribut trouvé pour l'attribut '{}' sur l'ID élève : {}", ldapAttr, personne.getId());
         } else {
@@ -128,16 +119,9 @@ public class RelationEleveService {
 
     /**
      * Analyse les relations LDAP élève/contact et alimente la map des relations.
-     *
-     * @param ldapAttr
-     *            attribut LDAP contenant les relations
-     * @param uid2relation
-     *            map des relations
      */
     private void analyse(final LdapUserDto personne, final String ldapAttr, final Map<String, RelationEleveContact> uid2relation) {
-
         List<String> listAttrs = personne.getAttribute(ldapAttr);
-
         if (listAttrs == null) {
             log.warn("Analyse LDAP : Aucun attribut trouvé pour l'attribut '{}' sur l'ID élève : {}", ldapAttr, personne.getId());
         } else {
@@ -161,7 +145,6 @@ public class RelationEleveService {
                         re.setAutoriteParental(true);
                         String code = m.group(grpTypRel);
                         re.setTypeRelation(code);
-
                     }
                 }
             }
@@ -169,17 +152,16 @@ public class RelationEleveService {
         if (log.isDebugEnabled()) {
             log.debug("valeursLDAP : {}", uid2relation);
         }
-
     }
 
-    // TODO : a retravailler
+    /**
+     * Donne les personnes en relation avec un élève
+     */
     public Collection<RelationEleveContact> allRelationEleves(String eleve) {
         LdapUserDto personne = externalUserDao.getUserLdap(eleve);
         Map<String, RelationEleveContact> uid2relation = new HashMap<>();
-
-        String eleveRelation = extUserHelper.getUserEleveRelationAttribute();
-        String eleveTuteurEntr = extUserHelper.getUserEleveTuteurAttribute();
-
+        String eleveRelation = ConstLDAP.ELEVE_RELATION;
+        String eleveTuteurEntr = ConstLDAP.TUTEUR_ELVES;
         boolean hasRelation = personne.getAttribute(eleveRelation) != null;
         boolean hasTuteur = personne.getAttribute(eleveTuteurEntr) != null;
 
@@ -188,12 +170,11 @@ public class RelationEleveService {
             return Collections.emptyList();
         }
 
-        log.error("personne : {}", personne);
-        log.error("eleveRelation : {}", eleveRelation);
-
         if (hasRelation){
             analyse(personne, eleveRelation, uid2relation);
         }
+
+        // TODO : Maitre en dur
         if (hasTuteur){
             analyseMaitre(personne, eleveTuteurEntr, "Maitre", false, uid2relation);
         }
@@ -210,35 +191,6 @@ public class RelationEleveService {
                 }
             } catch (Exception e) {
                 log.error("Erreur lors de la récupération batch LDAP : {}", e.getMessage());
-            }
-        }
-        // BASE DE DONNÉES SI LDAP VIDE
-        if (uid2relation.isEmpty()) {
-            log.warn("LDAP vide pour l'utilisateur {}. Tentative de secours en base de données.", personne.getId());
-
-            try {
-                List<RelationEleveContact> dbRelations = aPersonneRepository.findAllParentOfEleve(personne.getId());
-
-                if (dbRelations != null && !dbRelations.isEmpty()) {
-                    log.info("Secours DB réussi : {} relation(s) trouvée(s) pour l'utilisateur {}",
-                            dbRelations.size(), personne.getId());
-
-                    for (RelationEleveContact r : dbRelations) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("  - Relation DB : uidRelation={} | displayName={} | type={} | lienParente={}",
-                                    r.getUidRelation(),
-                                    r.getDisplayNameRelation(),
-                                    r.getTypeRelation(),
-                                    r.getLienParente());
-                        }
-                    }
-
-                    return dbRelations;
-                } else {
-                    log.warn("Aucune relation trouvée en base non plus pour l'utilisateur {}", personne.getId());
-                }
-            } catch (Exception e) {
-                log.error("Erreur lors du secours DB pour l'utilisateur {} : {}", personne.getId(), e.getMessage());
             }
         }
 
@@ -283,6 +235,9 @@ public class RelationEleveService {
 
     }
 
+    /**
+     * Donne les apprentis en relation avec un tuteur
+     */
     public List<RelationEleveContact> allApprentiEnRelation(String maitre) {
         List<RelationEleveContact> allApprenti = null;
         LdapUserDto personne = externalUserDao.getUserLdap(maitre);
@@ -296,7 +251,7 @@ public class RelationEleveService {
             log.warn("Échec du chargement des détails du maître pour l'UID [{}] : Détail : {}", maitre, e.getMessage());
         }
 
-        List<String> dnApprentis = personne.getAttribute(extUserHelper.getUserTuteurEleveAttribute());
+        List<String> dnApprentis = personne.getAttribute(ConstLDAP.TUTEUR_ELVES);
 
         if (dnApprentis != null) {
             allApprenti = new ArrayList<>(dnApprentis.size());

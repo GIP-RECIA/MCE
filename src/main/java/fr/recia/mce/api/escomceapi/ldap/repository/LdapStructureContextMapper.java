@@ -15,44 +15,34 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructHelper;
 import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
+import org.springframework.stereotype.Service;
 
 import javax.naming.NamingException;
 
-public class LdapStructureContextMapper implements ContextMapper<IExternalStructure> {
-
-    private ExternalStructHelper externalStructHelper;
-
-    public LdapStructureContextMapper(ExternalStructHelper externalStructHelper) {
-        super();
-        this.externalStructHelper = externalStructHelper;
-    }
+@Service
+public class LdapStructureContextMapper implements ContextMapper<ExternalStructure> {
 
     @Override
-    public IExternalStructure mapFromContext(Object ctx) throws NamingException {
-
+    public ExternalStructure mapFromContext(Object ctx) throws NamingException {
         DirContextAdapter context = (DirContextAdapter) ctx;
         ExternalStructure structs = new ExternalStructure();
-        structs.setId(context.getStringAttribute(externalStructHelper.getStructIdAttribute()));
-        structs.setName(context.getStringAttribute(externalStructHelper.getStructNameAttribute()).replace('$', ' '));
-        structs.setDisplayName(context.getStringAttribute(externalStructHelper.getStructDisplayNameAttribute()));
-        structs.setUai(context.getStringAttribute(externalStructHelper.getStructUaiAttribute()));
-        structs.setType(context.getStringAttribute(externalStructHelper.getStructTypeAttribute()));
-
-        String ville = context.getStringAttribute(externalStructHelper.getStructVilleAttribute());
+        structs.setId(context.getStringAttribute(ConstLDAP.STRUCT_SIREN));
+        structs.setName(context.getStringAttribute(ConstLDAP.STRUCT_NOM_COURANT).replace('$', ' '));
+        structs.setDisplayName(context.getStringAttribute(ConstLDAP.STRUCT_NOM_COURANT));
+        structs.setUai(context.getStringAttribute(ConstLDAP.STRUCT_UAI));
+        structs.setType(context.getStringAttribute(ConstLDAP.STRUCT_TYPE));
+        String ville = context.getStringAttribute(ConstLDAP.STRUCT_VILLE);
         structs.setVille(ville != null ? ville.toUpperCase() : null);
-        structs.setDomaines(context.getStringAttributes(externalStructHelper.getStructDomainesAttribute()));
-
-        String jointure = context.getStringAttribute(externalStructHelper.getStructJointureAttribute());
+        structs.setDomaines(context.getStringAttributes(ConstLDAP.STRUCT_DOMAINES));
+        String jointure = context.getStringAttribute(ConstLDAP.STRUCT_JOINTURE);
         if (jointure != null && jointure.contains("$")) {
             structs.setSource(jointure.substring(0, jointure.indexOf('$')));
         }
-
         return structs;
     }
 

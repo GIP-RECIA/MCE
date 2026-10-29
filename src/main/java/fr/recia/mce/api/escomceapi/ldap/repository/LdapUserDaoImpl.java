@@ -15,7 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.AccountState;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
@@ -55,19 +55,13 @@ public class LdapUserDaoImpl {
     private LdapTemplate ldapTemplate;
 
     @Autowired
-    private ExternalUserHelper externalUserHelper;
+    private LdapUserContextMapper ldapUserContextMapper;
 
     @Autowired
     private CacheManager cacheManager;
 
     public static final String LDAP_CACHE_NAME = "personneLDAPCache";
-
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
-
-    /**
-     * Sentinelle écrite dans {@code userPassword} lorsque l'état du compte est ≠ {@code Valide} (équivalent legacy).
-     * Elle ne matche aucune regex de parsing {@code \{((SSHA)|(ARGON2))\}(.+)} : aucun bind LDAP ne passe.
-     */
     private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
 
     /**
@@ -98,57 +92,34 @@ public class LdapUserDaoImpl {
         return userLdap;
     }
 
-    public LdapUserDto getUserByUid(String uid) {
-
+    private LdapUserDto getUserByUid(String uid) {
         final AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
-
-        if (log.isDebugEnabled()) {
-            log.debug("Filtre LDAP appliqué : {}", filter);
-        }
-
-        ContextMapper<LdapUserDto> mapper = new LdapUserContextMapper(this.externalUserHelper);
-        LdapQuery query = LdapQueryBuilder.query().attributes(externalUserHelper.getAttributes().toArray(new String[0])).base(externalUserHelper.getUserDNSubPath()).filter(filter);
-        LdapUserDto user;
-
+        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
+        log.debug("Filtre LDAP appliqué : {}", filter);
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
         try {
-            user = ldapTemplate.searchForObject(query, mapper);
+            return ldapTemplate.searchForObject(query, ldapUserContextMapper);
         } catch (EmptyResultDataAccessException e) {
-            log.warn("Audit [GET_USER_BY_ID] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP | Détail : {}", uid,
-                    e.getMessage());
+            log.warn("Audit [GET_USER_BY_ID] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP | Détail : {}", uid, e.getMessage());
             throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
         } catch (Exception e) {
-            log.error("Audit [GET_USER_BY_ID] : REFUSÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la recherche LDAP | Détail : {}", uid,
-                    e.getMessage());
+            log.error("Audit [GET_USER_BY_ID] : REFUSÉ pour l'utilisateur [{}] - Raison : Erreur technique lors de la recherche LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP", e);
         }
-
-        return user;
     }
 
     public List<LdapUserDto> getByUids(Collection<String> uids) {
         if (uids == null || uids.isEmpty()) {
             return Collections.emptyList();
         }
-
         OrFilter orFilter = new OrFilter();
         for (String uid : uids) {
-            orFilter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+            orFilter.append(new EqualsFilter(ConstLDAP.UID, uid));
         }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Filtre LDAP batch appliqué : {}", orFilter);
-        }
-
-        ContextMapper<LdapUserDto> mapper = new LdapUserContextMapper(this.externalUserHelper);
-
-        LdapQuery query = LdapQueryBuilder.query()
-                .attributes(externalUserHelper.getAttributes()
-                        .toArray(new String[0]))
-                .base(externalUserHelper.getUserDNSubPath()).filter(orFilter);
-
+        log.debug("Filtre LDAP batch appliqué : {}", orFilter);
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(orFilter);
         try {
-            return ldapTemplate.search(query, mapper);
+            return ldapTemplate.search(query, ldapUserContextMapper);
         } catch (Exception e) {
             log.error("Erreur lors de la recherche LDAP batch pour les uids={} - Détail : {}", uids, e.getMessage());
             throw new RuntimeException("Erreur technique LDAP lors de la recherche batch", e);
@@ -158,31 +129,21 @@ public class LdapUserDaoImpl {
     public void modifEtatLdapPassword(String uid, String ldapHash, String etatCompte, String sambaLm, String sambaNt) {
 
         AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
 
-        LdapQuery query = LdapQueryBuilder.query()
-                .base(externalUserHelper.getUserDNSubPath())
-                .filter(filter);
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
 
         // userPassword : hash réel si l'état du compte est Valide, sinon sentinelle {SCRIPT}LOCK (verrouillage)
         String userPasswordValue = AccountState.VALIDE.equals(etatCompte) ? ldapHash : SCRIPT_LOCK;
 
         List<ModificationItem> mods = new ArrayList<>();
-        mods.add(new ModificationItem(
-                DirContext.REPLACE_ATTRIBUTE,
-                new BasicAttribute("userPassword", userPasswordValue.getBytes(StandardCharsets.UTF_8))));
-        mods.add(new ModificationItem(
-                DirContext.REPLACE_ATTRIBUTE,
-                new BasicAttribute(externalUserHelper.getUserEtatCompteAttribute(), etatCompte.toUpperCase())));
+        mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("userPassword", userPasswordValue.getBytes(StandardCharsets.UTF_8))));
+        mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.ETAT_COMPTE, etatCompte.toUpperCase())));
 
         // samba : écrits uniquement si les deux hashes sont fournis (cohérence pair LM/NT, équivalent legacy)
         if (sambaLm != null && sambaNt != null) {
-            mods.add(new ModificationItem(
-                    DirContext.REPLACE_ATTRIBUTE,
-                    new BasicAttribute("sambaLMPassword", sambaLm)));
-            mods.add(new ModificationItem(
-                    DirContext.REPLACE_ATTRIBUTE,
-                    new BasicAttribute("sambaNTPassword", sambaNt)));
+            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("sambaLMPassword", sambaLm)));
+            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("sambaNTPassword", sambaNt)));
         }
 
         ContextMapper<String> dnMapper = ctx -> {
@@ -220,17 +181,12 @@ public class LdapUserDaoImpl {
         }
     }
 
-    public void updateAvatarLDAP(String uid, String newAvatarUrl) {        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
-
-        LdapQuery query = LdapQueryBuilder.query()
-                .base(externalUserHelper.getUserDNSubPath())
-                .filter(filter);
-
+    public void updateAvatarLDAP(String uid, String newAvatarUrl) {
+        AndFilter filter = new AndFilter();
+        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
         ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(
-                        DirContext.REPLACE_ATTRIBUTE,
-                        new BasicAttribute(externalUserHelper.getUserAvatarAttribute(), newAvatarUrl))
+                new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.PHOTO, newAvatarUrl))
         };
 
         ContextMapper<String> dnMapper = ctx -> {
@@ -256,8 +212,7 @@ public class LdapUserDaoImpl {
 
         try {
             ldapTemplate.modifyAttributes(dn, mods);
-            log.debug("Attribut LDAP {} mis à jour pour uid={} au DN={} avec la valeur={}",
-                    externalUserHelper.getUserAvatarAttribute(), uid, dn, newAvatarUrl);
+            log.debug("Attribut LDAP {} mis à jour pour uid={} au DN={} avec la valeur={}", ConstLDAP.PHOTO, uid, dn, newAvatarUrl);
         } catch (Exception e) {
             log.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP avatar update failed: " + e.getMessage());
@@ -266,16 +221,12 @@ public class LdapUserDaoImpl {
 
     public void updateEtatCompte(String uid, String etat) {
         AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
 
-        LdapQuery query = LdapQueryBuilder.query()
-                .base(externalUserHelper.getUserDNSubPath())
-                .filter(filter);
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
 
         ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(
-                        DirContext.REPLACE_ATTRIBUTE,
-                        new BasicAttribute(externalUserHelper.getUserEtatCompteAttribute(), etat))
+                new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.ETAT_COMPTE, etat))
         };
 
         ContextMapper<String> dnMapper = ctx -> {
@@ -310,14 +261,12 @@ public class LdapUserDaoImpl {
 
     public void updateValidationsCharteService(String uid, List<String> values) {
         AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(externalUserHelper.getUserIdAttribute(), uid));
+        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
 
-        LdapQuery query = LdapQueryBuilder.query()
-                .base(externalUserHelper.getUserDNSubPath())
-                .filter(filter);
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
 
         List<String> safeValues = values == null ? Collections.emptyList() : values;
-        String attributeName = externalUserHelper.getUserValidationCharteAttribute();
+        String attributeName = ConstLDAP.VALIDATION_CHARTE;
         if (attributeName == null || attributeName.isBlank()) {
             throw new IllegalStateException("Attribut LDAP de validation de charte non configuré");
         }

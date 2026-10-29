@@ -21,7 +21,6 @@ import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerberePasswordRepository;
-import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
@@ -85,9 +84,6 @@ public class PasswordService {
 
     @Autowired
     private MCEProperties mceProperties;
-
-    @Autowired
-    private ExternalUserHelper externalUserHelper;
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
 

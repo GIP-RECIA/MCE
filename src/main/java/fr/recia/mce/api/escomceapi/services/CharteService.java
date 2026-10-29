@@ -283,7 +283,7 @@ public class CharteService {
             }
         }
         try {
-            LdapUserDto user = externalUserDao.getUserByUid(uid);
+            LdapUserDto user = externalUserDao.getUserLdap(uid);
             if (cache != null && user != null) {
                 cache.putIfAbsent(uid, user);
             }

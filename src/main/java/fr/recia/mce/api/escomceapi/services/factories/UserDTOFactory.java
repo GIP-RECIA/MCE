@@ -21,6 +21,7 @@ import java.util.List;
 
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.services.UserDto;
+import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +32,6 @@ import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.db.enums.EnumObjectClass;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
@@ -40,7 +40,6 @@ import fr.recia.mce.api.escomceapi.services.PasswordService;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserForDisplayDTO;
@@ -57,7 +56,7 @@ public class UserDTOFactory {
     private FonctionRepository fonctionRepository;
 
     @Autowired
-    private IClasseGroupeService classeGroupeService;
+    private ClasseGroupeService classeGroupeService;
 
     @Autowired
     private RelationEleveService relationEleveService;

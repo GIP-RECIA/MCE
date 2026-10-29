@@ -58,14 +58,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @EnableWebSecurity
 public class SecurityConfiguration {
 
-    private final MCEProperties mceProperties;
     private final CasProperties casProperties;
     private final CustomSessionMappingStorage customSessionMappingStorage;
     private final CustomCasSuccessHandler customCasSuccessHandler;
 
-    public SecurityConfiguration(MCEProperties mceProperties, CasProperties casProperties,
-                                 CustomSessionMappingStorage customSessionMappingStorage, CustomCasSuccessHandler customCasSuccessHandler) {
-        this.mceProperties = mceProperties;
+    public SecurityConfiguration(CasProperties casProperties, CustomSessionMappingStorage customSessionMappingStorage, CustomCasSuccessHandler customCasSuccessHandler) {
         this.casProperties = casProperties;
         this.customSessionMappingStorage = customSessionMappingStorage;
         this.customCasSuccessHandler = customCasSuccessHandler;

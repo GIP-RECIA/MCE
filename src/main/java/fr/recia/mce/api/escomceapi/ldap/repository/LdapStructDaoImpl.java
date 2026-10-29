@@ -17,8 +17,8 @@ package fr.recia.mce.api.escomceapi.ldap.repository;
 
 import java.util.List;
 
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.ldap.filter.OrFilter;
@@ -27,8 +27,7 @@ import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.stereotype.Repository;
 
-import fr.recia.mce.api.escomceapi.ldap.ExternalStructHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
+import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -39,39 +38,23 @@ public class LdapStructDaoImpl {
     private LdapTemplate ldapTemplate;
 
     @Autowired
-    private ExternalStructHelper externalStructHelper;
+    private LdapStructureContextMapper ldapStructureContextMapper;
 
-    public List<IExternalStructure> loadAllStructure() {
-
+    public List<ExternalStructure> loadAllStructure() {
         OrFilter filter = new OrFilter();
-        filter.or(new PresentFilter(externalStructHelper.getStructUaiAttribute()));
-        filter.or(new EqualsFilter(externalStructHelper.getStructTypeAttribute(), "COLLECTIVITE LOCALE"));
+        filter.or(new PresentFilter(ConstLDAP.STRUCT_UAI));
+        // TODO : string en dur
+        filter.or(new EqualsFilter(ConstLDAP.STRUCT_TYPE, "COLLECTIVITE LOCALE"));
 
-        if (log.isDebugEnabled()) {
-            log.debug("Filtre LDAP appliqué : {}", filter);
-        }
-
-        ContextMapper<IExternalStructure> mapper = new LdapStructureContextMapper(this.externalStructHelper);
-
-        LdapQuery query = LdapQueryBuilder.query()
-                .attributes(externalStructHelper.getAttributes()
-                        .toArray(new String[externalStructHelper.getAttributes().size()]))
-                .base(externalStructHelper.getStructDNSubPath()).filter(filter);
-
-        List<IExternalStructure> structs;
+        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.STRUCTURE_BRANCH).filter(filter);
         try {
-            structs = ldapTemplate.search(query, mapper);
-            if (structs != null) {
-                log.debug("Recherche LDAP réussie : {} structures trouvées avec le filtre [{}]", structs.size(), filter);
-            } else {
-                log.warn("La recherche LDAP a retourné des structures nulles pour le filtre [{}]", filter);
-            }
+            List<ExternalStructure> structs = ldapTemplate.search(query, ldapStructureContextMapper);
+            log.debug("Recherche LDAP réussie : {} structures trouvées avec le filtre [{}]", structs.size(), filter);
+            return structs;
         } catch (Exception e) {
             log.error("Échec du chargement des structures depuis LDAP - Raison : Erreur technique lors de la recherche | Détail : {}", e.getMessage());
             return null;
         }
-
-        return structs;
     }
 
 }

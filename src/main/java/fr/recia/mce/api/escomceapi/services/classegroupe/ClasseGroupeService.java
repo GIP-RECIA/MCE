@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package fr.recia.mce.api.escomceapi.services.classegroupe.impl;
+package fr.recia.mce.api.escomceapi.services.classegroupe;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,21 +25,19 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.ServiceProperties;
-import fr.recia.mce.api.escomceapi.ldap.ExternalUserHelper;
-import fr.recia.mce.api.escomceapi.ldap.IExternalStructure;
+import fr.recia.mce.api.escomceapi.ldap.ExternalStructure;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.ClasseGroupe;
 import fr.recia.mce.api.escomceapi.services.beans.EnseignementProf;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionEleve;
 import fr.recia.mce.api.escomceapi.services.beans.SubSectionProf;
-import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import fr.recia.mce.api.escomceapi.services.classegroupe.IClasseGroupeService;
 import fr.recia.mce.api.escomceapi.services.structure.StructureServiceImpl;
 import lombok.Getter;
 import lombok.Setter;
@@ -49,7 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 @Setter
 @Service
-public class ClasseGroupeServiceImpl implements IClasseGroupeService {
+public class ClasseGroupeService {
 
     String[] classAttrs;
     String regexClasse;
@@ -63,20 +61,15 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
     private PersonneService personneService;
 
     @Autowired
-    private ExternalUserHelper extUserHelper;
-
-    @Autowired
     private StructureServiceImpl structureService;
 
     private final Map<String, ClasseGroupe> bufferUid2mapClasses2 = new HashMap<>();
 
-    public ClasseGroupeServiceImpl(MCEProperties mceProperties) {
+    public ClasseGroupeService(MCEProperties mceProperties) {
         this.serviceProperties = mceProperties.getService();
     }
 
-    @Override
     public ClasseGroupeDTO calculCG(LdapUserDto person) {
-
         log.debug("DEBUG: Entrée dans calculCG pour {}", person != null ? person.getId() : "null");
         if (person == null) {
             return null;
@@ -132,7 +125,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         for (String key : allKeys) {
             // Get or create the ClasseGroupe object
             ClasseGroupe existingGroup = cgMap.getOrDefault(key, new ClasseGroupe(key, new ArrayList<>(), new ArrayList<>()));
-            IExternalStructure struct = structureService.findStructureBySiren(key);
+            ExternalStructure struct = structureService.findStructureBySiren(key);
             existingGroup.setNameEtab(struct.getName());
 
             if (classes.containsKey(key)) {
@@ -167,15 +160,14 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
                 ens.setCg(sourceData);
                 matListCG.add(ens);
             });
-            IExternalStructure struct = structureService.findStructureBySiren(siren);
-
+            ExternalStructure struct = structureService.findStructureBySiren(siren);
             mapListSectionProf.put(struct.getName(), matListCG);
         });
         sectionProf.setEtabs(mapListSectionProf);
 
         // Populate sectionEleve with cgMap data
         List<ClasseGroupe> listCG = new ArrayList<>(cgMap.values());
-        List<String> enseignementEleve = calculEnseignementSuivis(person, extUserHelper.getUserEleveEnseignement());
+        List<String> enseignementEleve = calculEnseignementSuivis(person, ConstLDAP.ELEVE_ENSEIGNEMENTS);
         sectionEleve.setEtabs(listCG);
         sectionEleve.setEnseignementSuivis(enseignementEleve);
 
@@ -235,14 +227,13 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
     }
 
-    private void handleEleve(Map<String, ClasseGroupe> eleveMap, String siren, String value, String ldapAttr,
-            Map<String, List<String>> classes, Map<String, List<String>> groups, String uid) {
+    private void handleEleve(Map<String, ClasseGroupe> eleveMap, String siren, String value, String ldapAttr, Map<String, List<String>> classes, Map<String, List<String>> groups, String uid) {
 
         ClasseGroupe sourceData = eleveMap.computeIfAbsent(siren, k -> new ClasseGroupe());
 
         // Set the name (only if it hasn't been set yet)
         if (sourceData.getNameEtab() != null) {
-            IExternalStructure struct = structureService.findStructureBySiren(siren);
+            ExternalStructure struct = structureService.findStructureBySiren(siren);
             sourceData.setNameEtab(struct.getName());
         }
 
@@ -275,8 +266,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
     }
 
-    private void handleProf(Map<String, Map<String, ClasseGroupe>> profMap, String siren, String value, String matiere,
-            String ldapAttr, Map<String, ClasseGroupe> cgMap, String uid) {
+    private void handleProf(Map<String, Map<String, ClasseGroupe>> profMap, String siren, String value, String matiere, String ldapAttr, Map<String, ClasseGroupe> cgMap, String uid) {
         if (log.isDebugEnabled()) {
             log.debug("DEBUG: handleProf appelé pour uid={} : siren={} matiere={} value={} ldapAttr={}", uid, siren, matiere, value, ldapAttr);
         }
@@ -308,15 +298,11 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
     }
 
     private List<String> calculEnseignementSuivis(LdapUserDto person, String attrEnsSuivi) {
-
         List<String> valuesAttr = person.getAttribute(attrEnsSuivi);
         List<String> enseignements = new ArrayList<>();
-
         if (valuesAttr != null) {
-
             enseignements.addAll(valuesAttr);
         }
-
         return enseignements;
     }
 
@@ -324,8 +310,9 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
 
         String nomMatiere = null;
 
+        // TODO : pourquoi 2 manières de trouver ?
         // 1. Essayer de trouver via la liste des codes matieres (configuration)
-        List<String> listCodeMatieres = person.getAttribute(extUserHelper.getUserCodeMatiereEnseignement());
+        List<String> listCodeMatieres = person.getAttribute(ConstLDAP.ENS_MATIERE_ETAB);
         if (listCodeMatieres != null) {
             for (String codeMat : listCodeMatieres) {
                 Pattern pattern = Pattern.compile(regexClasse);
@@ -352,8 +339,7 @@ public class ClasseGroupeServiceImpl implements IClasseGroupeService {
         // 2. Essayer de trouver via l'attribut ENTAuxEnsMatiereEnseignEtab
         List<String> attrMatiereEnseignEtab = person.getAttribute("ENTAuxEnsMatiereEnseignEtab");
         if (log.isDebugEnabled()) {
-            log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour uid={} siren={} code={} : attr={}", person.getId(), siren, code,
-                    attrMatiereEnseignEtab);
+            log.debug("DEBUG: Recherche dans ENTAuxEnsMatiereEnseignEtab pour uid={} siren={} code={} : attr={}", person.getId(), siren, code, attrMatiereEnseignEtab);
         }
         if (attrMatiereEnseignEtab != null) {
             Pattern patternMatiere = Pattern.compile("ENTStructureSIREN=(\\w+).+\\$([^$]+)");
