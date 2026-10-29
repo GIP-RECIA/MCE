@@ -81,7 +81,6 @@ public class MCEController {
         final String uid = principal.getUid();
         final UserDto userDto = personneService.getUser(uid);
         final UserForDisplayDTO userToDisplay = userDTOFactory.from(userDto);
-        log.debug("DTO sent is : {}", userToDisplay);
         if (userToDisplay == null) {
             throw new PersonneNotFoundException("Utilisateur non trouvé pour l'uid : " + uid);
         }
@@ -93,19 +92,19 @@ public class MCEController {
      * Vérifie bien que la personne à le droit d'afficher la personne en relation
      */
     @GetMapping("/{uid}")
-    public ResponseEntity<UserForDisplayDTO> getDetailEnfant(@PathVariable String uid, @AuthenticationPrincipal AppUser principal) {
+    public ResponseEntity<UserForDisplayDTO> getDetailRelation(@PathVariable String uid, @AuthenticationPrincipal AppUser principal) {
         // TODO : à améliorer ? on ne devrait pas avoir une requête avec l'uid qui circule en clair
-        String currentUid = principal.getUid();
-        if (!canAccessRelationProfile(currentUid, uid)) {
-            log.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", uid, currentUid);
+        final String principalUid = principal.getUid();
+        final UserDto principalUser = personneService.getUser(uid);
+        if (!canAccessRelationProfile(principalUser, uid)) {
+            log.warn("Audit [GET_DETAIL_ENFANT] : Tentative d'accès non autorisé au profil uid={} par [{}]", uid, principalUid);
             throw new AccessDeniedException("Vous ne pouvez consulter que votre profil ou celui des personnes en relation avec vous");
         }
-        UserDto userDto = personneService.getUser(uid);
-        UserForDisplayDTO enfant = userDTOFactory.from(userDto);
-        if (enfant == null) {
+        final UserForDisplayDTO relation = userDTOFactory.from(principalUser);
+        if (relation == null) {
             throw new PersonneNotFoundException("Enfant non trouvé pour l'uid : " + uid);
         }
-        return ResponseEntity.ok(enfant);
+        return ResponseEntity.ok(relation);
     }
 
     /**
@@ -172,12 +171,8 @@ public class MCEController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Statut du parcours « mot de passe réseau » du compte authentifié : éligibilité (CVDL ntPass sans
-     * mot de passe local stocké, état Valide, détectée côté serveur car {@code ntPass} n'est pas présent
-     * dans le jeton OIDC). Permet au portail d'afficher le bon écran.
-     */
     @GetMapping("/network-password/status")
+    // TODO : ça ne devrait pas être une route mais une info donnée dans l'utilisateur
     public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus(@AuthenticationPrincipal AppUser principal) {
        final String uid = principal.getUid();
         NetworkPasswordResetStatusDTO status = changePasswordService.getNetworkPasswordResetStatus(uid);
@@ -198,24 +193,22 @@ public class MCEController {
         return ResponseEntity.ok(new ErrorResponse("NETWORK_PASSWORD_RESET_SUCCESS", "Votre mot de passe réseau a été modifié avec succès"));
     }
 
-    private boolean canAccessRelationProfile(String currentUid, String uid) {
-        if (currentUid.equals(uid)) {
+    /**
+     * Indique si un utilisateur à le droit d'accéder aux informations d'un autre utilisateur
+     */
+    private boolean canAccessRelationProfile(UserDto principalUser, String uid) {
+        if (principalUser.getUid().equals(uid)) {
             return true;
         }
         try {
-            Collection<RelationEleveContact> relations = relationEleveService.allRelationEleves(currentUid);
-            if (relations != null
-                && relations.stream().map(RelationEleveContact::getUidRelation)
-                .anyMatch(rel -> rel != null && rel.equals(uid))) {
+            // Test sur les parents de l'enfant
+            if (principalUser.getRespEleves().stream().map(RelationEleveContact::getUidRelation).anyMatch(rel -> rel != null && rel.equals(uid))) {
                 return true;
             }
-
-            final Long parentId = personneService.getUser(currentUid).getDatabaseUserDto().getId();
-            return relationEleveService.allEleveEnRelation(parentId).stream()
-                .map(RelationEleveContact::getUidRelation)
-                .anyMatch(rel -> rel != null && rel.equals(uid));
+            // Test sur les enfants du parent
+            return principalUser.getEleves().stream().map(RelationEleveContact::getUidRelation).anyMatch(rel -> rel != null && rel.equals(uid));
         } catch (Exception e) {
-            log.warn("Erreur lors du contrôle d'accès au profil relation {} par {} : {}", uid, currentUid, e.getMessage());
+            log.warn("Erreur lors du contrôle d'accès au profil relation {} par {} : {}", uid, principalUser.getUid(), e.getMessage());
             return false;
         }
     }

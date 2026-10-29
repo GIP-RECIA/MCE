@@ -22,6 +22,7 @@ import fr.recia.mce.api.escomceapi.db.entities.ValidationCharte;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.DomSource;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
+import fr.recia.mce.api.escomceapi.db.enums.EnumObjectClass;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
@@ -141,7 +142,10 @@ public class PersonneService {
         }
         EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
         EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
-        UserDto personne = new UserDto(databaseUser, ldapUser, ep);
+        List<RelationEleveContact> apprentisList = getApprentis(ldapUser);
+        List<RelationEleveContact> respEleves = resolveRespEleves(ldapUser.getId());
+        List<RelationEleveContact> eleves = resolveEleves(databaseUser.getId());
+        UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), ep, apprentisList, respEleves, eleves);
         if (cache != null) {
             cache.putIfAbsent(uid, personne);
         }
@@ -150,19 +154,32 @@ public class PersonneService {
         return personne;
     }
 
+    private List<RelationEleveContact> getApprentis(LdapUserDto ldapUser){
+        boolean isMaitre = false;
+        List<RelationEleveContact> apprentisList = new ArrayList<>();
+        List<String> objectClasses = ldapUser.getAttribute("objectClass");
+        isMaitre = EnumObjectClass.containsMaitre(objectClasses);
+        if (isMaitre) {
+            apprentisList = relationEleveService.allApprentiEnRelation(ldapUser.getId());
+            log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", ldapUser.getId(), apprentisList != null ? apprentisList.size() : 0);
+        }
+        log.debug("objectClass [uid={}]: isMaitre={}", ldapUser.getId(), isMaitre);
+        return apprentisList;
+    }
+
     /**
      * Donne les parents d'un élève
      */
-    public List<RelationEleveContact> resolveRespEleves(UserDto userDto) {
-        Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(userDto.getLdapUserDto().getId());
+    private List<RelationEleveContact> resolveRespEleves(String uid) {
+        Collection<RelationEleveContact> col = relationEleveService.allRelationEleves(uid);
         return col != null ? new ArrayList<>(col) : null;
     }
 
     /**
      * Donne les élèves d'un parent
      */
-    public List<RelationEleveContact> resolveEleves(UserDto userDto) {
-        return relationEleveService.allEleveEnRelation(userDto.getDatabaseUserDto().getId());
+    private List<RelationEleveContact> resolveEleves(long id) {
+        return relationEleveService.allEleveEnRelation(id);
     }
 
     public boolean canEditPassword(UserDto userDto) {

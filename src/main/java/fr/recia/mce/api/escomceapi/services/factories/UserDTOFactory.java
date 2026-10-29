@@ -92,9 +92,9 @@ public class UserDTOFactory {
     public UserForDisplayDTO from(UserDto userDto) {
         final DatabaseUserDto databaseUser = userDto.getDatabaseUserDto();
         // Gestion des relations
-        List<RelationEleveContact> apprentisList = getApprentis(userDto);
-        List<RelationEleveContact> respEleves = personneService.resolveRespEleves(userDto);
-        List<RelationEleveContact> eleves = personneService.resolveEleves(userDto);
+        List<RelationEleveContact> apprentisList = userDto.getApprentisList();
+        List<RelationEleveContact> respEleves = userDto.getRespEleves();
+        List<RelationEleveContact> eleves = userDto.getEleves();
         // Autres attributs
         final boolean passEditable = personneService.canEditPassword(userDto);
         final boolean eduConnect = personneService.computeEduConnect(userDto);
@@ -128,21 +128,6 @@ public class UserDTOFactory {
             eleves,
             apprentisList
         );
-    }
-
-    private List<RelationEleveContact> getApprentis(UserDto userDto){
-        boolean isMaitre = false;
-        List<RelationEleveContact> apprentisList = new ArrayList<>();
-        if (userDto.getLdapUserDto() != null) {
-            List<String> objectClasses = userDto.getLdapUserDto().getAttribute("objectClass");
-            isMaitre = EnumObjectClass.containsMaitre(objectClasses);
-            if (isMaitre) {
-                apprentisList = relationEleveService.allApprentiEnRelation(userDto.getLdapUserDto().getId());
-                log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", userDto.getDatabaseUserDto().getUid(), apprentisList != null ? apprentisList.size() : 0);
-            }
-            log.debug("objectClass [uid={}]: isMaitre={}", userDto.getDatabaseUserDto().getUid(), isMaitre);
-        }
-        return apprentisList;
     }
 
     private InfoGeneralDTO showGeneralInfo(LdapUserDto ldapUserDto, DatabaseUserDto databaseUserDto) {
