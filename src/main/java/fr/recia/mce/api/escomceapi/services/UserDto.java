@@ -35,10 +35,24 @@ public class UserDto {
     private LdapUserDto ldapUserDto;
     // UID en direct pour pouvoir y accéder plus facilement
     private String uid;
-    // Attributs calculés au moment de la création de l'utilisateur
+    // Attributs calculés au moment de la création de l'utilisateur pour ne pas avoir a les recalculer à chaque fois
     private EnumPublic enumPublic;
     private List<RelationEleveContact> apprentisList;
     private List<RelationEleveContact> respEleves;
     private List<RelationEleveContact> eleves;
+    private boolean canEditMailPerso;
+    private boolean canEditPassword;
+    private boolean hasPasswordEtab;
+    private boolean isEduconnect;
 
+    public UserDto(DatabaseUserDto databaseUserDto, LdapUserDto ldapUserDto, String uid, EnumPublic enumPublic,
+                   List<RelationEleveContact> apprentisList, List<RelationEleveContact> respEleves, List<RelationEleveContact> eleves) {
+        this.databaseUserDto = databaseUserDto;
+        this.ldapUserDto = ldapUserDto;
+        this.uid = uid;
+        this.enumPublic = enumPublic;
+        this.apprentisList = apprentisList;
+        this.respEleves = respEleves;
+        this.eleves = eleves;
+    }
 }

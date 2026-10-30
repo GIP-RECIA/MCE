@@ -99,7 +99,7 @@ public class ResendPolicyService {
      * </ul>
      */
     public void assertPasswordResetAllowed(UserDto userDto) {
-        if (!personneService.canEditPassword(userDto)) {
+        if (!userDto.isCanEditPassword()) {
             if (userDto.getEnumPublic().isEduconnect()) {
                 log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}, enumPublic={}, ntPass={}",
                         userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());

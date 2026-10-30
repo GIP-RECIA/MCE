@@ -64,9 +64,6 @@ import java.util.regex.Pattern;
 @Slf4j
 public class PersonneService {
 
-    // TODO : à mettre en conf
-    private static final String AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT = "[^@]+@ac-orleans-tours.fr";
-
     private final MCEProperties mceProperties;
     private final APersonneRepository aPersonneRepository;
     private final ValidationCharteRepository validationCharteRepository;
@@ -137,10 +134,13 @@ public class PersonneService {
         // Donne les élèves d'un parent
         List<RelationEleveContact> eleves = relationEleveService.allEleveEnRelation(databaseUser.getId());
         UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), ep, apprentisList, respEleves, eleves);
+        personne.setCanEditMailPerso(canEditMailPerso(personne));
+        personne.setCanEditPassword(canEditPassword(personne));
+        personne.setHasPasswordEtab(hasNetworkEtabPass(personne));
+        personne.setEduconnect(isEduconnect(personne));
         if (cache != null) {
             cache.putIfAbsent(uid, personne);
         }
-
         log.debug("Récupération du user : {}", uid);
         return personne;
     }
@@ -158,32 +158,22 @@ public class PersonneService {
         return apprentisList;
     }
 
-    public boolean canEditPassword(UserDto userDto) {
-        if (userDto.getEnumPublic().isEduconnect()) {
-            return false;
-        }
-        String acMailPattern = mailProperties.getAcMailPattern();
-        if (acMailPattern == null){
-            acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
-        }
-        if (userDto.getEnumPublic() == EnumPublic.EDUCATION && userDto.getDatabaseUserDto().getEmail() != null && userDto.getDatabaseUserDto().getEmail().matches(acMailPattern)) {
-            return userDto.getDatabaseUserDto().isNtPass();
-        }
+    /**
+     * Indique si un utilisateur peut modifier son mot de passe, 2 possibilités
+     * - soit il se connecte en authentification locale (donc il a un mot de passe)
+     * - soit il a fait partie de la gestion spécifique ntPass
+     */
+    private boolean canEditPassword(UserDto userDto) {
         return userDto.getEnumPublic().isConnectOk() || userDto.getDatabaseUserDto().isNtPass();
     }
 
-    public boolean isEduconnect(UserDto userDto) {
-        String acMailPattern = mailProperties.getAcMailPattern();
-        if (acMailPattern == null){
-            acMailPattern = AC_ORLEANS_TOURS_MAIL_PATTERN_DEFAULT;
-        }
-        if (userDto.getDatabaseUserDto().getEmail() == null || userDto.getEnumPublic() != EnumPublic.EDUCATION || !userDto.getDatabaseUserDto().getEmail().matches(acMailPattern)) {
-            return userDto.getEnumPublic().isEduconnect();
-        }
-        return false;
-    }
-
-    public boolean canEditEmail(UserDto userDto) {
+    /**
+     * Indique si un utilisateur peut modifier son mail personnel, 3 possibilités :
+     * - soit c'est un élève
+     * - soit il a déjà un mail perso
+     * - soit il n'a pas de mail officiel
+     */
+    private boolean canEditMailPerso(UserDto userDto) {
         if (userDto.getEnumPublic().isEleve()){
             return true;
         }
@@ -193,21 +183,18 @@ public class PersonneService {
         return userDto.getDatabaseUserDto().getEmail() == null || userDto.getDatabaseUserDto().getEmail().isEmpty();
     }
 
-    public boolean hasSambaPass(UserDto userDto) {
-        return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getDatabaseUserDto());
+    /**
+     * Indique si un utilisateur passe par educonnect
+     */
+    private boolean isEduconnect(UserDto userDto) {
+        return userDto.getEnumPublic().isEduconnect();
     }
 
-    public List<String> buildUserPublicLinks(boolean eduConnect, boolean passEtab) {
-        List<String> links = new ArrayList<>();
-        if (eduConnect) {
-            links.add(mceProperties.getService().getCustomParams().getLienEdu());
-            if (passEtab) {
-                links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
-            }
-        } else if (passEtab) {
-            links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
-        }
-        return links;
+    /**
+     * Indique si un utilisateur a un mot de passe établissement
+     */
+    private boolean hasNetworkEtabPass(UserDto userDto) {
+        return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getDatabaseUserDto());
     }
 
     /**
@@ -344,7 +331,7 @@ public class PersonneService {
      * Lève une exeption si l'utilisateur ne peut pas changer son mail
      */
     public void validateEmailForUpdate(UserDto userDto, String newEmail) {
-        if (!canEditEmail(userDto)) {
+        if (!userDto.isCanEditMailPerso()) {
             log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", userDto.getUid());
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
         }

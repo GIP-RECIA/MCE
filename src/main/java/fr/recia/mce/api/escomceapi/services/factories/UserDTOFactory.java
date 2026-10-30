@@ -95,15 +95,15 @@ public class UserDTOFactory {
         List<RelationEleveContact> respEleves = userDto.getRespEleves();
         List<RelationEleveContact> eleves = userDto.getEleves();
         // Autres attributs
-        final boolean passEditable = personneService.canEditPassword(userDto);
-        final boolean eduConnect = personneService.isEduconnect(userDto);
-        final boolean canEditEmail = personneService.canEditEmail(userDto);
-        final boolean passEtab = personneService.hasSambaPass(userDto);
+        final boolean passEditable = userDto.isCanEditPassword();
+        final boolean canEditPersonnalEmail = userDto.isCanEditMailPerso();
+        final boolean eduConnect = userDto.isEduconnect();
+        final boolean passEtab = userDto.isHasPasswordEtab();
         final String resolvedEmail = databaseUser.getEmail();
         final String resolvedEmailPersonnel = databaseUser.getEmailPersonnel();
         final String etab = databaseUser.getStructureDisplayName();
         final String userIdentifiant = databaseUser.getUid();
-        List<String> userPublic = personneService.buildUserPublicLinks(eduConnect, passEtab);
+        List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
         return new UserForDisplayDTO(
             databaseUser.getId(),
             databaseUser.getUid(),
@@ -112,7 +112,7 @@ public class UserDTOFactory {
             databaseUser.getSn(),
             databaseUser.getCivilite(),
             databaseUser.getCategorie(),
-            canEditEmail,
+            canEditPersonnalEmail,
             userIdentifiant,
             etab,
             resolvedEmail,
@@ -129,11 +129,26 @@ public class UserDTOFactory {
         );
     }
 
+    /**
+     * Construit la liste des liens externes
+     * - lien vers educonnect
+     * - lien vers changement de mot de passe étab
+     */
+    private List<String> buildUserPublicLinks(boolean eduConnect, boolean passEtab) {
+        List<String> links = new ArrayList<>();
+        if (eduConnect) {
+            links.add(mceProperties.getService().getCustomParams().getLienEdu());
+        }
+        if (passEtab) {
+            links.add(mceProperties.getService().getCustomParams().getLienPassEtab());
+        }
+        return links;
+    }
+
     private InfoGeneralDTO showGeneralInfo(LdapUserDto ldapUserDto, DatabaseUserDto databaseUserDto) {
         Long id = databaseUserDto.getId();
         log.debug("Récupération des informations générales pour l'ID utilisateur : {}", id);
-        Collection<FonctionDTO> fonctions = fonctionService.getAllFonctionOfPersonne(id);
-        List<FonctionDTO> listFonctions = new ArrayList<>(fonctions);
+        List<FonctionDTO> listFonctions = new ArrayList<>(fonctionService.getAllFonctionOfPersonne(id));
         log.debug("{} fonction(s) trouvée(s) pour l'ID utilisateur : {}", listFonctions.size(), id);
         ClasseGroupeDTO classes = ldapUserDto != null ? classeGroupeService.calculCG(ldapUserDto) : null;
         return new InfoGeneralDTO(listFonctions, classes);

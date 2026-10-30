@@ -42,7 +42,7 @@ public class ChangePasswordService {
 
     public void changePassword(UserDto userDto, PasswordChangeRequestDTO req) {
         boolean eduConnect = userDto.getEnumPublic() != null && userDto.getEnumPublic().isEduconnect();
-        boolean editable = personneService.canEditPassword(userDto);
+        boolean editable = userDto.isCanEditPassword();
         log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})",
             userDto.getLdapUserDto().getId(), editable, userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass(), userDto.getDatabaseUserDto().getSource(), eduConnect);
         if (!editable) {
