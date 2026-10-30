@@ -96,9 +96,9 @@ public class UserDTOFactory {
         List<RelationEleveContact> eleves = userDto.getEleves();
         // Autres attributs
         final boolean passEditable = personneService.canEditPassword(userDto);
-        final boolean eduConnect = personneService.computeEduConnect(userDto);
-        final boolean canEditEmail = personneService.computeCanEditEmail(userDto);
-        final boolean passEtab = personneService.computePassEtab(userDto);
+        final boolean eduConnect = personneService.isEduconnect(userDto);
+        final boolean canEditEmail = personneService.canEditEmail(userDto);
+        final boolean passEtab = personneService.hasSambaPass(userDto);
         final String resolvedEmail = databaseUser.getEmail();
         final String resolvedEmailPersonnel = databaseUser.getEmailPersonnel();
         final String etab = databaseUser.getStructureDisplayName();

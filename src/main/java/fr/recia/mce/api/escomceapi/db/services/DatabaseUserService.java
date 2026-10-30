@@ -16,6 +16,7 @@
 
 package fr.recia.mce.api.escomceapi.db.services;
 
+import fr.recia.mce.api.escomceapi.configuration.cache.CacheNames;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -28,8 +29,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class DatabaseUserService {
 
-    public static final String DB_CACHE_NAME = "personneDBCache";
-
     @Autowired
     private CacheManager cacheManager;
 
@@ -41,7 +40,7 @@ public class DatabaseUserService {
      */
     public DatabaseUserDto getUserDatabase(String uid) {
         // Récupération dans le cache si possible
-        Cache cache = cacheManager.getCache(DB_CACHE_NAME);
+        Cache cache = cacheManager.getCache(CacheNames.DATABASE_PERSONNE_CACHE);
         if (cache != null) {
             DatabaseUserDto cached = cache.get(uid, DatabaseUserDto.class);
             if (cached != null) {

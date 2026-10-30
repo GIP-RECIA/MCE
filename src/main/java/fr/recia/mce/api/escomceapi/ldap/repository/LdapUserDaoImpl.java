@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.ldap.repository;
 
+import fr.recia.mce.api.escomceapi.configuration.cache.CacheNames;
 import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.AccountState;
@@ -60,7 +61,6 @@ public class LdapUserDaoImpl {
     @Autowired
     private CacheManager cacheManager;
 
-    public static final String LDAP_CACHE_NAME = "personneLDAPCache";
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
     private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
 
@@ -70,7 +70,7 @@ public class LdapUserDaoImpl {
     public LdapUserDto getUserLdap(String uid) {
         // Récupération dans le cache si possible
         LdapUserDto userLdap = null;
-        Cache cache = cacheManager.getCache(LDAP_CACHE_NAME);
+        Cache cache = cacheManager.getCache(CacheNames.LDAP_PERSONNE_CACHE);
         if (cache != null) {
             userLdap = cache.get(uid, LdapUserDto.class);
             if (!Objects.isNull(userLdap)) {

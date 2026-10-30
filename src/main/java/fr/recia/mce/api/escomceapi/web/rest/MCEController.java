@@ -26,7 +26,6 @@ import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.exception.ErrorResponse;
 import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.factories.UserDTOFactory;
-import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 import fr.recia.mce.api.escomceapi.web.dto.EmailUpdateRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetRequestDTO;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
@@ -103,6 +102,47 @@ public class MCEController {
     }
 
     /**
+     * Envoi le code de validation pour confirmer le changement de mail d'un utilisateur
+     */
+    @PutMapping("/update-email")
+    public ResponseEntity<?> sendCodeForEmail(@Valid @RequestBody EmailUpdateRequestDTO request, @AuthenticationPrincipal AppUser principal) {
+        final String uid = principal.getUid();
+        if (!request.getEmail().equals(request.getConfirmEmail())) {
+            log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
+            return ResponseEntity.badRequest().body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
+        }
+        final UserDto userDto = personneService.getUser(uid);
+        // Lève une exception si l'utilisateur n'a pas le droit de changer son mail
+        personneService.validateEmailForUpdate(userDto, request.getEmail());
+        // Envoi le mail de vérification
+        emailVerificationService.sendVerificationEmail(userDto, request.getEmail());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new ErrorResponse("VERIFICATION_SENT", "Un email de vérification a été envoyé à " + request.getEmail()));
+    }
+
+    /**
+     * Valide le changement de mail d'un utilisateur avec un code de validation
+     */
+    @PostMapping("/verify-email")
+    public ResponseEntity<?> validateCodeForEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
+        final String uid = principal.getUid();
+        final UserDto userDto = personneService.getUser(uid);
+        log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
+        emailVerificationService.verifyEmail(userDto, request.getCode(), request.isDoForward());
+        log.info("[VERIFY_EMAIL] Succès uid={}", uid);
+        return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifié avec succès"));
+    }
+
+    /**
+     * Change l'avatar de l'utilisateur
+     */
+    @PostMapping("/avatar")
+    public ResponseEntity<Void> updateAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal AppUser principal) throws Exception {
+        String uid = principal.getUid();
+        personneService.updateAvatar(uid, file.getBytes());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Met à jour la date de fin d'une fonction donnée de l'utilisateur (utile pour désactiver une fonction)
      */
     @PutMapping("/fonction/{id}/dateFin")
@@ -126,43 +166,6 @@ public class MCEController {
         final String uid = principal.getUid();
         final UserDto userDto = personneService.getUser(uid);
         changePasswordService.changePassword(userDto, request);
-        return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * Envoi le code de validation pour confirmer le changement de mail d'un utilisateur
-     */
-    @PutMapping("/update-email")
-    public ResponseEntity<?> updateEmail(@Valid @RequestBody EmailUpdateRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-        final String uid = principal.getUid();
-        if (!request.getEmail().equals(request.getConfirmEmail())) {
-            log.warn("Les adresses email ne correspondent pas pour uid={}", uid);
-            return ResponseEntity.badRequest().body(new ErrorResponse("BAD_REQUEST", "Les adresses email ne correspondent pas"));
-        }
-        final UserDto userDto = personneService.getUser(uid);
-        personneService.validateEmailForUpdate(userDto, request.getEmail());
-        emailVerificationService.sendVerificationEmail(userDto, request.getEmail());
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-            .body(new ErrorResponse("VERIFICATION_SENT", "Un email de vérification a été envoyé à " + request.getEmail()));
-    }
-
-    /**
-     * Valide le changement de mail d'un utilisateur avec un code de validation
-     */
-    @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequestDTO request, @AuthenticationPrincipal AppUser principal) {
-        final String uid = principal.getUid();
-        final UserDto userDto = personneService.getUser(uid);
-        log.debug("[VERIFY_EMAIL] Requête pour uid={}", uid);
-        emailVerificationService.verifyEmail(userDto, request.getCode(), request.isDoForward());
-        log.info("[VERIFY_EMAIL] Succès uid={}", uid);
-        return ResponseEntity.ok(new ErrorResponse("SUCCESS", "Email verifié avec succès"));
-    }
-
-    @PostMapping("/avatar")
-    public ResponseEntity<Void> updateAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal AppUser principal) throws Exception {
-        String uid = principal.getUid();
-        personneService.updateAvatar(uid, file.getBytes());
         return ResponseEntity.noContent().build();
     }
 

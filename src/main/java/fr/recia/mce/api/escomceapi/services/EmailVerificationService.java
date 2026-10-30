@@ -99,7 +99,7 @@ public class EmailVerificationService {
     public void verifyEmail(UserDto userDto, String code, boolean doForward) {
         APersonne person = aPersonneRepository.findByUid(userDto.getDatabaseUserDto().getUid());
         final String uid = person.getUid();
-        String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
+        final String hashedCode = verificationCodeService.hashWithPrefix(code, ConfirmationType.EMAIL_VERIFICATION);
         Optional<CerbereConfirmation> optConfirmation = cerbereConfirmationRepository.findPendingEmailVerificationByPersonIdAndCode(person.getId(), hashedCode);
 
         // On vérifie qu'on a pas fait trop de tentatives de vérification échouées
@@ -133,10 +133,8 @@ public class EmailVerificationService {
         personneService.validateEmailForUpdate(userDto, email);
         person.setEmailPersonnel(email);
         person.setDoForward(doForward);
-
         confirmation.setConfirmation(new Date());
         cerbereConfirmationRepository.save(confirmation);
-
         attemptGuardService.clearVerificationAttempt(person.getId());
 
         log.info("Email vérifié avec succès pour l'utilisateur [uid={}] -> {} (mail personnel enregistré)", uid, email);
