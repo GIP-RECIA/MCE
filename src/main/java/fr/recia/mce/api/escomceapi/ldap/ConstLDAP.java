@@ -37,6 +37,7 @@ public final class ConstLDAP {
     /* Spécifiques enseignants */
     public static final String ENS_CLASSES = "ENTAuxEnsClasses";
     public static final String ENS_CLASSES_MATIERES = "ENTAuxEnsClassesMatieres";
+    public static final String ENS_CLASSES_MATIERES_ETAB = "ESCOAuxEnsCodeMatiereEnseignEtab";
     public static final String ENS_GROUPES = "ENTAuxEnsGroupes";
     public static final String ENS_MATIERE_ETAB = "ENTAuxEnsMatiereEnseignEtab";
     public static final String ENS_GROUPES_MATIERES = "ENTAuxEnsGroupesMatieres";

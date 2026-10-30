@@ -15,6 +15,7 @@
  */
 package fr.recia.mce.api.escomceapi.services.beans;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -31,5 +32,11 @@ public class ClasseGroupe {
     private String nameEtab;
     private List<String> classes;
     private List<String> groupes;
+
+    public ClasseGroupe(String nameEtab){
+        this.nameEtab = nameEtab;
+        this.classes = new ArrayList<>();
+        this.groupes = new ArrayList<>();
+    }
 
 }

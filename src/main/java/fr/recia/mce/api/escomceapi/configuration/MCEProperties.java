@@ -31,10 +31,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @Slf4j
 public class MCEProperties {
-
     private CorsProperties cors = new CorsProperties();
     private AvatarProperties avatar = new AvatarProperties();
     private ServiceProperties service = new ServiceProperties();
     private SecurityProperties security = new SecurityProperties();
-
 }

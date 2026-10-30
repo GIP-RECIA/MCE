@@ -18,49 +18,26 @@ package fr.recia.mce.api.escomceapi.configuration.bean;
 import org.springframework.validation.annotation.Validated;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 @Data
 @Validated
 public class ServiceProperties {
 
-    private ClasseCalculatorProperties classeProperties = new ClasseCalculatorProperties();
-    private GrpPedagoCalculator grpPedagoProperties = new GrpPedagoCalculator();
+    private CGCalculatorProperties cgCalculator = new CGCalculatorProperties();
     private RelationProperties relationProperties = new RelationProperties();
     private CustomParams customParams = new CustomParams();
 
     @Data
     @Validated
-    public static class ClasseCalculatorProperties {
-
-        private String ldapAttributsClasse;
-        private String regexSirenAndClasse;
-        private int groupSiren;
-        private int groupClasse;
-        private int groupMatiere;
-
-    }
-
-    @Getter
-    @Setter
-    @Validated
-    public static class GrpPedagoCalculator extends ClasseCalculatorProperties {
-
-        public GrpPedagoCalculator() {
-            this.setLdapAttributsClasse(getLdapAttributsClasse());
-            this.setRegexSirenAndClasse(getRegexSirenAndClasse());
-            this.setGroupSiren(getGroupSiren());
-            this.setGroupClasse(getGroupClasse());
-            this.setGroupMatiere(getGroupMatiere());
-        }
-
+    public static class CGCalculatorProperties {
+        private String regexNomMatiere;
+        private String regexEnsCGMatiere;
+        private String regexElvCGMatiere;
     }
 
     @Data
     @Validated
     public static class RelationProperties {
-
         private String regexUid;
         private String regexRelation;
         private int groupUid;
@@ -69,20 +46,16 @@ public class ServiceProperties {
         private int groupRespLegal;
         private int groupCodeContact;
         private int groupCodePaiement;
-
     }
 
     @Data
     @Validated
     public static class CustomParams {
-
         private String lienEdu;
         private String lienPassEtab;
         private String domaineEtabRecia;
         private String regexGroupsWithSshaPass;
         private String regexGroupsWithSambaNt;
-
     }
-
 
 }

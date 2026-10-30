@@ -15,17 +15,20 @@
  */
 package fr.recia.mce.api.escomceapi.services.beans;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Data
 @NoArgsConstructor
 public class EnseignementProf {
 
     private String matiere;
+    // TODO : une liste de classes et groupes suffirait car on a déjà le nom de l'étab dans l'objet parent
     private ClasseGroupe cg;
+
+    public EnseignementProf(String matiere){
+        this.matiere = matiere;
+        this.cg = new ClasseGroupe("NULL");
+    }
 
 }
