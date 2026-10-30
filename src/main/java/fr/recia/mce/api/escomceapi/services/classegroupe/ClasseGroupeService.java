@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,22 +59,17 @@ public class ClasseGroupeService {
 
     public ClasseGroupeDTO calculCG(LdapUserDto person) {
         final String uid = person.getId();
-        log.debug("Attributs complets disponibles pour uid={} : {}", uid, person);
+        log.trace("Attributs complets disponibles pour uid={} : {}", uid, person);
         final String profil = person.getAttribute(ConstLDAP.PROFILS).stream().findFirst().orElse("");
         log.debug("Profil utilisateur détecté pour uid={} : {}", uid, profil);
-
-        // Populate sectionProf
         SubSectionProf sectionProf = new SubSectionProf();
-        sectionProf.setEtabs(calculEnseignementCGProf(person));
-
-        // Populate sectionEleve
         SubSectionEleve sectionEleve = new SubSectionEleve();
-        List<String> enseignementEleve = calculEnseignementEleve(person);
-        List<ClasseGroupe> cgEleve = calculCGEleve(person);
-        sectionEleve.setEtabs(cgEleve);
-        sectionEleve.setEnseignementSuivis(enseignementEleve);
-
-        // Populate ClasseGroupeDTO with the processed sections
+        if(profil.equals(ConstLDAP.PROFIL_ENS)){
+            sectionProf.setEtabs(calculEnseignementCGProf(person));
+        } else {
+            sectionEleve.setEtabs(calculCGEleve(person));
+            sectionEleve.setEnseignementSuivis(calculEnseignementEleve(person));
+        }
         ClasseGroupeDTO cg = new ClasseGroupeDTO();
         cg.setSectionProf(sectionProf);
         cg.setSectionEleve(sectionEleve);
@@ -117,9 +113,11 @@ public class ClasseGroupeService {
                 }
             }
         }
+        log.debug("Association codeMatiere vers nomMatière par étab : {}", matiereByCodeAndEtab);
 
         // Deuxième étape : créer l'objet final à retourner
-        Map<String, List<EnseignementProf>> matieresByEtab = new HashMap<>();
+        Map<String, List<EnseignementProf>> matieresByEtab = new TreeMap<>();
+        // Gestion des classes
         List<String> classeCodeMatieres = person.getAttribute(ConstLDAP.ENS_CLASSES_MATIERES);
         for(String classeCodeMatiere : classeCodeMatieres) {
             final Matcher matcher = patternEnsCGMatiere.matcher(classeCodeMatiere);
@@ -136,6 +134,7 @@ public class ClasseGroupeService {
                 enseignementProf.getCg().getClasses().add(classeName);
             }
         }
+        // Gestion des groupes
         List<String> groupeCodeMatieres = person.getAttribute(ConstLDAP.ENS_GROUPES_MATIERES);
         for(String groupeCodeMatiere : groupeCodeMatieres) {
             final Matcher matcher = patternEnsCGMatiere.matcher(groupeCodeMatiere);
@@ -152,6 +151,7 @@ public class ClasseGroupeService {
                 enseignementProf.getCg().getClasses().add(groupName);
             }
         }
+        log.debug("Enseignements de l'enseignant {} : {}", person.getId(), matieresByEtab);
         return matieresByEtab;
     }
 
@@ -168,8 +168,8 @@ public class ClasseGroupeService {
      */
     private List<ClasseGroupe> calculCGEleve(LdapUserDto person) {
         Map<String, ClasseGroupe> cgElevesIndexedBySiren = new HashMap<>();
+        // Gestion des classes
         List<String> classes = person.getAttribute(ConstLDAP.ELEVE_CLASSES);
-        List<String> groupes = person.getAttribute(ConstLDAP.ELEVE_GROUPES);
         for(String classe : classes){
             final Matcher matcher = patternElvCGMatiere.matcher(classe);
             if (matcher.matches()) {
@@ -182,6 +182,8 @@ public class ClasseGroupeService {
                 cgElevesIndexedBySiren.get(siren).getClasses().add(classeName);
             }
         }
+        // Gestion des groupes
+        List<String> groupes = person.getAttribute(ConstLDAP.ELEVE_GROUPES);
         for(String groupe : groupes){
             final Matcher matcher = patternElvCGMatiere.matcher(groupe);
             if (matcher.matches()) {
@@ -194,7 +196,9 @@ public class ClasseGroupeService {
                 cgElevesIndexedBySiren.get(siren).getGroupes().add(groupeName);
             }
         }
-        return new ArrayList<>(cgElevesIndexedBySiren.values());
+        final List<ClasseGroupe> cgEleves = new ArrayList<>(cgElevesIndexedBySiren.values());
+        log.debug("Classes et groupes de l'élève {} : {}", person.getId(), cgEleves);
+        return cgEleves;
     }
 
 }

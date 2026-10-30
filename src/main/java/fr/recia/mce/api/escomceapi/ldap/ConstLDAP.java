@@ -57,4 +57,8 @@ public final class ConstLDAP {
     public static final String PEOPLE_BRANCH = "ou=people";
     public static final String STRUCTURE_BRANCH = "ou=structures";
 
+    /* Valeurs */
+    /* Profils */
+    public static final String PROFIL_ENS = "National_ENS";
+
 }
