@@ -135,9 +135,23 @@ public class ClasseGroupeService {
                 EnseignementProf enseignementProf = createOrGetEnseignementInEtab(matieresByEtab.get(structureName), nomMatiere);
                 enseignementProf.getCg().getClasses().add(classeName);
             }
-        // TODO : gérer aussi les groupes
         }
-
+        List<String> groupeCodeMatieres = person.getAttribute(ConstLDAP.ENS_GROUPES_MATIERES);
+        for(String groupeCodeMatiere : groupeCodeMatieres) {
+            final Matcher matcher = patternEnsCGMatiere.matcher(groupeCodeMatiere);
+            if (matcher.matches()) {
+                final String siren = matcher.group(1);
+                final String groupName = matcher.group(2);
+                final String codeMatiere = matcher.group(3);
+                final String structureName = structureService.findStructureBySiren(siren).getName();
+                if(!matieresByEtab.containsKey(structureName)){
+                    matieresByEtab.put(structureName, new ArrayList<>());
+                }
+                final String nomMatiere = matiereByCodeAndEtab.get(siren).get(codeMatiere);
+                EnseignementProf enseignementProf = createOrGetEnseignementInEtab(matieresByEtab.get(structureName), nomMatiere);
+                enseignementProf.getCg().getClasses().add(groupName);
+            }
+        }
         return matieresByEtab;
     }
 
