@@ -16,17 +16,16 @@
 package fr.recia.mce.api.escomceapi.services.structure;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
+import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
-import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapStructDaoImpl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,10 +39,6 @@ public class StructureService {
     private final CacheManager cacheManager;
     private final DomaineProperties domaineProperties;
 
-    private final Set<String> setDomaineEtabRecia = new HashSet<>();
-    private final Set<String> setIncludeEtabRecia = new HashSet<>();
-    private final Set<String> setExcludeEtabRecia = new HashSet<>();
-
     private List<LdapStructureDto> allStructures;
     private Map<String, LdapStructureDto> siren2structure;
     private Map<String, LdapStructureDto> uai2structure;
@@ -52,21 +47,16 @@ public class StructureService {
         this.externalStructDao = externalStructDao;
         this.cacheManager = cacheManager;
         this.domaineProperties = domaineProperties;
-        setDomaineEtabRecia.addAll(domaineProperties.getGestionRecia());
-        setIncludeEtabRecia.addAll(domaineProperties.getGestionInclude());
-        setExcludeEtabRecia.addAll(domaineProperties.getGestionExclude());
     }
 
     private void loadAllStructures() {
-        if (allStructures == null) {
-            allStructures = externalStructDao.loadAllStructure();
-            siren2structure = new HashMap<>();
-            uai2structure = new HashMap<>();
-            for (LdapStructureDto struct : allStructures) {
-                siren2structure.put(struct.getId(), struct);
-                if (struct.getUai() != null) {
-                    uai2structure.put(struct.getUai(), struct);
-                }
+        allStructures = externalStructDao.loadAllStructure();
+        siren2structure = new HashMap<>();
+        uai2structure = new HashMap<>();
+        for (LdapStructureDto struct : allStructures) {
+            siren2structure.put(struct.getId(), struct);
+            if (struct.getUai() != null) {
+                uai2structure.put(struct.getUai(), struct);
             }
         }
     }
@@ -95,108 +85,43 @@ public class StructureService {
         return uai2structure.get(uai);
     }
 
-    public boolean isReseauRecia(LdapStructureDto str) {
-        String uaiOrSiren = str.getUai();
-        log.debug("  - isReseauRecia(IExternalStructure) - UAI='{}', domaines de la structure={}", uaiOrSiren, (Object) str.getDomaines());
-
-        if (isDomaineRecia(str)) {
-            log.debug("    ** Domaine RECIA détecté");
-            if (uaiOrSiren != null && setExcludeEtabRecia.contains(uaiOrSiren)) {
-                log.debug("    * UAI '{}' dans la liste d'exclusion {} → EXCLU", uaiOrSiren, setExcludeEtabRecia);
-                return false;
-            }
-            log.debug("    - ACCEPTÉ (domaine Recia, UAI non exclue)");
-            return true;
-        }
-
-        if (uaiOrSiren != null && setIncludeEtabRecia.contains(uaiOrSiren)) {
-            log.debug("    UAI '{}' dans la liste d'inclusion {} → INCLUS", uaiOrSiren, setIncludeEtabRecia);
-            return true;
-        }
-
-        log.debug("    Domaine non RECIA ET UAI '{}' pas dans inclusion {}", uaiOrSiren, setIncludeEtabRecia);
-        return false;
-    }
-
-    public boolean isReseauRecia(DatabaseUserDto p) {
-
-        // TODO : pass ldap user
-//        if (p.getExtUser() == null) {
-//            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (extUser null)", p.getUid());
-//            return false;
-//        }
-
-        //List<String> uais = p.getExtUser().getAttribute("ESCOUAI");
-        List<String> uais = null;
-
-        log.debug("=== isReseauRecia pour uid={} ===", p.getUid());
-        log.debug("ESCOUAI pour uid={} : {}", p.getUid(), uais);
-
+    /**
+     * Indique si un utilisateur fait parti des établissements gérés par le Recia
+     */
+    public boolean isReseauRecia(LdapUserDto p) {
+        final String uid = p.getId();
+        final List<String> uais = p.getAttribute(ConstLDAP.ESCOUAI);
         if (uais == null || uais.isEmpty()) {
-            log.debug("- Résultat : uid={} N'APPARTIENT PAS au réseau Recia (pas d'UAI)", p.getUid());
+            log.debug("uid={} n'appartient au réseau recia (pas d'UAI)", uid);
             return false;
         }
 
-        int index = 0;
         for (String uai : uais) {
-            index++;
-            if (log.isDebugEnabled()) {
-                log.debug(" [{}/{}] Recherche de la structure pour l'UAI '{}' (uid={})...", index, uais.size(), uai, p.getUid());
-            }
-            LdapStructureDto str = findStructureByUai(uai);
-
-            if (str == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("  - Aucune structure trouvée pour l'UAI '{}' (uid={})", uai, p.getUid());
-                }
-                continue;
+            // 1ère possibilité : UAI étab dans la liste des UAI gérés
+            if (domaineProperties.getGestionInclude().contains(uai)) {
+                log.debug("UAI {} dans la liste d'inclusion, uid={} appartient au réseau recia", uai, uid);
+                return true;
             }
 
-            if (log.isDebugEnabled()) {
-                log.debug("  Structure trouvée pour uid={} : id={}, nom='{}', domaines={}",
-                        p.getUid(), str.getId(), str.getDisplayName(), (Object) str.getDomaines());
-            }
-
-            boolean estRecia = isReseauRecia(str);
-            if (log.isDebugEnabled()) {
-                log.debug("   isReseauRecia(str) pour UAI '{}' (uid={}) = {}", uai, p.getUid(), estRecia);
-            }
-
-            if (estRecia) {
-                if (log.isDebugEnabled()) {
-                    log.debug("- Résultat final : uid={} APPARTIENT au réseau Recia (via UAI '{}')", p.getUid(), uai);
-                }
+            // 2ème possibilité : domaine étab dans la liste des domaines gérés
+            final LdapStructureDto struct = findStructureByUai(uai);
+            if(isDomaineRecia(struct)){
+                log.debug("uid={} appartient au réseau recia", uid);
                 return true;
             }
         }
-
-        log.debug("- Résultat final : uid={} N'APPARTIENT PAS au réseau Recia (aucune UAI n'a matché)", p.getUid());
+        log.debug("uid={} n'appartient au réseau recia", uid);
         return false;
     }
 
     private boolean isDomaineRecia(LdapStructureDto struct) {
-
-        if (struct == null)
-            return false;
-
-        if (setDomaineEtabRecia.isEmpty()) {
-            log.warn(
-                    "Erreur de configuration : La propriété 'domaine.gestion-recia' est vide. Impossible de déterminer le statut du réseau Recia pour la structure [id={}].",
-                    struct.getId());
-            return false;
-        }
-
-        String[] domaines = struct.getDomaines();
-        if (domaines != null) {
-            for (String dom : domaines) {
-                if (setDomaineEtabRecia.contains(dom))
-                    return true;
+        final String[] domaines = struct.getDomaines();
+        for (String dom : domaines) {
+            if (domaineProperties.getGestionRecia().contains(dom)){
+                log.debug("Domaine '{}' dans la liste d'inclusion", dom);
+                return true;
             }
-        } else {
-            log.error("Erreur de cohérence des données : La structure [id={}, nom={}] n'a aucun attribut de domaine défini. (Contexte : isDomaineRecia)",
-                    struct.getId(), struct.getDisplayName());
         }
-
         return false;
     }
 }

@@ -120,7 +120,7 @@ public class PersonneService {
         boolean isLocalUser = false;
         boolean isCollectivite = false;
         String source = databaseUser.getSource();
-        // TODO
+        // TODO : domsource
         DomSource ds = DomSource.AC;
         if (source != null) {
             isLocalUser = source.startsWith("SarapisUi");
@@ -191,10 +191,10 @@ public class PersonneService {
     }
 
     /**
-     * Indique si un utilisateur a un mot de passe établissement
+     * Indique si un utilisateur a un mot de passe établissement dans les établissements gérés par le support recia
      */
     private boolean hasNetworkEtabPass(UserDto userDto) {
-        return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getDatabaseUserDto());
+        return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getLdapUserDto());
     }
 
     /**
@@ -213,17 +213,8 @@ public class PersonneService {
     }
 
     /**
-     * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1), enregistre la nouvelle image, met à jour la base de données et
-     * synchronise le LDAP.
-     *
-     * @param uid
-     *            L'UID de l'utilisateur.
-     * @param fileContent
-     *            Le contenu binaire de la nouvelle image.
-     * @throws PersonneNotFoundException
-     *             Si l'utilisateur n'est pas trouvé en base.
-     * @throws RuntimeException
-     *             En cas d'erreur de stockage ou de synchronisation.
+     * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1), enregistre la nouvelle image,
+     * met à jour la base de données et synchronise le LDAP.
      */
     @Transactional
     public void updateAvatar(String uid, byte[] fileContent) {
@@ -347,7 +338,9 @@ public class PersonneService {
         }
     }
 
-    // TODO : constantes autour des caches
+    /**
+     * Nettoie tous les caches pour un utilisateur donné
+     */
     public void clearUserCaches(String uid) {
         log.info("[clearUserCaches] DEBUT uid={}", uid);
         Cache dbCache = cacheManager.getCache(CacheNames.DATABASE_PERSONNE_CACHE);

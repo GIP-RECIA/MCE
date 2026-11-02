@@ -19,16 +19,15 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Component
 @ConfigurationProperties(prefix = "domaine")
 @Data
 public class DomaineProperties {
 
-    private List<String> gestionRecia = new ArrayList<>();
-    private List<String> gestionInclude = new ArrayList<>();
-    private List<String> gestionExclude = new ArrayList<>();
+    private Set<String> gestionRecia = new HashSet<>();
+    private Set<String> gestionInclude = new HashSet<>();
 
 }

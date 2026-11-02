@@ -28,6 +28,7 @@ public final class ConstLDAP {
     public static final String PROFILS = "ENTPersonProfils";
     public static final String ETAT_COMPTE = "ESCOPersonEtatCompte";
     public static final String VALIDATION_CHARTE = "ESCOPersonValidationCharte";
+    public static final String ESCOUAI = "ESCOUAI";
     /* Spécifiques élève */
     public static final String ELEVE_TUTEUR_ENTR = "ENTEleveEntrTutStage";
     public static final String ELEVE_RELATION = "ENTElevePersRelEleve";
@@ -44,7 +45,6 @@ public final class ConstLDAP {
     public static final String TUTEUR_ELVES = "ENTAuxTuteurStageEleves";
     /* Structures */
     public static final String DOMAINES = "ESCODomaines";
-    public static final String UAIS = "ESCOUAI";
     public static final String STRUCT_DOMAINES = "ESCODomaines";
     public static final String STRUCT_NOM_COURANT = "ENTStructureNomCourant";
     public static final String STRUCT_JOINTURE = "ENTStructureJointure";

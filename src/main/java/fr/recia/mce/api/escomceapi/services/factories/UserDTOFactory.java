@@ -16,31 +16,22 @@
 package fr.recia.mce.api.escomceapi.services.factories;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
-import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
 import fr.recia.mce.api.escomceapi.services.UserDto;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeService;
-import fr.recia.mce.api.escomceapi.services.relations.RelationEleveService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
-import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.db.dto.FonctionDTO;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
-import fr.recia.mce.api.escomceapi.db.repositories.FonctionRepository;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.services.FonctionService;
-import fr.recia.mce.api.escomceapi.services.PasswordService;
-import fr.recia.mce.api.escomceapi.services.PersonneService;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
 import fr.recia.mce.api.escomceapi.services.classegroupe.ClasseGroupeDTO;
-import fr.recia.mce.api.escomceapi.services.structure.StructureService;
 import fr.recia.mce.api.escomceapi.web.dto.InfoGeneralDTO;
 import fr.recia.mce.api.escomceapi.web.dto.UserForDisplayDTO;
 import lombok.Getter;
@@ -53,57 +44,24 @@ import lombok.extern.slf4j.Slf4j;
 public class UserDTOFactory {
 
     @Autowired
-    private FonctionRepository fonctionRepository;
-
-    @Autowired
     private ClasseGroupeService classeGroupeService;
-
-    @Autowired
-    private RelationEleveService relationEleveService;
-
-    @Autowired
-    private StructureService structureService;
 
     @Autowired
     private FonctionService fonctionService;
 
     @Autowired
-    private PasswordService passwordService;
-
-    @Autowired
-    private PersonneService personneService;
-
-    @Autowired
-    private DatabaseUserService databaseUserService;
-
-    @Autowired
     private MCEProperties mceProperties;
-
-    @Autowired
-    private MailProperties mailProperties;
-
-    @Autowired
-    private CerbereConfirmationRepository cerbereConfirmationRepository;
 
     /**
      * Méthode qui construit le DTO à afficher par le front
      */
     public UserForDisplayDTO from(UserDto userDto) {
         final DatabaseUserDto databaseUser = userDto.getDatabaseUserDto();
-        // Gestion des relations
-        List<RelationEleveContact> apprentisList = userDto.getApprentisList();
-        List<RelationEleveContact> respEleves = userDto.getRespEleves();
-        List<RelationEleveContact> eleves = userDto.getEleves();
-        // Autres attributs
-        final boolean passEditable = userDto.isCanEditPassword();
-        final boolean canEditPersonnalEmail = userDto.isCanEditMailPerso();
+        final List<RelationEleveContact> apprentisList = userDto.getApprentisList();
+        final List<RelationEleveContact> respEleves = userDto.getRespEleves();
+        final List<RelationEleveContact> eleves = userDto.getEleves();
         final boolean eduConnect = userDto.isEduconnect();
         final boolean passEtab = userDto.isHasPasswordEtab();
-        final String resolvedEmail = databaseUser.getEmail();
-        final String resolvedEmailPersonnel = databaseUser.getEmailPersonnel();
-        final String etab = databaseUser.getStructureDisplayName();
-        final String userIdentifiant = databaseUser.getUid();
-        List<String> userPublic = buildUserPublicLinks(eduConnect, passEtab);
         return new UserForDisplayDTO(
             databaseUser.getId(),
             databaseUser.getUid(),
@@ -112,16 +70,16 @@ public class UserDTOFactory {
             databaseUser.getSn(),
             databaseUser.getCivilite(),
             databaseUser.getCategorie(),
-            canEditPersonnalEmail,
-            userIdentifiant,
-            etab,
-            resolvedEmail,
-            resolvedEmailPersonnel,
+            userDto.isCanEditMailPerso(),
+            databaseUser.getUid(),
+            databaseUser.getStructureDisplayName(),
+            databaseUser.getEmail(),
+            databaseUser.getEmailPersonnel(),
             databaseUser.getDateNaissance(),
             databaseUser.getPhoto(),
             databaseUser.getEtat(),
-            passEditable,
-            userPublic,
+            userDto.isCanEditPassword(),
+            buildUserPublicLinks(eduConnect, passEtab),
             showGeneralInfo(userDto.getLdapUserDto(), databaseUser),
             respEleves,
             eleves,
@@ -145,12 +103,15 @@ public class UserDTOFactory {
         return links;
     }
 
+    /**
+     * Construit un DTO avec des infos supplémentaires pour l'utilisateur (fonctions, classes, etc..)
+     */
     private InfoGeneralDTO showGeneralInfo(LdapUserDto ldapUserDto, DatabaseUserDto databaseUserDto) {
-        Long id = databaseUserDto.getId();
+        final Long id = databaseUserDto.getId();
         log.debug("Récupération des informations générales pour l'ID utilisateur : {}", id);
-        List<FonctionDTO> listFonctions = new ArrayList<>(fonctionService.getAllFonctionOfPersonne(id));
+        final List<FonctionDTO> listFonctions = new ArrayList<>(fonctionService.getAllFonctionOfPersonne(id));
         log.debug("{} fonction(s) trouvée(s) pour l'ID utilisateur : {}", listFonctions.size(), id);
-        ClasseGroupeDTO classes = ldapUserDto != null ? classeGroupeService.calculCG(ldapUserDto) : null;
+        final ClasseGroupeDTO classes = ldapUserDto != null ? classeGroupeService.calculCG(ldapUserDto) : null;
         return new InfoGeneralDTO(listFonctions, classes);
     }
 
