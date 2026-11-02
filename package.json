@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "@vueuse/core": "^15.0.0",
-    "axios": "^1.20.0",
+    "axios": "^1.21.0",
     "pinia": "^4.1.0",
-    "vue": "^3.5.43",
-    "vue-i18n": "^11.4.14",
-    "vue-router": "^5.3.1"
+    "vue": "^3.5.44",
+    "vue-i18n": "^11.4.17",
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^10.0.0",
