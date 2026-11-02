@@ -19,9 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
 import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
-import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
@@ -85,36 +83,7 @@ public class StructureService {
         return uai2structure.get(uai);
     }
 
-    /**
-     * Indique si un utilisateur fait parti des établissements gérés par le Recia
-     */
-    public boolean isReseauRecia(LdapUserDto p) {
-        final String uid = p.getId();
-        final List<String> uais = p.getAttribute(ConstLDAP.ESCOUAI);
-        if (uais == null || uais.isEmpty()) {
-            log.debug("uid={} n'appartient au réseau recia (pas d'UAI)", uid);
-            return false;
-        }
-
-        for (String uai : uais) {
-            // 1ère possibilité : UAI étab dans la liste des UAI gérés
-            if (domaineProperties.getGestionInclude().contains(uai)) {
-                log.debug("UAI {} dans la liste d'inclusion, uid={} appartient au réseau recia", uai, uid);
-                return true;
-            }
-
-            // 2ème possibilité : domaine étab dans la liste des domaines gérés
-            final LdapStructureDto struct = findStructureByUai(uai);
-            if(isDomaineRecia(struct)){
-                log.debug("uid={} appartient au réseau recia", uid);
-                return true;
-            }
-        }
-        log.debug("uid={} n'appartient au réseau recia", uid);
-        return false;
-    }
-
-    private boolean isDomaineRecia(LdapStructureDto struct) {
+    public boolean isDomaineRecia(LdapStructureDto struct) {
         final String[] domaines = struct.getDomaines();
         for (String dom : domaines) {
             if (domaineProperties.getGestionRecia().contains(dom)){

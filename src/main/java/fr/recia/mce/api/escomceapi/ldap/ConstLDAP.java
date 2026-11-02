@@ -40,11 +40,11 @@ public final class ConstLDAP {
     public static final String ENS_CLASSES_MATIERES = "ENTAuxEnsClassesMatieres";
     public static final String ENS_CLASSES_MATIERES_ETAB = "ESCOAuxEnsCodeMatiereEnseignEtab";
     public static final String ENS_GROUPES = "ENTAuxEnsGroupes";
-    public static final String ENS_MATIERE_ETAB = "ENTAuxEnsMatiereEnseignEtab";
     public static final String ENS_GROUPES_MATIERES = "ENTAuxEnsGroupesMatieres";
+    public static final String ENS_MATIERE_ETAB = "ENTAuxEnsMatiereEnseignEtab";
+    /* Spécifiques tuteurs */
     public static final String TUTEUR_ELVES = "ENTAuxTuteurStageEleves";
     /* Structures */
-    public static final String DOMAINES = "ESCODomaines";
     public static final String STRUCT_DOMAINES = "ESCODomaines";
     public static final String STRUCT_NOM_COURANT = "ENTStructureNomCourant";
     public static final String STRUCT_JOINTURE = "ENTStructureJointure";
@@ -58,6 +58,8 @@ public final class ConstLDAP {
     public static final String STRUCTURE_BRANCH = "ou=structures";
 
     /* Valeurs */
+    /* ObjectClasses */
+    public static final String OC_TUTEUR_STAGE = "ENTAuxTuteurStage";
     /* Profils */
     public static final String PROFIL_ENS = "National_ENS";
 

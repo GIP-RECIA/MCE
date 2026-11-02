@@ -20,7 +20,8 @@ import lombok.Getter;
 @Getter
 public enum ConfirmationType {
 
-    EMAIL_VERIFICATION("VERIFY:"), PASSWORD_RESET("RESET:");
+    EMAIL_VERIFICATION("VERIFY:"),
+    PASSWORD_RESET("RESET:");
 
     private final String codePrefix;
 

@@ -16,18 +16,20 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.configuration.MCEProperties;
+import fr.recia.mce.api.escomceapi.configuration.bean.DomaineProperties;
 import fr.recia.mce.api.escomceapi.configuration.bean.MailProperties;
 import fr.recia.mce.api.escomceapi.configuration.cache.CacheNames;
 import fr.recia.mce.api.escomceapi.db.entities.APersonne;
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
 import fr.recia.mce.api.escomceapi.db.enums.DomSource;
 import fr.recia.mce.api.escomceapi.db.enums.EnumCategorie;
-import fr.recia.mce.api.escomceapi.db.enums.EnumObjectClass;
 import fr.recia.mce.api.escomceapi.db.enums.EnumPublic;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerbereConfirmationRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.ValidationCharteRepository;
 import fr.recia.mce.api.escomceapi.db.services.DatabaseUserService;
+import fr.recia.mce.api.escomceapi.ldap.ConstLDAP;
+import fr.recia.mce.api.escomceapi.ldap.LdapStructureDto;
 import fr.recia.mce.api.escomceapi.ldap.LdapUserDto;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
 import fr.recia.mce.api.escomceapi.services.beans.RelationEleveContact;
@@ -65,6 +67,7 @@ import java.util.regex.Pattern;
 public class PersonneService {
 
     private final MCEProperties mceProperties;
+    private final DomaineProperties domaineProperties;
     private final APersonneRepository aPersonneRepository;
     private final ValidationCharteRepository validationCharteRepository;
     private final LdapUserDaoImpl userLdapDao;
@@ -78,10 +81,11 @@ public class PersonneService {
     private Pattern groupsWithSSHAPassword;
     private Pattern groupsWithNtPassword;
 
-    public PersonneService(MCEProperties mceProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
+    public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
                            ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CacheManager cacheManager,
                            StructureService structureService, RelationEleveService relationEleveService, CerbereConfirmationRepository cerbereConfirmationRepository, DatabaseUserService databaseUserService) {
         this.mceProperties = mceProperties;
+        this.domaineProperties = domaineProperties;
         this.mailProperties = mailProperties;
         this.extDao = extDao;
         this.userLdapDao = userLdapDao;
@@ -146,10 +150,9 @@ public class PersonneService {
     }
 
     private List<RelationEleveContact> getApprentis(LdapUserDto ldapUser, DatabaseUserDto databaseUser){
-        boolean isMaitre = false;
         List<RelationEleveContact> apprentisList = new ArrayList<>();
-        List<String> objectClasses = ldapUser.getAttribute("objectClass");
-        isMaitre = EnumObjectClass.containsMaitre(objectClasses);
+        final List<String> objectClasses = ldapUser.getAttribute(ConstLDAP.OBJECT_CLASS);
+        final boolean isMaitre = objectClasses.contains(ConstLDAP.OC_TUTEUR_STAGE);
         if (isMaitre) {
             apprentisList = relationEleveService.allApprentiEnRelation(ldapUser, databaseUser);
             log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", ldapUser.getId(), apprentisList != null ? apprentisList.size() : 0);
@@ -164,7 +167,7 @@ public class PersonneService {
      * - soit il a fait partie de la gestion spécifique ntPass
      */
     private boolean canEditPassword(UserDto userDto) {
-        return userDto.getEnumPublic().isConnectOk() || userDto.getDatabaseUserDto().isNtPass();
+        return userDto.getEnumPublic().isAuthLocale() || userDto.getDatabaseUserDto().isNtPass();
     }
 
     /**
@@ -194,7 +197,7 @@ public class PersonneService {
      * Indique si un utilisateur a un mot de passe établissement dans les établissements gérés par le support recia
      */
     private boolean hasNetworkEtabPass(UserDto userDto) {
-        return userDto.getEnumPublic().isPassEtab() && structureService.isReseauRecia(userDto.getLdapUserDto());
+        return userDto.getEnumPublic().isPassEtab() && isReseauRecia(userDto.getLdapUserDto());
     }
 
     /**
@@ -317,6 +320,34 @@ public class PersonneService {
         clearUserCaches(uid);
     }
 
+    /**
+     * Indique si un utilisateur fait parti des établissements gérés par le Recia
+     */
+    private boolean isReseauRecia(LdapUserDto p) {
+        final String uid = p.getId();
+        final List<String> uais = p.getAttribute(ConstLDAP.ESCOUAI);
+        if (uais == null || uais.isEmpty()) {
+            log.debug("uid={} n'appartient au réseau recia (pas d'UAI)", uid);
+            return false;
+        }
+
+        for (String uai : uais) {
+            // 1ère possibilité : UAI étab dans la liste des UAI gérés
+            if (domaineProperties.getGestionInclude().contains(uai)) {
+                log.debug("UAI {} dans la liste d'inclusion, uid={} appartient au réseau recia", uai, uid);
+                return true;
+            }
+
+            // 2ème possibilité : domaine étab dans la liste des domaines gérés
+            final LdapStructureDto struct = structureService.findStructureByUai(uai);
+            if(structureService.isDomaineRecia(struct)){
+                log.debug("uid={} appartient au réseau recia", uid);
+                return true;
+            }
+        }
+        log.debug("uid={} n'appartient au réseau recia", uid);
+        return false;
+    }
 
     /**
      * Lève une exeption si l'utilisateur ne peut pas changer son mail
