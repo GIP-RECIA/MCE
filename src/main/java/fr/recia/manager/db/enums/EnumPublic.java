@@ -24,180 +24,162 @@ import lombok.Getter;
 public enum EnumPublic {
 
     /**
-     * Les élèves CFR / CFA (apprentis).
+     * personnel de l'education nationnal (prof et autre).
      */
-    APPRENANT(
-            rules(rule(EnumCategorie.ELEVE, DomSource.CFA, null, null)),
-            true, true, false, false, true),
-
+    EDUCATION,
     /**
-     * Les élèves de l'éducation nationale connectés via EduConnect.
+     * personnel enseignement agricole authentifié par l'enseignement agricole.
      */
-    ELEVE_EDUC(
-            rules(rule(EnumCategorie.ELEVE, DomSource.AC, false, null)),
-            false, true, false, true, true),
-
+    AGRI,
     /**
-     * Les élèves de l'enseignement agricole (non CFA).
+     * personnel de la region centre val de loire
+     * ¡attention il y a aussi les personnes des collectivites sans controle!
      */
-    ELEVE_AGRI(
-            rules(rule(EnumCategorie.ELEVE, DomSource.LA, null, null)),
-            false, true, false, false, true),
-
+    CVDL,
     /**
-     * Les élèves (authentification locale).
+     * personnel non education nationnal non agri.
      */
-    ELEVE(
-            rules(
-                    rule(EnumCategorie.ELEVE, DomSource.AC, true, null),
-                    rule(EnumCategorie.ELEVE, null, null, null)),
-            true, true, false, false, true),
-
+    PERSONNEL,
     /**
-     * Les parents de l'éducation nationale connectés via EduConnect.
+     * Les parents
      */
-    PARENT_EDUC(
-            rules(
-                rule(EnumCategorie.PARENT, DomSource.AC, false, null)),
-            false, false, true, true, false),
-
+    PARENT,
     /**
-     * Les parents de l'enseignement agricole.
+     * Les parents educ nat
      */
-    PARENT_AGRI(
-            rules(rule(EnumCategorie.PARENT, DomSource.LA, null, null)),
-            false, false, true, false, false),
-
+    PARENT_EDUC,
     /**
-     * Les parents (authentification locale).
+     * les parents agri
      */
-    PARENT(
-            rules(
-                    rule(EnumCategorie.PARENT, DomSource.AC, true, null),
-                    rule(EnumCategorie.PARENT,null, null, null)),
-            true, false, true, false, false),
-
+    PARENT_AGRI,
     /**
-     * Personnel de l'éducation nationale (enseignants et non-enseignants), authentifié hors local (CAS).
+     * les eleves educ nat
      */
-    EDUCATION(
-            rules(
-                    rule(EnumCategorie.PROF, DomSource.AC, false, null),
-                    rule(EnumCategorie.NON_PROF_ETAB, DomSource.AC, false, null),
-                    rule(EnumCategorie.NON_PROF_ACAD, DomSource.AC, false, null),
-                    rule(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.AC, false, false)),
-            false, false, false, false, true),
-
+    ELEVE_EDUC,
     /**
-     * Personnel enseignement agricole, authentifié par l'enseignement agricole (hors local).
+     * les eleves agri non cfa
      */
-    AGRI(
-            rules(
-                    rule(EnumCategorie.PROF, DomSource.LA, false, null),
-                    rule(EnumCategorie.NON_PROF_ETAB, DomSource.LA, false, null),
-                    rule(EnumCategorie.NON_PROF_ACAD, DomSource.LA, false, null),
-                    rule(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.LA, false, false)),
-            false, false, false, false, true),
-
+    ELEVE_AGRI,
     /**
-     * Personnel de la région Centre-Val de Loire.
+     * les eleves autre (localuser par exemple)
      */
-    // TODO : ces règles ne sont pas suffisantes pour identifier les personnels RCVL
-    CVDL(
-            rules(rule(EnumCategorie.NON_PROF_COL_LOCAL, null, false, true)),
-            false, false, false, false, true),
-
+    ELEVE,
     /**
-     * Personnel ni éducation nationale ni agricole, authentifié localement.
+     * les eleves cfa
      */
-    PERSONNEL(
-            rules(
-                    // collectivité + source locale -> personnel
-                    rule(EnumCategorie.NON_PROF_COL_LOCAL, null, true, true),
-                    // collectivité non-collectivité, académie + local -> personnel
-                    rule(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.AC, true, false),
-                    // collectivité non-collectivité, agricole + local -> personnel
-                    rule(EnumCategorie.NON_PROF_COL_LOCAL, DomSource.LA, true, false),
-                    // enseignant académie + local -> personnel
-                    rule(EnumCategorie.PROF, DomSource.AC, true, null),
-                    // enseignant agricole + local -> personnel
-                    rule(EnumCategorie.PROF, DomSource.LA, true, null),
-                    // non-enseignant établissement académie + local -> personnel
-                    rule(EnumCategorie.NON_PROF_ETAB, DomSource.AC, true, null),
-                    // non-enseignant établissement agricole + local -> personnel
-                    rule(EnumCategorie.NON_PROF_ETAB, DomSource.LA, true, null),
-                    // non-enseignant académique académie + local -> personnel
-                    rule(EnumCategorie.NON_PROF_ACAD, DomSource.AC, true, null),
-                    // non-enseignant académique agricole + local -> personnel
-                    rule(EnumCategorie.NON_PROF_ACAD, DomSource.LA, true, null),
-                    // catch-all : tout enseignant restant (autre source GIP/COLL/CFA ou sans structure) -> personnel
-                    rule(EnumCategorie.PROF,null, null, null),
-                    // catch-all : tout non-enseignant établissement restant -> personnel
-                    rule(EnumCategorie.NON_PROF_ETAB,null, null, null),
-                    // catch-all : toute collectivité restante -> personnel
-                    rule(EnumCategorie.NON_PROF_COL_LOCAL,null, null, null)),
-            true, false, false, false, true),
-
+    APPRENANT,
     /**
-     * Entreprises, tuteurs de stage…
+     * Entreprise , tuteur ...
      */
-    EXTERIEUR(
-            rules(
-                    rule(EnumCategorie.ENTREPRISE,null, null, null),
-                    rule(EnumCategorie.TUTEUR,null, null, null)),
-            true, false, false, false, false),
-
+    EXTERIEUR,
     /**
-     * Le reste : toute personne non reconnue par les profils précédents.
+     * le reste
      */
-    AUTRE(
-            rules(rule(EnumCategorie.NON_PROF_ACAD,null, null, null)),
-            true, false, false, false, false);
+    AUTRE;
 
-    @Getter
-    private final Rule[] rules;
-    private final boolean authLocale;
-    private final boolean eleve;
-    private final boolean parent;
-    private final boolean educonnect;
-    private final boolean passEtab;
-    EnumPublic(Rule[] rules, boolean authLocale, boolean eleve, boolean parent, boolean educonnect, boolean passEtab) {
-        this.rules = rules;
-        this.authLocale = authLocale;
-        this.eleve = eleve;
-        this.parent = parent;
-        this.educonnect = educonnect;
-        this.passEtab = passEtab;
+
+    public boolean isAuthLocale() {
+        return switch (this) {
+            case EDUCATION, AGRI, CVDL, ELEVE_EDUC, PARENT_EDUC, ELEVE_AGRI, PARENT_AGRI -> false;
+            default -> true;
+        };
+    }
+
+    public boolean isEleve(){
+        return switch (this) {
+            case ELEVE_EDUC, ELEVE, ELEVE_AGRI, APPRENANT -> true;
+            default -> false;
+        };
+
+    }
+
+    public boolean isParent(){
+        return switch (this) {
+            case PARENT, PARENT_EDUC, PARENT_AGRI -> true;
+            default -> false;
+        };
+    }
+
+    public boolean isEduconnect(){
+        return switch (this) {
+            case PARENT_EDUC, ELEVE_EDUC -> true;
+            default -> false;
+        };
     }
 
     /**
-     * Regroupe les règles d'un profil.
+     * Donne les populations pouvant changer leurs mots de passe établissement.
+     * ne suffit pas a donner le liens il faut par ailleur verifier le périmetre
+     * (sont'il géré par le gip)
      */
-    private static Rule[] rules(Rule... rules) {
-        return rules;
+    public boolean isPassEtab() {
+        switch (this) {
+            case EDUCATION:
+            case AGRI:
+            case CVDL:
+            case PERSONNEL:
+            case ELEVE_EDUC:
+            case APPRENANT:
+            case ELEVE:
+            case ELEVE_AGRI:
+                return true;
+            default:
+                return false;
+        }
     }
 
-    /**
-     * Crée une règle contraignant la catégorie, la source de la structure, le caractère local de l'authentification et la collectivité
-     */
-    private static Rule rule(EnumCategorie categorie, DomSource source, Boolean local, Boolean collectivite) {
-        return new Rule(categorie, source, local, collectivite);
-    }
 
     /**
      * Résout le profil d'une personne à partir de ses caractéristiques
      */
-    public static EnumPublic resolve(EnumCategorie categorie, DomSource source, boolean local, boolean collectivite) {
-        if (categorie == null) {
-            return AUTRE;
-        }
-        for (EnumPublic profil : values()) {
-            for (Rule rule : profil.rules) {
-                if (rule.matches(categorie, source, local, collectivite)) {
-                    return profil;
+    public static EnumPublic resolve(EnumCategorie categorie, DomSource source, boolean local, boolean isCollViaCas) {
+        switch (categorie){
+            case ELEVE:
+                return switch (source) {
+                    case CFA -> EnumPublic.APPRENANT;
+                    case AC -> local ? EnumPublic.ELEVE : EnumPublic.ELEVE_EDUC;
+                    case LA -> local ? EnumPublic.ELEVE : EnumPublic.ELEVE_AGRI;
+                    default -> EnumPublic.ELEVE;
+                };
+
+            case PARENT:
+                return switch (source) {
+                    case AC -> local ? EnumPublic.PARENT : EnumPublic.PARENT_EDUC;
+                    case LA -> local ? EnumPublic.PARENT : EnumPublic.PARENT_AGRI;
+                    default -> EnumPublic.PARENT;
+                };
+
+            case PROF:
+                return switch (source) {
+                    case AC -> local ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                    case LA -> local ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                    default -> EnumPublic.PERSONNEL;
+                };
+
+            case ENTREPRISE, TUTEUR:
+                return EnumPublic.EXTERIEUR;
+
+            case NON_PROF_COL_LOCAL:
+                if (isCollViaCas) {
+                    return local ? EnumPublic.PERSONNEL : EnumPublic.CVDL;
                 }
-            }
+                return AUTRE;
+
+            case NON_PROF_ETAB:
+                return switch (source) {
+                    case AC -> local ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                    case LA -> local ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                    default -> EnumPublic.PERSONNEL;
+                };
+
+            case NON_PROF_ACAD:
+                return switch (source) {
+                    case AC -> local ? EnumPublic.PERSONNEL : EnumPublic.EDUCATION;
+                    case LA -> local ? EnumPublic.PERSONNEL : EnumPublic.AGRI;
+                    default -> EnumPublic.AUTRE;
+                };
         }
+
         return AUTRE;
     }
 

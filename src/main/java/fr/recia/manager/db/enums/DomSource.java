@@ -17,5 +17,18 @@
 package fr.recia.manager.db.enums;
 
 public enum DomSource {
-    AC, CFA, GIP, LA, REGION, COLL, EF2S;
+    // Source académique
+    AC,
+    // Source pour les CFA
+    CFA,
+    // Source GIP
+    GIP,
+    // Source lycées agri
+    LA,
+    // Source région
+    REGION,
+    // TODO : Source coll (je suppose que c'est toutes les collectivités sauf GIP et région)
+    COLL,
+    // Source EF2S
+    EF2S;
 }

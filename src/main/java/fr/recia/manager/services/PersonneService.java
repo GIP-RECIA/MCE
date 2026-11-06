@@ -115,17 +115,14 @@ public class PersonneService {
         log.debug("Cache miss pour 'personneCache' : Récupération des données pour l'uid [{}]", uid);
         LdapUserDto ldapUser = userLdapDao.getUserLdap(uid);
         DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
-        boolean isLocalUser = false;
-        boolean isCollectivite = false;
         String source = databaseUser.getSource();
-        // TODO : domsource
+        // TODO : domsource, ça a l'air d'être le domaine de la structure de la personne
         DomSource ds = DomSource.AC;
-        if (source != null) {
-            isLocalUser = source.startsWith("SarapisUi");
-            isCollectivite = source.endsWith("COLL-CVDL");
-        }
-        EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
-        EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
+        final boolean isLocalUser = source.startsWith(ConstLDAP.SOURCE_LOCALE);
+        // Personne des collectivités qui passent quand même par CAS
+        final boolean isCollViaCas = source.equals(ConstLDAP.SOURCE_CVDL) || source.equals(ConstLDAP.SOURCE_CD28) || source.equals(ConstLDAP.SOURCE_RREUNION);
+        final EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
+        final EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollViaCas);
         List<RelationEleveContact> apprentisList = getApprentis(ldapUser, databaseUser);
         // Donne les parents d'un élève
         List<RelationEleveContact> respEleves = relationEleveService.allRelationEleves(uid);

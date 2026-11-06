@@ -62,5 +62,10 @@ public final class ConstLDAP {
     public static final String OC_TUTEUR_STAGE = "ENTAuxTuteurStage";
     /* Profils */
     public static final String PROFIL_ENS = "National_ENS";
+    /* Source locale */
+    public static final String SOURCE_LOCALE = "SarapisUi_";
+    public static final String SOURCE_CVDL = "COLL-CVDL";
+    public static final String SOURCE_CD28 = "COLL-CD28";
+    public static final String SOURCE_RREUNION = "COLL-RREUNION";
 
 }

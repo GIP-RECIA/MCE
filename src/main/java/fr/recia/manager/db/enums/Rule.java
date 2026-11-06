@@ -26,13 +26,13 @@ public class Rule {
     private final DomSource source;
     /** Caractère local attendu, null = quelconque. */
     private final Boolean local;
-    /** Caractère collectivité attendu, null = quelconque. */
-    private final Boolean collectivite;
+    /** Caractère rcvl attendu, null = quelconque. */
+    private final Boolean rcvl;
 
     /**
      * Indique si les caractéristiques d'une personne correspondent à cette règle.
      */
-    public boolean matches(EnumCategorie cat, DomSource src, boolean isLocal, boolean isCollectivite) {
-        return categorie == cat && (source == null || source == src) && (local == null || local == isLocal) && (collectivite == null || collectivite == isCollectivite);
+    public boolean matches(EnumCategorie cat, DomSource src, boolean isLocal, boolean isRCVL) {
+        return categorie == cat && (source == null || source == src) && (local == null || local == isLocal) && (rcvl == null || rcvl == isRCVL);
     }
 }
