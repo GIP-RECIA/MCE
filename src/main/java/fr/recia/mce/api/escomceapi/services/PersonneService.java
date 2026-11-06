@@ -59,6 +59,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
@@ -78,8 +79,6 @@ public class PersonneService {
     private final RelationEleveService relationEleveService;
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final DatabaseUserService databaseUserService;
-    private Pattern groupsWithSSHAPassword;
-    private Pattern groupsWithNtPassword;
 
     public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
                            ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CacheManager cacheManager,
@@ -96,16 +95,11 @@ public class PersonneService {
         this.relationEleveService = relationEleveService;
         this.cerbereConfirmationRepository = cerbereConfirmationRepository;
         this.databaseUserService = databaseUserService;
-        String regex = mceProperties.getService().getCustomParams().getRegexGroupsWithSshaPass();
-        if (regex != null) {
-            this.groupsWithSSHAPassword = Pattern.compile(regex);
-        }
-        String ntRegex = mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt();
-        if (ntRegex != null) {
-            this.groupsWithNtPassword = Pattern.compile(ntRegex);
-        }
     }
 
+    /**
+     * Méthode centrale qui créé un utilisateur en récupérant et en précalculant toutes les informations utiles
+     */
     public UserDto getUser(String uid){
         // Récupération dans le cache si possible
         Cache cache = cacheManager.getCache(CacheNames.PERSONNE_CACHE);
@@ -140,8 +134,9 @@ public class PersonneService {
         UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), ep, apprentisList, respEleves, eleves);
         personne.setCanEditMailPerso(canEditMailPerso(personne));
         personne.setCanEditPassword(canEditPassword(personne));
-        personne.setHasPasswordEtab(hasNetworkEtabPass(personne));
         personne.setEduconnect(isEduconnect(personne));
+        personne.setPasswordEtab(hasEtabPass(personne));
+        personne.setPasswordNetwork(hasNetworkPass(personne));
         if (cache != null) {
             cache.putIfAbsent(uid, personne);
         }
@@ -196,8 +191,25 @@ public class PersonneService {
     /**
      * Indique si un utilisateur a un mot de passe établissement dans les établissements gérés par le support recia
      */
-    private boolean hasNetworkEtabPass(UserDto userDto) {
+    private boolean hasEtabPass(UserDto userDto) {
         return userDto.getEnumPublic().isPassEtab() && isReseauRecia(userDto.getLdapUserDto());
+    }
+
+    /**
+     * Indique si un utilisateur a un mot de passe réseau (différent du mot de passe établissement)
+     * Attention certains passent par l'auth locale et d'autres non
+     */
+    private boolean hasNetworkPass(UserDto userDto) {
+        // mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()
+        final String regex = "^coll:Applications:ESCOLAN:GCR:.*$";
+        final Pattern pattern = Pattern.compile(regex);
+        for(String group : userDto.getLdapUserDto().getAttribute(ConstLDAP.IS_MEMBER_OF)){
+            Matcher m = pattern.matcher(group);
+            if (m.matches()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

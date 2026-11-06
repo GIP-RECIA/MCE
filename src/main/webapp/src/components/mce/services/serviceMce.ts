@@ -98,23 +98,6 @@ async function getNetworkPasswordStatus(
   return getMCE(url)
 }
 
-/** Change le mot de passe réseau directement (compte authentifié, sans ancien mot de passe ni code). */
-async function resetNetworkPassword(
-  baseUrl: string,
-  newPass: string,
-  confirmPass: string,
-) {
-  const response = await fetch(`${baseUrl}/network-password/reset`, {
-    method: 'POST',
-    body: JSON.stringify({ newPassword: newPass, confirmPassword: confirmPass }),
-    headers: {
-      'content-type': 'application/json',
-    },
-  })
-  await throwIfNotOk(response, `${baseUrl}/network-password/reset`)
-  return { data: await response.json().catch(() => null) }
-}
-
 async function updateEmail(
   baseUrl: string,
   email: string,

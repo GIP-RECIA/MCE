@@ -17,12 +17,13 @@
 package fr.recia.mce.api.escomceapi.services;
 
 import fr.recia.mce.api.escomceapi.db.dto.DatabaseUserDto;
-import fr.recia.mce.api.escomceapi.services.exception.InactiveAccountException;
-import fr.recia.mce.api.escomceapi.services.exception.InvalidCodeException;
+import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
+import fr.recia.mce.api.escomceapi.services.logging.Loggers;
 import fr.recia.mce.api.escomceapi.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -32,100 +33,89 @@ public class ChangePasswordService {
 
     private final PersonneService personneService;
     private final PasswordService passwordService;
-    private final ResendPolicyService resendPolicyService;
+    private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
+    // TODO : Marqueur actif complet pour les comptes valides SANS mot de passe local : "{SSHA}Active" + 50 "="
+    public static final String ACTIVE_WITHOUT_PASSWORD = "{SSHA}Active" + "=".repeat(50);
 
-    public ChangePasswordService(PersonneService personneService, PasswordService passwordService, ResendPolicyService resendPolicyService){
+    public ChangePasswordService(PersonneService personneService, PasswordService passwordService){
         this.personneService = personneService;
         this.passwordService = passwordService;
-        this.resendPolicyService = resendPolicyService;
     }
 
-    public void changePassword(UserDto userDto, PasswordChangeRequestDTO req) {
-        boolean eduConnect = userDto.getEnumPublic() != null && userDto.getEnumPublic().isEduconnect();
-        boolean editable = userDto.isCanEditPassword();
-        log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})",
-            userDto.getLdapUserDto().getId(), editable, userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass(), userDto.getDatabaseUserDto().getSource(), eduConnect);
+    /**
+     * Change le mot de passe + mot de passe réseau si besoin
+     */
+    public void changePassword(UserDto user, PasswordChangeRequestDTO request) {
+        final String uid = user.getUid();
+        final boolean editable = user.isCanEditPassword();
+        log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})", uid, editable, user.getEnumPublic(), user.getDatabaseUserDto().isNtPass(), user.getDatabaseUserDto().getSource(), user.isEduconnect());
         if (!editable) {
-            if (eduConnect) {
-                throw new AccessDeniedException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
-            }
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre mot de passe");
         }
-        passwordService.changePassword(userDto.getDatabaseUserDto(), req);
-        personneService.clearUserCaches(userDto.getLdapUserDto().getId());
-    }
+        // TODO : vérifier qu'on a pas déjà tapé un mot de passe, car si c'est le cas pour le changer on va quand même demander l'ancien
+        final boolean noOldPass = false;
 
-    /**
-     * Parcours « mot de passe réseau » pour un compte déjà authentifié dans Mon Compte. Conforme à l'ancienne application Cerbère : un compte CVDL ntPass
-     * sans mot de passe local stocké ({@code noOldPass}) ne fournit ni ancien mot de passe ni code de
-     * vérification — il change directement son mot de passe réseau (nouveau + confirmation). L'état du compte
-     * doit être Valide ; la charte n'est pas re-demandée (l'ancien écran ne la redemandait pas non plus).
-     *
-     * @param uid identifiant de l'utilisateur authentifié (provenant du jeton, jamais du corps de requête)
-     */
-    @Transactional
-    public void changeNetworkPassword(String uid, String newPassword, String confirmPassword) {
-        log.info("[NETWORK_PASSWORD_RESET] Début changeNetworkPassword uid={}", uid);
-        UserDto userDto = personneService.getUser(uid);
-        if (uid == null || uid.isBlank()) {
-            throw new InvalidCodeException("Le changement de mot de passe réseau a échoué.");
-        }
-        assertAccountActive(userDto.getDatabaseUserDto(), "NETWORK_PASSWORD_RESET");
-
-        // Réservé aux comptes à mot de passe réseau seul : un compte disposant d'un mot de passe local
-        // stocké doit passer par le changement avec l'ancien mot de passe.
-        if (!passwordService.isNoOldPassEligible(userDto.getDatabaseUserDto())) {
-            log.warn("[NETWORK_PASSWORD_RESET] REFUSÉ pour l'utilisateur [{}] - Raison : compte non éligible au mot de passe réseau seul", uid);
-            throw new InvalidCodeException(
-                "Ce parcours est réservé aux comptes à mot de passe réseau seul. Si votre compte dispose d'un mot de passe local, utilisez le changement avec votre ancien mot de passe.");
+        try {
+            validateRequest(request, noOldPass);
+        } catch (WeakPasswordException e) {
+            specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
+            throw e;
+        } catch (IllegalArgumentException e) {
+            specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de vérification du mot de passe | Détail : {}", uid, e.getMessage());
+            throw e;
         }
 
-        // Même règle de réinitialisation que le parcours public : CVDL ntPass autorisé.
-        resendPolicyService.assertPasswordResetAllowed(userDto);
-        passwordService.resetPassword(userDto.getDatabaseUserDto(), newPassword, confirmPassword);
-        personneService.clearUserCaches(userDto.getDatabaseUserDto().getUid());
-
-        log.info("[NETWORK_PASSWORD_RESET] Succès uid={}", userDto.getDatabaseUserDto().getUid());
-    }
-
-    /**
-     * Statut du parcours « mot de passe réseau » du compte authentifié, exposé au portail Mon Compte afin
-     * qu'il affiche l'écran de changement direct pour les comptes éligibles (CVDL ntPass sans mot de passe
-     * local stocké et état Valide). {@code ntPass} n'étant pas présent dans le jeton OIDC, l'éligibilité se
-     * calcule côté serveur.
-     *
-     * @param uid identifiant de l'utilisateur authentifié (provenant du jeton, jamais du corps de requête)
-     * @return {@link NetworkPasswordResetStatusDTO} (jamais {@code null} ; uid inconnu ⇒ non éligible)
-     */
-    public NetworkPasswordResetStatusDTO getNetworkPasswordResetStatus(String uid) {
-        log.info("[NETWORK_PASSWORD_RESET] Statut uid={}", uid);
-        UserDto userDto = personneService.getUser(uid);
-        boolean eligible = false;
-        DatabaseUserDto databaseUserDto = userDto.getDatabaseUserDto();
-        if (databaseUserDto != null) {
-            if (resendPolicyService.isInactiveAccount(databaseUserDto)) {
-                log.info("[NETWORK_PASSWORD_RESET] Compte non actif uid={}, statut non éligible", uid);
+        // Dans le cas ou il faut donner l'ancien mot de passe
+        if (!noOldPass) {
+            // Si l'ancien mot de passe matche, alors on change le mot de passe
+            if (passwordService.verifyPassword(user, request.getOldPass(), false)) {
+                passwordService.updatePassword(user, request.getNewPass(), "CHANGE_PASSWORD");
             } else {
-                eligible = passwordService.isNoOldPassEligible(databaseUserDto);
+                specialLog.error("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur lors de la vérification du mot de passe", uid);
+                throw new RuntimeException("Erreur technique lors de la vérification : ");
             }
+            // Dans le cas ou on a pas besoin de donner l'ancien mot de passe, on change sans vérifier
         } else {
-            log.warn("[NETWORK_PASSWORD_RESET] Profil non chargeable pour uid={}, statut non éligible", uid);
+            passwordService.updatePassword(user, request.getNewPass(), "CHANGE_PASSWORD");
         }
-
-        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, eligible);
-        return new NetworkPasswordResetStatusDTO(true);
+        personneService.clearUserCaches(uid);
     }
 
     /**
-     * Garde commune aux parcours de réinitialisation et mot de passe réseau : refuse un compte dont l'état
-     * n'est pas Valide (supprimé, bloqué, en attente...).
+     * Indique si un utilisateur à un mot de passe réseau qu'il peut changer sans avoir à fournir d'ancien mot de passe
      */
-    private void assertAccountActive(DatabaseUserDto person, String logPrefix) {
-        if (resendPolicyService.isInactiveAccount(person)) {
-            log.warn("[{}] État '{}' ≠ '{}' pour uid={}", logPrefix, person.getEtat(), ResendPolicyService.VALID_ACCOUNT_STATE, person.getUid());
-            // TODO : c'est quoi ce message d'erreur ??????
-            throw new InactiveAccountException("Votre compte n'est pas actif. Contactez votre administrateur.");
+    public NetworkPasswordResetStatusDTO canChangeNetworkPasswordWithoutOldPassword(UserDto user) {
+        return new NetworkPasswordResetStatusDTO(user.isPasswordNetwork() && hasOldPassword(user));
+    }
+
+    /**
+     * Indique si l'utilisateur a un ancien mot de passe ou non
+     */
+    private boolean hasOldPassword(UserDto user){
+        return user.getDatabaseUserDto().getPassword().equals(ACTIVE_WITHOUT_PASSWORD);
+    }
+
+    /**
+     * Vérifie qu'une requête de modification de mot de passe est correcte
+     * Lève une exception si ce n'est pas le cas
+     */
+    private void validateRequest(PasswordChangeRequestDTO request, boolean noOldPass) {
+        if (request == null) {
+            throw new IllegalArgumentException("Requête invalide");
         }
+        if (!noOldPass && (request.getOldPass() == null || request.getOldPass().isBlank())) {
+            throw new IllegalArgumentException("Ancien mot de passe requis");
+        }
+        if (request.getNewPass() == null || request.getNewPass().isBlank()) {
+            throw new IllegalArgumentException("Nouveau mot de passe requis");
+        }
+        if (request.getOldPass() != null && request.getOldPass().equals(request.getNewPass())) {
+            throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'ancien");
+        }
+        if (!request.getNewPass().equals(request.getConfirmPass())) {
+            throw new IllegalArgumentException("La confirmation du mot de passe ne correspond pas");
+        }
+        passwordService.isPasswordStrongEnough(request.getNewPass());
     }
 
 }

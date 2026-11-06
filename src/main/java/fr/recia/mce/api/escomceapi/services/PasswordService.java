@@ -22,10 +22,8 @@ import fr.recia.mce.api.escomceapi.db.entities.CerberePassword;
 import fr.recia.mce.api.escomceapi.db.repositories.APersonneRepository;
 import fr.recia.mce.api.escomceapi.db.repositories.CerberePasswordRepository;
 import fr.recia.mce.api.escomceapi.ldap.repository.LdapUserDaoImpl;
-import fr.recia.mce.api.escomceapi.services.exception.PersonneNotFoundException;
 import fr.recia.mce.api.escomceapi.services.exception.WeakPasswordException;
 import fr.recia.mce.api.escomceapi.services.logging.Loggers;
-import fr.recia.mce.api.escomceapi.web.dto.PasswordChangeRequestDTO;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
 import jcifs.util.MD4;
@@ -36,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.UnsupportedEncodingException;
@@ -61,9 +58,6 @@ public class PasswordService {
     private static final String PREFIXCODE = "{SSHA}";
     private static final String PREFIXCODE_ARGON2 = "{ARGON2}";
     private static final String ACTIVE_PASSWORD = PREFIXCODE + "Active=";
-    // Marqueur actif complet pour les comptes valides SANS mot de passe local : "{SSHA}Active" + 50 "="
-    public static final String ACTIVE = PREFIXCODE + "Active" + "=".repeat(50);
-
     private static final Argon2PasswordEncoder argon2Encoder = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
 
     // private static final Pattern HASH_PATTERN = Pattern.compile("\\{((SSHA)|(ARGON2))\\}(.+)");
@@ -124,107 +118,25 @@ public class PasswordService {
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void changePassword(DatabaseUserDto person, PasswordChangeRequestDTO request) {
-
-        if (person == null) {
-            specialLog.error("Audit [CHANGE_PASSWORD] : REFUSÉ - Raison : Objet personne nul (méthode : changePassword)");
-            throw new PersonneNotFoundException("Utilisateur introuvable");
-        }
-
-        String uid = person.getUid() != null ? person.getUid() : "unknown";
-
-        String etat = person.getEtat();
-        if (!AccountState.same(etat, VALID_ACCOUNT_STATE)) {
-            specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Compte non actif (etat={})", uid, etat);
-            throw new IllegalArgumentException("Votre compte n'est pas dans un état valide");
-        }
-
-        boolean noOldPass = isNoOldPass(person);
-
-        try {
-            validateRequest(request, noOldPass);
-        } catch (WeakPasswordException e) {
-            specialLog.warn("Audit [CHANGE_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
-            throw e;
-        } catch (IllegalArgumentException e) {
-            specialLog.warn("Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de vérification du mot de passe | Détail : {}", uid,
-                    e.getMessage());
-            throw e;
-        }
-
-        if (!noOldPass) {
-            try {
-                boolean ok = verifyPassword(person, request.getOldPass(), false);
-
-                if (!ok) {
-                    throw new IllegalArgumentException("Ancien mot de passe incorrect");
-                }
-
-            } catch (IllegalArgumentException e) {
-                throw e;
-
-            } catch (Exception e) {
-                specialLog.error(
-                        "Audit [CHANGE_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur technique lors de la vérification du mot de passe | Détail : {}",
-                        uid, e.getMessage());
-                throw new RuntimeException("Erreur technique lors de la vérification : " + e.getMessage());
-            }
-        } else {
-            specialLog.info(
-                    "Audit [CHANGE_PASSWORD] : Contournement de la vérification de l'ancien mot de passe pour l'utilisateur [{}] - Raison : CVDL avec ntPass sans mot de passe stocké",
-                    uid);
-        }
-
-        updatePassword(person, request.getNewPass(), "CHANGE_PASSWORD");
-    }
-
+    /**
+     * Met à jour les mots de passe dans le LDAP et dans la BDD
+     */
     @Transactional
-    public void resetPassword(DatabaseUserDto person, String newPassword, String confirmPassword) {
-        String uid = person != null ? (person.getUid() != null ? person.getUid() : "unknown") : "null";
-        specialLog.info("Audit [RESET_PASSWORD] : DEBUT pour l'utilisateur [{}]", uid);
-
-        if (person == null) {
-            specialLog.error("Audit [RESET_PASSWORD] : REFUSÉ - Raison : Objet personne nul");
-            throw new PersonneNotFoundException("Utilisateur introuvable");
-        }
-
-        try {
-            if (newPassword == null || newPassword.isBlank()) {
-                throw new IllegalArgumentException("Nouveau mot de passe requis");
-            }
-            if (!newPassword.equals(confirmPassword)) {
-                throw new IllegalArgumentException("La confirmation du mot de passe ne correspond pas");
-            }
-            isPasswordStrongEnough(newPassword);
-            specialLog.info("Audit [RESET_PASSWORD] : validation paramètres OK pour [{}]", uid);
-        } catch (WeakPasswordException e) {
-            specialLog.warn("Audit [RESET_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Mot de passe trop faible", uid);
-            throw e;
-        } catch (IllegalArgumentException e) {
-            specialLog.warn("Audit [RESET_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : {}", uid, e.getMessage());
-            throw e;
-        }
-
-        updatePassword(person, newPassword, "RESET_PASSWORD");
-        specialLog.info("Audit [RESET_PASSWORD] : FIN pour l'utilisateur [{}]", uid);
-    }
-
-    private void updatePassword(DatabaseUserDto person, String newPassword, String auditPrefix) {
+    public void updatePassword(UserDto user, String newPassword, String auditPrefix) {
+        DatabaseUserDto person = user.getDatabaseUserDto();
         String uid = person.getUid() != null ? person.getUid() : "unknown";
         try {
             specialLog.info("Audit [{}] : updatePassword DEBUT uid={}", auditPrefix, uid);
 
             Algo algo = Algo.ARGON2;
-            boolean withSamba = requiresSamba(person);
-            specialLog.info("Audit [{}] : algo={} withSamba={} uid={}", auditPrefix, algo, withSamba, uid);
+            specialLog.info("Audit [{}] : algo={} withSamba={} uid={}", auditPrefix, algo, user.isPasswordNetwork(), uid);
 
             if (isPasswordAlreadyUsed(person, newPassword)) {
                 throw new WeakPasswordException("Ce mot de passe a déjà été utilisé");
             }
             specialLog.info("Audit [{}] : passwordAlreadyUsed=false uid={}", auditPrefix, uid);
 
-            PasswordResult result = generatePassword(newPassword, withSamba, algo, person.getUid());
+            PasswordResult result = generatePassword(newPassword, user.isPasswordNetwork(), algo, person.getUid());
             specialLog.info("Audit [{}] : generatePassword OK uid={}", auditPrefix, uid);
 
             closeLastPassword(person);
@@ -241,12 +153,10 @@ public class PasswordService {
 
             specialLog.info("Audit [{}] : SUCCÈS pour l'utilisateur [{}]", auditPrefix, uid);
         } catch (WeakPasswordException | IllegalArgumentException e) {
-            specialLog.warn("Audit [{}] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de logique métier | Détail : {}",
-                    auditPrefix, uid, e.getMessage());
+            specialLog.warn("Audit [{}] : ÉCHEC pour l'utilisateur [{}] - Raison : Erreur de logique métier | Détail : {}", auditPrefix, uid, e.getMessage());
             throw e;
         } catch (Exception e) {
-            specialLog.error("Audit [{}] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Erreur technique | Détail : {}",
-                    auditPrefix, uid, e.getMessage(), e);
+            specialLog.error("Audit [{}] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Erreur technique | Détail : {}", auditPrefix, uid, e.getMessage(), e);
             throw new RuntimeException("Erreur technique : " + e.getMessage());
         }
     }
@@ -258,7 +168,6 @@ public class PasswordService {
     private PasswordResult generatePassword(String password, boolean withSamba, Algo algo, String uid) {
 
         PasswordResult result = new PasswordResult();
-
         switch (algo) {
             case SSHA :
                 result.ldapHash = makeSSHA(password);
@@ -274,7 +183,6 @@ public class PasswordService {
         if (withSamba) {
             result.sambaLm = makeLmHash(password);
             result.sambaNt = makeNtHash(password);
-
             log.debug("Hashes samba générés pour uid={} (lm présent={}, nt présent={})", uid, result.sambaLm, result.sambaNt);
         }
 
@@ -307,8 +215,6 @@ public class PasswordService {
             throw new RuntimeException("Erreur SSHA : " + e.getMessage());
         }
     }
-
-    // --- SAMBA SECTION ---
 
     private String makeLmHash(String password) {
         try {
@@ -370,111 +276,8 @@ public class PasswordService {
         return p16;
     }
 
-    private boolean requiresSamba(DatabaseUserDto person) {
-        if (person == null)
-            return false;
-        String uid = person.getUid() != null ? person.getUid() : "unknown";
-
-        if (!isNtPasswordProfile(person)) {
-            specialLog.info("Audit [REQUIRES_SAMBA] : NON pour l'utilisateur [{}] - Raison : Profil non éligible au ntPass (ni CVDL ni source GIP)", uid);
-            return false;
-        }
-
-        String regex = mceProperties.getService()
-                .getCustomParams()
-                .getRegexGroupsWithSambaNt();
-
-        log.debug("vérificationSamba — regex configurée pour uid={} : '{}'", uid, regex);
-
-        if (regex == null || regex.isBlank()) {
-            specialLog.warn("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucune regex configurée pour les groupes Samba NT", uid);
-            return false;
-        }
-
-        // TODO : pass ldap user
-        /*
-        if (person.getExtUser() == null) {
-            specialLog.warn("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : L'objet utilisateur externe (LDAP) est nul", uid);
-            return false;
-        }
-         */
-
-        Pattern pattern;
-        try {
-            pattern = Pattern.compile(regex);
-        } catch (PatternSyntaxException e) {
-            specialLog.error("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : Motif regex invalide | Détail : {}", uid, e.getMessage());
-            return false;
-        }
-
-        // TODO : pass ldap user
-        //List<String> groups = person.getExtUser().getAttribute(externalUserHelper.getUserGroupAttribute());
-        List<String> groups = null;
-
-        if (groups == null || groups.isEmpty()) {
-            specialLog.warn("Audit [REQUIRES_SAMBA] : ÉCHEC pour l'utilisateur [{}] - Raison : Aucun groupe LDAP trouvé pour l'utilisateur", uid);
-            return false;
-        }
-
-        log.debug("vérificationSamba — {} groupe(s) trouvé(s) pour uid={} :", groups.size(), person.getUid());
-
-        boolean matched = false;
-        boolean debug = log.isDebugEnabled();
-        for (String group : groups) {
-            boolean matches = pattern.matcher(group).find();
-            if (debug) {
-                log.debug("  → groupe='{}' | correspondance={} (uid={})", group, matches, person.getUid());
-            }
-            if (matches) {
-                matched = true;
-            }
-        }
-
-        log.debug("vérificationSamba — résultat final pour l'uid={} : withSamba={}", person.getUid(), matched);
-        return matched;
-    }
-
-    private boolean isNtPasswordProfile(DatabaseUserDto person) {
-        return true;
-        // TODO
-//        EnumPublic res = person.getEnumPublic();
-//        boolean isCvdl = res != null && res.isNtProfile();
-//        StructureDTO.DomSource ds = null;
-//        if (person.getStructureDto() != null) {
-//            try {
-//                ds = person.getStructureDto().getDomSource();
-//            } catch (Exception e) {
-//                log.debug("vérificationSamba — domSource indisponible pour uid={} : {}", person.getUid(), e.getMessage());
-//            }
-//        }
-//        boolean isGip = StructureDTO.DomSource.GIP.equals(ds);
-//        log.debug("vérificationSamba — éligibilité profil uid={} : enumPublic={}, domSource={}, ntPass=({} || {})",
-//                person.getUid(), res, ds, isCvdl, isGip);
-//        return isCvdl || isGip;
-    }
-
-    // ---------------------------------------------------------------
-    // Parsing
-    // ---------------------------------------------------------------
-
     /**
      * Analyse un hash LDAP stocké et retourne un {@link ParsedPassword} immuable.
-     *
-     * <p>
-     * Formats supportés :
-     * </p>
-     * <ul>
-     * <li>{SSHA}… — digest SHA-1 + salt encodés en Base64</li>
-     * <li>{ARGON2}… — hash Argon2 brut</li>
-     * </ul>
-     *
-     * <p>
-     * Pattern à 4 groupes capturants (aligné sur {@code LdapPassword}) : {@code \{((SSHA)|(ARGON2))\}(.+)} — groupe(1) = algo, groupe(4) = contenu.
-     * </p>
-     *
-     * @param codageLdap
-     *            valeur brute lue depuis la base/LDAP
-     * @return {@link ParsedPassword} ou {@code null} si le format est invalide
      */
     private ParsedPassword parse(String codageLdap) {
 
@@ -485,8 +288,7 @@ public class PasswordService {
 
         Matcher m = HASH_PATTERN.matcher(codageLdap.trim());
         if (!m.matches()) {
-            specialLog.warn("Audit [PARSE] : ÉCHEC - Raison : Le hash ne correspond pas au format LDAP attendu (SSHA/ARGON2) | Détail : longueur_entrée={}",
-                    codageLdap.length());
+            specialLog.warn("Audit [PARSE] : ÉCHEC - Raison : Le hash ne correspond pas au format LDAP attendu (SSHA/ARGON2) | Détail : longueur_entrée={}", codageLdap.length());
             return null;
         }
 
@@ -540,88 +342,58 @@ public class PasswordService {
 
     /**
      * Vérifie un mot de passe en clair contre le hash stocké.
-     *
-     * <p>
-     * L'algorithme est détecté automatiquement via {@link #parse(String)}.
-     * </p>
-     *
-     * @param personne
-     *            utilisateur concerné
-     * @param input
-     *            mot de passe en clair à tester
-     * @param allowPlain
-     *            autorise la comparaison directe si le hash n'a pas de préfixe
-     * @return {@code true} si le mot de passe correspond
      */
-    public boolean verifyPassword(DatabaseUserDto personne, String input, boolean allowPlain) {
+    public boolean verifyPassword(UserDto user, String input, boolean allowPlain) {
 
+        final DatabaseUserDto personne = user.getDatabaseUserDto();
         if (personne == null || input == null || input.isBlank()) {
             specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ - Raison : Entrée invalide fournie (personne ou mot de passe fourni est nul/vide)");
             return false;
         }
 
-        String uid = personne.getUid() != null ? personne.getUid() : "unknown";
-
-        String stored = personne.getPassword();
+        final String uid = personne.getUid();
+        final String stored = personne.getPassword();
 
         if (stored == null || stored.isBlank()) {
-            specialLog.warn(
-                    "Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Aucun mot de passe trouvé en base de données pour cet utilisateur",
-                    uid);
+            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Aucun mot de passe trouvé en base de données pour cet utilisateur", uid);
             return false;
         }
 
         if (stored.startsWith(ACTIVE_PASSWORD)) {
-            specialLog.warn(
-                    "Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le compte est actif mais n'a aucun mot de passe utilisable défini",
-                    uid);
+            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le compte est actif mais n'a aucun mot de passe utilisable défini", uid);
             return false;
         }
 
+        // TODO : Vérification de mot de passe en clair, utile pour l'initialisation/réinitialisation du commpte ?
         if (!stored.startsWith("{")) {
-
             if (allowPlain) {
-                boolean match = MessageDigest.isEqual(
-                        stored.getBytes(StandardCharsets.UTF_8),
-                        input.getBytes(StandardCharsets.UTF_8));
-
+                boolean match = MessageDigest.isEqual(stored.getBytes(StandardCharsets.UTF_8), input.getBytes(StandardCharsets.UTF_8));
                 if (!match) {
                     specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Inadéquation du mot de passe en clair", uid);
                 }
-
                 return match;
             }
-
-            specialLog.warn(
-                    "Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : La vérification du mot de passe en clair n'est pas autorisée par la configuration",
-                    uid);
+            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : La vérification du mot de passe en clair n'est pas autorisée par la configuration", uid);
             return false;
         }
 
         ParsedPassword parsed = parse(stored);
-
         if (parsed == null) {
-            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le hash du mot de passe stocké est corrompu ou illisible",
-                    uid);
+            specialLog.warn("Audit [VERIFY_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Le hash du mot de passe stocké est corrompu ou illisible", uid);
             return false;
         }
 
+        // On teste si le nouveau mot de passe correspond à l'ancien, en testant les deux algos
         boolean match;
-
         switch (parsed.algo) {
-
-            case ARGON2 :
+            case ARGON2:
                 match = argon2Encoder.matches(input, parsed.hash);
                 break;
-
-            case SSHA :
+            case SSHA:
                 match = verifySSHA(parsed.digest, parsed.salt, input);
                 break;
-
-            default :
-                specialLog.error(
-                        "Audit [VERIFY_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Algorithme inconnu dans le mot de passe stocké | Détail : algo={}",
-                        uid, parsed.algo);
+            default:
+                specialLog.error("Audit [VERIFY_PASSWORD] : ABANDONNÉ pour l'utilisateur [{}] - Raison : Algorithme inconnu dans le mot de passe stocké | Détail : algo={}", uid, parsed.algo);
                 return false;
         }
 
@@ -675,74 +447,8 @@ public class PasswordService {
         return Arrays.equals(expectedDigest, md.digest());
     }
 
-    // ---------------------------------------------------------------
-    // Validation
-    // ---------------------------------------------------------------
-
-    public void validateRequest(PasswordChangeRequestDTO request, boolean noOldPass) {
-
-        if (request == null) {
-            throw new IllegalArgumentException("Requête invalide");
-        }
-
-        if (!noOldPass && (request.getOldPass() == null || request.getOldPass().isBlank())) {
-            throw new IllegalArgumentException("Ancien mot de passe requis");
-        }
-
-        if (request.getNewPass() == null || request.getNewPass().isBlank()) {
-            throw new IllegalArgumentException("Nouveau mot de passe requis");
-        }
-
-        if (request.getOldPass() != null && request.getOldPass().equals(request.getNewPass())) {
-            throw new IllegalArgumentException("Le nouveau mot de passe doit être différent de l'ancien");
-        }
-
-        if (!request.getNewPass().equals(request.getConfirmPass())) {
-            throw new IllegalArgumentException("La confirmation du mot de passe ne correspond pas");
-        }
-
-        isPasswordStrongEnough(request.getNewPass());
-    }
-
-    /**
-     * @return {@code true} si l'utilisateur peut changer son mdp sans fournir l'ancien. Conditions : CVDL strict (ni
-     *         PERSONNEL GIP) + ntPass + aucun vrai mdp stocké (null, blank ou marqueur {@code {SSHA}Active=}).
-     */
-    // TODO : regarder par ici pour les spécificités mot de passe réseau
-    private boolean isNoOldPass(DatabaseUserDto person) {
-        // TODO
-        return true;
-//        if (person == null || person.getEnumPublic() == null) {
-//            return false;
-//        }
-//        if (!person.isNtPass()) {
-//            return false;
-//        }
-//        log.error("efhaefgaegeigeageaya : {}", person);
-//        // CVDL est le seul profil sans connexion locale : !pub.isConnectOk() est toujours vrai pour CVDL (redondant).
-//        if (!EnumPublic.CVDL.equals(person.getEnumPublic())) {
-//            return false;
-//        }
-//        String stored = person.getAPersonneBase().getPassword();
-//        return stored == null || stored.isBlank() || stored.startsWith(ACTIVE_PASSWORD);
-    }
-
-    /**
-     * @return {@code true} si le compte est éligible au parcours « mot de passe réseau » (équivalent Cerbère
-     *         NewPassRezo) : CVDL strict + ntPass + aucun mot de passe local stocké. C'est la condition pour
-     *         demander un code de changement par email (il n'y a pas d'ancien mot de passe à vérifier).
-     */
-    public boolean isNoOldPassEligible(DatabaseUserDto person) {
-        return isNoOldPass(person);
-    }
-
     /**
      * Vérifie si le mot de passe est assez fort et lance une exception si ce n'est pas le cas.
-     *
-     * @param pass
-     *            Le mot de passe à valider.
-     * @throws WeakPasswordException
-     *             Si le mot de passe ne respecte pas les critères de sécurité.
      */
     public void isPasswordStrongEnough(String pass) {
         if (pass == null) {
@@ -772,20 +478,14 @@ public class PasswordService {
             types++;
 
         if (types < minTypes) {
-            throw new WeakPasswordException(
-                    "Le mot de passe doit contenir au moins " + minTypes + " types différents de caractères (minuscules, majuscules, chiffres, symboles)");
+            throw new WeakPasswordException("Le mot de passe doit contenir au moins " + minTypes + " types différents de caractères (minuscules, majuscules, chiffres, symboles)");
         }
     }
-
-    // ---------------------------------------------------------------
-    // dbb
-    // ---------------------------------------------------------------
 
     /**
      * Enregistre le mot de passe actuel dans l'historique (table cerbere_password). En cas de modification multiple le même jour, le hash est mis à jour.
      */
-    @Transactional
-    public void savePasswordToHistory(DatabaseUserDto personne, String hashLdap) {
+    private void savePasswordToHistory(DatabaseUserDto personne, String hashLdap) {
         specialLog.info("Audit [SAVE_PASSWORD_HISTORY] : Sauvegarde du mot de passe dans l'historique pour l'utilisateur [{}]", personne.getUid());
 
         Date today = new Date();
@@ -816,10 +516,8 @@ public class PasswordService {
     /**
      * Ferme le dernier mot de passe actif en renseignant sa date de fin.
      */
-    @Transactional
     public void closeLastPassword(DatabaseUserDto personne) {
         List<CerberePassword> history = cerberePasswordRepository.findByAPersonneId(personne.getId());
-
         if (history != null && !history.isEmpty()) {
             CerberePassword last = history.getFirst();
             if (last.getFin() == null && !isToday(last.getDebut())) {
@@ -836,14 +534,13 @@ public class PasswordService {
         java.util.Calendar c2 = java.util.Calendar.getInstance();
         c1.setTime(date);
         c2.setTime(new Date());
-        return c1.get(java.util.Calendar.YEAR) == c2.get(java.util.Calendar.YEAR)
-                && c1.get(java.util.Calendar.DAY_OF_YEAR) == c2.get(java.util.Calendar.DAY_OF_YEAR);
+        return c1.get(java.util.Calendar.YEAR) == c2.get(java.util.Calendar.YEAR) && c1.get(java.util.Calendar.DAY_OF_YEAR) == c2.get(java.util.Calendar.DAY_OF_YEAR);
     }
 
     /**
      * Vérifie si le mot de passe en clair a déjà été utilisé par le passé.
      */
-    public boolean isPasswordAlreadyUsed(DatabaseUserDto personne, String newPasswordClair) {
+    private boolean isPasswordAlreadyUsed(DatabaseUserDto personne, String newPasswordClair) {
         log.debug("Vérification si le mot de passe a déjà été utilisé pour l'utilisateur [{}]", personne.getUid());
         List<CerberePassword> history = cerberePasswordRepository.findByAPersonneId(personne.getId());
 
@@ -879,8 +576,7 @@ public class PasswordService {
 
     private void updatePasswordInDatabase(DatabaseUserDto person, PasswordResult result) {
         Long id = person.getId();
-        log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null,
-                result.sambaNt != null);
+        log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null, result.sambaNt != null);
 
         APersonne entity = aPersonneRepository.findById(id)
                 .orElseThrow(() -> {
@@ -907,13 +603,10 @@ public class PasswordService {
         try {
             // L'état est relu en base (source de vérité) au moment de l'écriture LDAP : le hash réel n'est
             // écrit que si le compte est Valide, sinon la sentinelle {SCRIPT}LOCK (verrouillage LDAP).
-            String etat = aPersonneRepository.findById(person.getId())
-                    .map(APersonne::getEtat)
-                    .orElse(person.getEtat());
+            final String etat = aPersonneRepository.findById(person.getId()).map(APersonne::getEtat).orElse(person.getEtat());
             externalUserDao.modifEtatLdapPassword(uid, result.ldapHash, etat, result.sambaLm, result.sambaNt);
         } catch (Exception e) {
-            specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid,
-                    e.getMessage());
+            specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid, e.getMessage());
             throw e;
         }
     }

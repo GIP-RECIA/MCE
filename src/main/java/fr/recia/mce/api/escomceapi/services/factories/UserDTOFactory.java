@@ -61,7 +61,7 @@ public class UserDTOFactory {
         final List<RelationEleveContact> respEleves = userDto.getRespEleves();
         final List<RelationEleveContact> eleves = userDto.getEleves();
         final boolean eduConnect = userDto.isEduconnect();
-        final boolean passEtab = userDto.isHasPasswordEtab();
+        final boolean passEtab = userDto.isPasswordEtab();
         return new UserForDisplayDTO(
             databaseUser.getId(),
             databaseUser.getUid(),

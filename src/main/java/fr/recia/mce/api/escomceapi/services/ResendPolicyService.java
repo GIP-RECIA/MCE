@@ -84,33 +84,4 @@ public class ResendPolicyService {
         }
     }
 
-    /**
-     * Vérifie que le compte dispose d'un mode d'authentification local permettant de réinitialiser son mot de passe. La règle est partagée entre la demande de
-     * code et son utilisation.
-     *
-     * <p>
-     * Comptes sans mot de passe local réinitialisable :
-     * </p>
-     * <ul>
-     * <li>EduConnect (parents/élèves éduc nat) : le mot de passe se gère sur le portail EduConnect ;</li>
-     * <li>profil indéterminé ({@code enumPublic == null}) : aucun mode d'authentification local reconnu
-     * (même règle que UserDTOFactoryImpl.computePassEditable qui renvoie false sur un profil null) ;</li>
-     * <li>sans connectOk ni ntPass, aucun mode d'authentification local n'existe (même règle que UserDTOFactoryImpl.computePassEditable).</li>
-     * </ul>
-     */
-    public void assertPasswordResetAllowed(UserDto userDto) {
-        if (!userDto.isCanEditPassword()) {
-            if (userDto.getEnumPublic().isEduconnect()) {
-                log.warn("[PASSWORD_RESET] Refus : compte EduConnect uid={}, enumPublic={}, ntPass={}",
-                        userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());
-                throw new InvalidCodeException("Votre compte utilise EduConnect : le mot de passe se gère sur le portail EduConnect");
-            }
-            log.warn("[PASSWORD_RESET] Refus : mot de passe local non éditable uid={}, enumPublic={}, ntPass={}",
-                userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());
-            throw new InvalidCodeException("Aucune réinitialisation possible pour ce compte : aucun mode d'authentification local n'est actif");
-        }
-        log.info("[PASSWORD_RESET] Autorisation uid={} : enumPublic={}, ntPass={}",
-            userDto.getLdapUserDto().getId(), userDto.getEnumPublic(), userDto.getDatabaseUserDto().isNtPass());
-    }
-
 }

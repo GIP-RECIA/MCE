@@ -42,8 +42,9 @@ public class UserDto {
     private List<RelationEleveContact> eleves;
     private boolean canEditMailPerso;
     private boolean canEditPassword;
-    private boolean hasPasswordEtab;
-    private boolean isEduconnect;
+    private boolean educonnect;
+    private boolean passwordEtab;
+    private boolean passwordNetwork;
 
     public UserDto(DatabaseUserDto databaseUserDto, LdapUserDto ldapUserDto, String uid, EnumPublic enumPublic,
                    List<RelationEleveContact> apprentisList, List<RelationEleveContact> respEleves, List<RelationEleveContact> eleves) {
