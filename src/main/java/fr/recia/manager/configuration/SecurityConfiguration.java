@@ -245,8 +245,10 @@ public class SecurityConfiguration {
             )
             .exceptionHandling(e -> e
                 .authenticationEntryPoint(
-                    (request, response, authException) ->
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
+                    (request, response, authException) -> {
+                        log.warn("Erreur d'authentification", authException);
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    }
                 )
             );
 

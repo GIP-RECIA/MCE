@@ -55,7 +55,8 @@ import jakarta.validation.Valid;
 public class MCEController {
 
     private final FonctionService fonctionService;
-    private final PersonneService personneService;private final UserDTOFactory userDTOFactory;
+    private final PersonneService personneService;
+    private final UserDTOFactory userDTOFactory;
     private final EmailVerificationService emailVerificationService;
     private final ChangePasswordService changePasswordService;
 
