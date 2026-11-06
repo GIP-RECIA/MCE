@@ -210,4 +210,4 @@ async function postPreferences(url: string, preferencesData: any, userInfoApiUrl
   }
 }
 
-export { getDetailEnfant, getMCE, getNetworkPasswordStatus, getPreferences, getServicesEnt, postPassword, postPreferences, resetNetworkPassword, updateAvatar, updateEmail, updateFonctionDateFin, verifyEmail }
+export { getDetailEnfant, getMCE, getNetworkPasswordStatus, getPreferences, getServicesEnt, postPassword, postPreferences, updateAvatar, updateEmail, updateFonctionDateFin, verifyEmail }

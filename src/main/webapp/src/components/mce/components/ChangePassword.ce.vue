@@ -19,7 +19,6 @@ import { dnmaService } from '@mce/services/dnmaService'
 import {
   getNetworkPasswordStatus,
   postPassword,
-  resetNetworkPassword,
 } from '@mce/services/serviceMce.ts'
 import { inject, nextTick, onMounted, ref, watch } from 'vue'
 import { I18nInjectionKey } from 'vue-i18n'
