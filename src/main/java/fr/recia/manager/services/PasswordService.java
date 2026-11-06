@@ -22,10 +22,8 @@ import fr.recia.manager.db.entities.CerberePassword;
 import fr.recia.manager.db.repositories.APersonneRepository;
 import fr.recia.manager.db.repositories.CerberePasswordRepository;
 import fr.recia.manager.ldap.repository.LdapUserDaoImpl;
-import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.exception.WeakPasswordException;
 import fr.recia.manager.services.logging.Loggers;
-import fr.recia.manager.web.dto.PasswordChangeRequestDTO;
 import jcifs.util.DES;
 import jcifs.util.Hexdump;
 import jcifs.util.MD4;
@@ -48,7 +46,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 @Service
 @Slf4j

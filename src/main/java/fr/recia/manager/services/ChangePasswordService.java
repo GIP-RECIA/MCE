@@ -16,12 +16,10 @@
 
 package fr.recia.manager.services;
 
-import fr.recia.manager.db.dto.DatabaseUserDto;
-import fr.recia.manager.services.exception.InactiveAccountException;
-import fr.recia.manager.services.exception.InvalidCodeException;
+import fr.recia.manager.services.exception.WeakPasswordException;
+import fr.recia.manager.services.logging.Loggers;
 import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.manager.web.dto.PasswordChangeRequestDTO;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
