@@ -36,6 +36,7 @@ const configuration = ref({
         props: {
           'template-api-url': '/commun/portal_template_api.tpl.json',
           'navigation-drawer-visible': '',
+          'fname': 'ESCO-MCE',
         },
       },
       footer: {

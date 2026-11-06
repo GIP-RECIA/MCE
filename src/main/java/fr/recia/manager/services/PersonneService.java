@@ -1,0 +1,404 @@
+/*
+ * Copyright (C) 2023 GIP-RECIA, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package fr.recia.manager.services;
+
+import fr.recia.manager.configuration.MCEProperties;
+import fr.recia.manager.configuration.bean.DomaineProperties;
+import fr.recia.manager.configuration.bean.MailProperties;
+import fr.recia.manager.configuration.cache.CacheNames;
+import fr.recia.manager.db.entities.APersonne;
+import fr.recia.manager.db.dto.DatabaseUserDto;
+import fr.recia.manager.db.enums.DomSource;
+import fr.recia.manager.db.enums.EnumCategorie;
+import fr.recia.manager.db.enums.EnumPublic;
+import fr.recia.manager.db.repositories.APersonneRepository;
+import fr.recia.manager.db.repositories.CerbereConfirmationRepository;
+import fr.recia.manager.db.repositories.ValidationCharteRepository;
+import fr.recia.manager.db.services.DatabaseUserService;
+import fr.recia.manager.ldap.ConstLDAP;
+import fr.recia.manager.ldap.LdapStructureDto;
+import fr.recia.manager.ldap.LdapUserDto;
+import fr.recia.manager.ldap.repository.LdapUserDaoImpl;
+import fr.recia.manager.services.beans.RelationEleveContact;
+import fr.recia.manager.services.exception.InvalidAvatarException;
+import fr.recia.manager.services.exception.PersonneNotFoundException;
+import fr.recia.manager.services.relations.RelationEleveService;
+import fr.recia.manager.services.structure.StructureService;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Service
+@Getter
+@Slf4j
+public class PersonneService {
+
+    private final MCEProperties mceProperties;
+    private final DomaineProperties domaineProperties;
+    private final APersonneRepository aPersonneRepository;
+    private final ValidationCharteRepository validationCharteRepository;
+    private final LdapUserDaoImpl userLdapDao;
+    private final CacheManager cacheManager;
+    private final LdapUserDaoImpl extDao;
+    private final MailProperties mailProperties;
+    private final StructureService structureService;
+    private final RelationEleveService relationEleveService;
+    private final CerbereConfirmationRepository cerbereConfirmationRepository;
+    private final DatabaseUserService databaseUserService;
+
+    public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
+                           ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CacheManager cacheManager,
+                           StructureService structureService, RelationEleveService relationEleveService, CerbereConfirmationRepository cerbereConfirmationRepository, DatabaseUserService databaseUserService) {
+        this.mceProperties = mceProperties;
+        this.domaineProperties = domaineProperties;
+        this.mailProperties = mailProperties;
+        this.extDao = extDao;
+        this.userLdapDao = userLdapDao;
+        this.validationCharteRepository = validationCharteRepository;
+        this.aPersonneRepository = aPersonneRepository;
+        this.cacheManager = cacheManager;
+        this.structureService = structureService;
+        this.relationEleveService = relationEleveService;
+        this.cerbereConfirmationRepository = cerbereConfirmationRepository;
+        this.databaseUserService = databaseUserService;
+    }
+
+    /**
+     * Méthode centrale qui créé un utilisateur en récupérant et en précalculant toutes les informations utiles
+     */
+    public UserDto getUser(String uid){
+        // Récupération dans le cache si possible
+        Cache cache = cacheManager.getCache(CacheNames.PERSONNE_CACHE);
+        if (cache != null) {
+            UserDto cached = cache.get(uid, UserDto.class);
+            if (cached != null) {
+                log.debug("Cache hit pour 'personneCache' : Données chargées pour l'uid [{}]", uid);
+                return cached;
+            }
+        }
+
+        // Sinon on requête BDD et LDAP et on met dans le cache
+        log.debug("Cache miss pour 'personneCache' : Récupération des données pour l'uid [{}]", uid);
+        LdapUserDto ldapUser = userLdapDao.getUserLdap(uid);
+        DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
+        boolean isLocalUser = false;
+        boolean isCollectivite = false;
+        String source = databaseUser.getSource();
+        // TODO : domsource
+        DomSource ds = DomSource.AC;
+        if (source != null) {
+            isLocalUser = source.startsWith("SarapisUi");
+            isCollectivite = source.endsWith("COLL-CVDL");
+        }
+        EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
+        EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollectivite);
+        List<RelationEleveContact> apprentisList = getApprentis(ldapUser, databaseUser);
+        // Donne les parents d'un élève
+        List<RelationEleveContact> respEleves = relationEleveService.allRelationEleves(uid);
+        // Donne les élèves d'un parent
+        List<RelationEleveContact> eleves = relationEleveService.allEleveEnRelation(databaseUser.getId());
+        UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), ep, apprentisList, respEleves, eleves);
+        personne.setCanEditMailPerso(canEditMailPerso(personne));
+        personne.setCanEditPassword(canEditPassword(personne));
+        personne.setEduconnect(isEduconnect(personne));
+        personne.setPasswordEtab(hasEtabPass(personne));
+        personne.setPasswordNetwork(hasNetworkPass(personne));
+        if (cache != null) {
+            cache.putIfAbsent(uid, personne);
+        }
+        log.debug("Récupération du user : {}", uid);
+        return personne;
+    }
+
+    private List<RelationEleveContact> getApprentis(LdapUserDto ldapUser, DatabaseUserDto databaseUser){
+        List<RelationEleveContact> apprentisList = new ArrayList<>();
+        final List<String> objectClasses = ldapUser.getAttribute(ConstLDAP.OBJECT_CLASS);
+        final boolean isMaitre = objectClasses.contains(ConstLDAP.OC_TUTEUR_STAGE);
+        if (isMaitre) {
+            apprentisList = relationEleveService.allApprentiEnRelation(ldapUser, databaseUser);
+            log.debug("Utilisateur détecté comme maître d'apprentissage [uid={}]: {} apprenti(s) trouvé(s)", ldapUser.getId(), apprentisList != null ? apprentisList.size() : 0);
+        }
+        log.debug("objectClass [uid={}]: isMaitre={}", ldapUser.getId(), isMaitre);
+        return apprentisList;
+    }
+
+    /**
+     * Indique si un utilisateur peut modifier son mot de passe, 2 possibilités
+     * - soit il se connecte en authentification locale (donc il a un mot de passe)
+     * - soit il a fait partie de la gestion spécifique ntPass
+     */
+    private boolean canEditPassword(UserDto userDto) {
+        return userDto.getEnumPublic().isAuthLocale() || userDto.getDatabaseUserDto().isNtPass();
+    }
+
+    /**
+     * Indique si un utilisateur peut modifier son mail personnel, 3 possibilités :
+     * - soit c'est un élève
+     * - soit il a déjà un mail perso
+     * - soit il n'a pas de mail officiel
+     */
+    private boolean canEditMailPerso(UserDto userDto) {
+        if (userDto.getEnumPublic().isEleve()){
+            return true;
+        }
+        if (userDto.getDatabaseUserDto().getEmailPersonnel() != null && !userDto.getDatabaseUserDto().getEmailPersonnel().isEmpty()){
+            return true;
+        }
+        return userDto.getDatabaseUserDto().getEmail() == null || userDto.getDatabaseUserDto().getEmail().isEmpty();
+    }
+
+    /**
+     * Indique si un utilisateur passe par educonnect
+     */
+    private boolean isEduconnect(UserDto userDto) {
+        return userDto.getEnumPublic().isEduconnect();
+    }
+
+    /**
+     * Indique si un utilisateur a un mot de passe établissement dans les établissements gérés par le support recia
+     */
+    private boolean hasEtabPass(UserDto userDto) {
+        return userDto.getEnumPublic().isPassEtab() && isReseauRecia(userDto.getLdapUserDto());
+    }
+
+    /**
+     * Indique si un utilisateur a un mot de passe réseau (différent du mot de passe établissement)
+     * Attention certains passent par l'auth locale et d'autres non
+     */
+    private boolean hasNetworkPass(UserDto userDto) {
+        // mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()
+        final String regex = "^coll:Applications:ESCOLAN:GCR:.*$";
+        final Pattern pattern = Pattern.compile(regex);
+        for(String group : userDto.getLdapUserDto().getAttribute(ConstLDAP.IS_MEMBER_OF)){
+            Matcher m = pattern.matcher(group);
+            if (m.matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Produit un hash opaque (hexadécimal) à partir de l'uid réel.
+     */
+    private String getHashFromUid(String uid) {
+        if (uid == null || uid.length() < 2) {
+            return uid;
+        }
+        char[] tab = uid.toCharArray();
+        int res = 0;
+        for (char c : tab) {
+            res = (res * 100) + c;
+        }
+        return String.format("%x", res);
+    }
+
+    /**
+     * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1), enregistre la nouvelle image,
+     * met à jour la base de données et synchronise le LDAP.
+     */
+    @Transactional
+    public void updateAvatar(String uid, byte[] fileContent) {
+        log.info("Mise à jour de la photo pour l'utilisateur [uid={}]", uid);
+
+        // 0. Validation de sécurité
+        if (fileContent.length > mceProperties.getAvatar().getMaxSize()) {
+            throw new InvalidAvatarException("Taille de l'avatar trop élevée (max " + mceProperties.getAvatar().getMaxSize() / 1024 + " Ko)");
+        }
+
+        try (ByteArrayInputStream is = new ByteArrayInputStream(fileContent)) {
+            ImageInputStream iis = ImageIO.createImageInputStream(is);
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                throw new InvalidAvatarException("Format d'image non valide");
+            }
+
+            ImageReader reader = readers.next();
+            String format = reader.getFormatName().toLowerCase();
+            boolean formatAllowed = false;
+            for (String allowed : mceProperties.getAvatar().getAllowedTypes()) {
+                if (allowed.contains(format)) {
+                    formatAllowed = true;
+                    break;
+                }
+            }
+
+            if (!formatAllowed) {
+                throw new InvalidAvatarException("Type d'image non autorisé : " + format);
+            }
+        } catch (IOException e) {
+            throw new InvalidAvatarException("Erreur lors de la lecture de l'image");
+        }
+
+        APersonne entity = aPersonneRepository.findByUid(uid);
+        if (entity == null) {
+            throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
+        }
+
+        // 1. Sauvegarde du fichier
+        String hash = getHashFromUid(uid);
+        String groupDir = hash.substring(0, 2);
+        String userDir = hash.substring(2);
+        Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), groupDir, userDir);
+
+        if (!Files.exists(storageDir)) {
+            try {
+                Files.createDirectories(storageDir);
+            } catch (IOException e) {
+                log.error("Impossible de créer le dossier de stockage : {}. Raison : {}", storageDir, e.getMessage());
+                throw new RuntimeException("Impossible de créer le dossier de stockage", e);
+            }
+        }
+
+        // Lecture version actuelle dans la BDD
+        int nextVersion = 1;
+        String currentPhoto = entity.getPhoto();
+        if (currentPhoto != null && currentPhoto.contains("v=")) {
+            try {
+                nextVersion = Integer.parseInt(currentPhoto.substring(currentPhoto.lastIndexOf("v=") + 2)) + 1;
+            } catch (Exception e) {
+                log.warn("Impossible de lire la version actuelle, on réinitialise à 1");
+            }
+        }
+
+        String filename = mceProperties.getAvatar().getFilename();
+        String filenameBackup = mceProperties.getAvatar().getFilenameBackup();
+        Path path0 = storageDir.resolve(filename);
+        Path path1 = storageDir.resolve(filenameBackup);
+
+        // Rotation cyclique
+        try {
+            if (Files.exists(path0)) {
+                if (Files.exists(path1))
+                    Files.delete(path1);
+                Files.move(path0, path1);
+            }
+            Files.write(path0, fileContent);
+        } catch (IOException e) {
+            log.error("Erreur de gestion des fichiers avatar pour l'UID [{}]: {}", uid, e.getMessage());
+            throw new RuntimeException("Erreur lors de l'enregistrement", e);
+        }
+
+        // Chemin relatif avec version globale
+        String relativePath = mceProperties.getAvatar().getBaseUrl() + hash + "/" + filename + "?v=" + nextVersion;
+
+        // 2. Mise à jour de l'entité
+        entity.setPhoto(relativePath);
+        entity.setDateModification(new Date());
+        aPersonneRepository.saveAndFlush(entity);
+
+        // 3. Mise à jour LDAP
+        try {
+            getExtDao().updateAvatarLDAP(uid, relativePath);
+        } catch (Exception e) {
+            log.warn("Impossible de mettre à jour LDAP pour l'UID [{}]: {}", uid, e.getMessage());
+        }
+
+        // 4. Invalidation du cache
+        clearUserCaches(uid);
+    }
+
+    /**
+     * Indique si un utilisateur fait parti des établissements gérés par le Recia
+     */
+    private boolean isReseauRecia(LdapUserDto p) {
+        final String uid = p.getId();
+        final List<String> uais = p.getAttribute(ConstLDAP.ESCOUAI);
+        if (uais == null || uais.isEmpty()) {
+            log.debug("uid={} n'appartient au réseau recia (pas d'UAI)", uid);
+            return false;
+        }
+
+        for (String uai : uais) {
+            // 1ère possibilité : UAI étab dans la liste des UAI gérés
+            if (domaineProperties.getGestionInclude().contains(uai)) {
+                log.debug("UAI {} dans la liste d'inclusion, uid={} appartient au réseau recia", uai, uid);
+                return true;
+            }
+
+            // 2ème possibilité : domaine étab dans la liste des domaines gérés
+            final LdapStructureDto struct = structureService.findStructureByUai(uai);
+            if(structureService.isDomaineRecia(struct)){
+                log.debug("uid={} appartient au réseau recia", uid);
+                return true;
+            }
+        }
+        log.debug("uid={} n'appartient au réseau recia", uid);
+        return false;
+    }
+
+    /**
+     * Lève une exeption si l'utilisateur ne peut pas changer son mail
+     */
+    public void validateEmailForUpdate(UserDto userDto, String newEmail) {
+        if (!userDto.isCanEditMailPerso()) {
+            log.warn("Audit [UPDATE_EMAIL] : REFUSÉ pour l'utilisateur [{}] - Raison : Email personnel non modifiable pour ce profil", userDto.getUid());
+            throw new AccessDeniedException("Vous ne pouvez pas modifier votre email personnel");
+        }
+        if (!newEmail.matches(mailProperties.getRegexValideAddr())) {
+            throw new IllegalArgumentException("Le format de l'adresse email n'est pas valide");
+        }
+        final String domain = newEmail.substring(newEmail.lastIndexOf('@') + 1);
+        String[] excludedDomains = mailProperties.getRegexsDomainesExclus().split("\\s+");
+        for (String excluded : excludedDomains) {
+            if (domain.equalsIgnoreCase(excluded.trim())) {
+                throw new IllegalArgumentException("Le domaine de l'adresse email est exclu");
+            }
+        }
+    }
+
+    /**
+     * Nettoie tous les caches pour un utilisateur donné
+     */
+    public void clearUserCaches(String uid) {
+        log.info("[clearUserCaches] DEBUT uid={}", uid);
+        Cache dbCache = cacheManager.getCache(CacheNames.DATABASE_PERSONNE_CACHE);
+        if (dbCache != null) {
+            dbCache.evict(uid);
+        }
+        Cache ldapCache = cacheManager.getCache(CacheNames.LDAP_PERSONNE_CACHE);
+        if (ldapCache != null) {
+            ldapCache.evict(uid);
+        }
+        Cache userCache = cacheManager.getCache(CacheNames.PERSONNE_CACHE);
+        if (userCache != null) {
+            userCache.evict(uid);
+        }
+        log.info("[clearUserCaches] FIN uid={}", uid);
+    }
+
+}

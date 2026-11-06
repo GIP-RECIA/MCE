@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 This project includes:
+  account-manager under Apache License, Version 2.0
   Angus Activation Registries under EDL 1.0
   Angus Mail Provider under EPL 2.0 or GPL2 w/ CPE or EDL 1.0
   ANTLR 4 Runtime under BSD-3-Clause
@@ -89,7 +90,6 @@ This project includes:
   Logback Classic Module under EPL-2.0 or LGPL-2.1-only
   Logback Core Module under EPL-2.0 or LGPL-2.1-only
   mariadb-java-client under LGPL-2.1-or-later
-  mce-project under Apache License, Version 2.0
   micrometer-commons under The Apache Software License, Version 2.0
   micrometer-core under The Apache Software License, Version 2.0
   micrometer-jakarta9 under The Apache Software License, Version 2.0
@@ -148,7 +148,6 @@ This project includes:
   spring-boot-actuator-autoconfigure under Apache License, Version 2.0
   spring-boot-autoconfigure under Apache License, Version 2.0
   spring-boot-cache under Apache License, Version 2.0
-  spring-boot-configuration-metadata under Apache License, Version 2.0
   spring-boot-data-commons under Apache License, Version 2.0
   spring-boot-data-jpa under Apache License, Version 2.0
   spring-boot-data-ldap under Apache License, Version 2.0
@@ -165,7 +164,6 @@ This project includes:
   spring-boot-micrometer-observation under Apache License, Version 2.0
   spring-boot-netty under Apache License, Version 2.0
   spring-boot-persistence under Apache License, Version 2.0
-  spring-boot-properties-migrator under Apache License, Version 2.0
   spring-boot-security under Apache License, Version 2.0
   spring-boot-servlet under Apache License, Version 2.0
   spring-boot-sql under Apache License, Version 2.0

@@ -1,0 +1,38 @@
+/*
+ * Copyright (C) 2023 GIP-RECIA, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package fr.recia.manager.db.repositories;
+
+import fr.recia.manager.db.dto.FonctionDTO;
+import fr.recia.manager.db.entities.Fonction;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+
+@Repository
+public interface FonctionRepository extends AbstractRepository<Fonction, Long> {
+
+    // TODO : revoir la query
+    @Query("SELECT DISTINCT new fr.recia.manager.db.dto.FonctionDTO(a.id, t.libelleFiliere, d.disciplinePoste, s.siren, d.code, t.codeFiliere, case when (a.dateDebut is null or a.dateDebut <= current_timestamp) and (a.dateFin is null or a.dateFin > current_timestamp) and (a.dateFinSource is null or a.dateFinSource > current_timestamp) then true else false end as active) "
+        +
+        "from AFonction a, Fonction f, AStructure s , Discipline d, TypeFonctionFiliere t " +
+        "where a.aPersonne.id = :personne " +
+        "and f.id = a.id " +
+        "and f.discipline.id = d.id "
+        + "and f.typeFonctionFiliere.id = t.id "
+        + "and f.aStructure.id = s.id")
+    Collection<FonctionDTO> findAllFonction(final Long personne);
+}
