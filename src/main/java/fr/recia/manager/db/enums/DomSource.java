@@ -17,18 +17,24 @@
 package fr.recia.manager.db.enums;
 
 public enum DomSource {
-    // Source académique
-    AC,
-    // Source pour les CFA
-    CFA,
-    // Source GIP
-    GIP,
-    // Source lycées agri
-    LA,
-    // Source région
-    REGION,
-    // TODO : Source coll (je suppose que c'est toutes les collectivités sauf GIP et région)
-    COLL,
-    // Source EF2S
-    EF2S;
+    AC("AC"),
+    CFA("CFA"),
+    GIP("GIP"),
+    LA("LA"),
+    COLL("COLL"),
+    EF2S("EF2S");
+
+    private final String dbname;
+
+    DomSource(String dbname) {
+        this.dbname = dbname;
+    }
+
+    public static DomSource fromString(String dbname) {
+        for (DomSource ds : DomSource.values()) {
+            if (ds.dbname.equals(dbname))
+                return ds;
+        }
+        return null;
+    }
 }

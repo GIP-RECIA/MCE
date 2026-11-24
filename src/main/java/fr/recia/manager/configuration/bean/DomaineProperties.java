@@ -29,5 +29,6 @@ public class DomaineProperties {
 
     private Set<String> gestionRecia = new HashSet<>();
     private Set<String> gestionInclude = new HashSet<>();
+    private String domainSourceRegex;
 
 }

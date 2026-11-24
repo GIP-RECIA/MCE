@@ -100,6 +100,9 @@ public enum EnumPublic {
         };
     }
 
+    /**
+     * Indique si un utilisateur passe par educonnect
+     */
     public boolean isEduconnect(){
         return switch (this) {
             case PARENT_EDUC, ELEVE_EDUC -> true;
@@ -108,9 +111,8 @@ public enum EnumPublic {
     }
 
     /**
-     * Donne les populations pouvant changer leurs mots de passe établissement.
-     * ne suffit pas a donner le liens il faut par ailleur verifier le périmetre
-     * (sont'il géré par le gip)
+     * Donne les populations pouvant changer leur mot de passe établissement.
+     * Ne suffit pas a donner le lien il faut aussi verifié s'ils sont gérés par le gip
      */
     public boolean isPassEtab() {
         switch (this) {

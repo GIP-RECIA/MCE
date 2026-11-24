@@ -79,6 +79,7 @@ public class PersonneService {
     private final RelationEleveService relationEleveService;
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final DatabaseUserService databaseUserService;
+    private final Pattern patternDomainSource;
 
     public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
                            ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CacheManager cacheManager,
@@ -95,6 +96,7 @@ public class PersonneService {
         this.relationEleveService = relationEleveService;
         this.cerbereConfirmationRepository = cerbereConfirmationRepository;
         this.databaseUserService = databaseUserService;
+        this.patternDomainSource = Pattern.compile(domaineProperties.getDomainSourceRegex());
     }
 
     /**
@@ -116,22 +118,26 @@ public class PersonneService {
         LdapUserDto ldapUser = userLdapDao.getUserLdap(uid);
         DatabaseUserDto databaseUser = databaseUserService.getUserDatabase(uid);
         String source = databaseUser.getSource();
-        // TODO : domsource, ça a l'air d'être le domaine de la structure de la personne
-        DomSource ds = DomSource.AC;
+        //Regroupe les sources par leur partie avant le tiret
+        DomSource ds = null;
+        final Matcher matcherDomainSource = patternDomainSource.matcher(databaseUser.getSource());
+        if (matcherDomainSource.matches()){
+            ds = DomSource.fromString(matcherDomainSource.group(1));
+        }
         final boolean isLocalUser = source.startsWith(ConstLDAP.SOURCE_LOCALE);
         // Personne des collectivités qui passent quand même par CAS
         final boolean isCollViaCas = source.equals(ConstLDAP.SOURCE_CVDL) || source.equals(ConstLDAP.SOURCE_CD28) || source.equals(ConstLDAP.SOURCE_RREUNION);
-        final EnumCategorie enumCat = EnumCategorie.fromString(databaseUser.getCategorie());
-        final EnumPublic ep = EnumPublic.resolve(enumCat, ds, isLocalUser, isCollViaCas);
+        final EnumCategorie categorie = EnumCategorie.fromString(databaseUser.getCategorie());
+        final EnumPublic enumPublic = EnumPublic.resolve(categorie, ds, isLocalUser, isCollViaCas);
         List<RelationEleveContact> apprentisList = getApprentis(ldapUser, databaseUser);
         // Donne les parents d'un élève
         List<RelationEleveContact> respEleves = relationEleveService.allRelationEleves(uid);
         // Donne les élèves d'un parent
         List<RelationEleveContact> eleves = relationEleveService.allEleveEnRelation(databaseUser.getId());
-        UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), ep, apprentisList, respEleves, eleves);
+        UserDto personne = new UserDto(databaseUser, ldapUser, databaseUser.getUid(), enumPublic, apprentisList, respEleves, eleves);
         personne.setCanEditMailPerso(canEditMailPerso(personne));
         personne.setCanEditPassword(canEditPassword(personne));
-        personne.setEduconnect(isEduconnect(personne));
+        personne.setEduconnect(personne.getEnumPublic().isEduconnect());
         personne.setPasswordEtab(hasEtabPass(personne));
         personne.setPasswordNetwork(hasNetworkPass(personne));
         if (cache != null) {
@@ -159,7 +165,7 @@ public class PersonneService {
      * - soit il a fait partie de la gestion spécifique ntPass
      */
     private boolean canEditPassword(UserDto userDto) {
-        return userDto.getEnumPublic().isAuthLocale() || userDto.getDatabaseUserDto().isNtPass();
+        return userDto.getEnumPublic().isAuthLocale() || userDto.isPasswordNetwork();
     }
 
     /**
@@ -176,13 +182,6 @@ public class PersonneService {
             return true;
         }
         return userDto.getDatabaseUserDto().getEmail() == null || userDto.getDatabaseUserDto().getEmail().isEmpty();
-    }
-
-    /**
-     * Indique si un utilisateur passe par educonnect
-     */
-    private boolean isEduconnect(UserDto userDto) {
-        return userDto.getEnumPublic().isEduconnect();
     }
 
     /**

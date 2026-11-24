@@ -66,11 +66,6 @@ public class RelationEleveContact {
             this.displayNameRelation = parent.getDisplayName() != null ? parent.getDisplayName() : (parent.getSn() + " " + parent.getGivenName()).trim();
         }
 
-        // On garde l'enfant dans le champ eleve pour cohérence interne
-        if (enfant != null) {
-            this.eleve = new DatabaseUserDto(enfant);
-        }
-
         log.debug("RelationEleveContact créée via DB → ParentUid={} | ParentNom={} | EnfantUid={} | Type={} | Lien={}",
                 this.uidRelation,
                 this.displayNameRelation,

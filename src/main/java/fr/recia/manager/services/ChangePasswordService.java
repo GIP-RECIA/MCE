@@ -47,7 +47,7 @@ public class ChangePasswordService {
     public void changePassword(UserDto user, PasswordChangeRequestDTO request) {
         final String uid = user.getUid();
         final boolean editable = user.isCanEditPassword();
-        log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})", uid, editable, user.getEnumPublic(), user.getDatabaseUserDto().isNtPass(), user.getDatabaseUserDto().getSource(), user.isEduconnect());
+        log.info("[CHANGE_PASSWORD] uid={} computePassEditable={} (enumPublic={}, isNtPass={}, source={}, eduConnect={})", uid, editable, user.getEnumPublic(), user.isPasswordNetwork(), user.getDatabaseUserDto().getSource(), user.isEduconnect());
         if (!editable) {
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre mot de passe");
         }

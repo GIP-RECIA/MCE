@@ -25,7 +25,6 @@ import fr.recia.manager.db.entities.CerbereEnfant;
 import fr.recia.manager.db.entities.Login;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Data
 public class DatabaseUserDto {
 
@@ -47,7 +46,6 @@ public class DatabaseUserDto {
     private String lienParente;
     private String login;
     private String structureDisplayName;
-    private boolean ntPass;
 
     public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure, final Login login, final CerbereEnfant cerbereEnfant) {
         this.id = aPersonne.getId();
@@ -68,15 +66,6 @@ public class DatabaseUserDto {
         this.typeOfParent = cerbereEnfant == null ? null : cerbereEnfant.getTypeRelation();
         this.login = login.getNom();
         this.structureDisplayName = aStructure.getNom().replace('$', ' ');
-        // TODO
-        this.ntPass = false;
-    }
-
-    public DatabaseUserDto(final APersonne aPersonne) {
-        this(aPersonne, aPersonne.getAStructure());
-    }
-
-    public DatabaseUserDto(final APersonne aPersonne, final AStructure aStructure) {
     }
 
 }
