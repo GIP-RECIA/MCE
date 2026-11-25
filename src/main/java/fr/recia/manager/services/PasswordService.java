@@ -574,7 +574,7 @@ public class PasswordService {
     }
 
     private void updatePasswordInDatabase(DatabaseUserDto person, PasswordResult result) {
-        Long id = person.getId();
+        final Long id = person.getId();
         log.debug("miseÀJourMotDePasseEnBase — uid={} id={} (lm présent={}, nt présent={})", person.getUid(), id, result.sambaLm != null, result.sambaNt != null);
 
         APersonne entity = aPersonneRepository.findById(id)

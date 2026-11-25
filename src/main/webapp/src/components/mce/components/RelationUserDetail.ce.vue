@@ -44,8 +44,16 @@ function tGlobal(key: string): string {
 const formatDate = computed(() => {
   if (!props.personne?.bod)
     return ''
-  const parts = props.personne.bod.split('-')
-  return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : props.personne.bod
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(new Date(props.personne.bod))
+  }
+  catch {
+    return props.personne.bod
+  }
 })
 
 const etatLabel = computed(() => {

@@ -18,10 +18,6 @@ package fr.recia.manager.services.beans;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Compteur de tentatives horodaté : le champ {@code lastTouchMs} est rafraîchi à chaque accès (bon ou mauvais code), ce qui permet à
- * {@link #purgeStaleAttemptEntries()} de supprimer les entrées des utilisateurs partis sans conclure.
- */
 public class AttemptEntry {
     /**
      * Durée de conservation d'une entrée de compteur de tentatives : doit dépasser la durée de vie d'un code (expiryHours) pour ne pas purger un compteur
