@@ -25,6 +25,13 @@ class ApiError extends Error {
   }
 }
 
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(
+    new RegExp('(?:^|; )' + name + '=([^;]*)')
+  )
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 async function getToken(userInfoApiUrl: string): Promise<string | undefined> {
   try {
     const { encoded } = await oidc({ userInfoApiUrl })
@@ -72,11 +79,13 @@ async function postPassword(
   newPass: string,
   confirmPass: string,
 ) {
+  const csrfToken = getCookie('XSRF-TOKEN')
   const response = await fetch(`${baseUrl}/change-password`, {
     method: 'POST',
     body: JSON.stringify({ oldPass, newPass, confirmPass }),
     headers: {
       'content-type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
   })
   await throwIfNotOk(response, `${baseUrl}/change-password`)
@@ -103,11 +112,13 @@ async function updateEmail(
   email: string,
   confirmEmail: string,
 ) {
+  const csrfToken = getCookie('XSRF-TOKEN')
   const response = await fetch(`${baseUrl}/update-email`, {
     method: 'PUT',
     body: JSON.stringify({ email, confirmEmail }),
     headers: {
       'content-type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
   })
   await throwIfNotOk(response, `${baseUrl}/update-email`)
@@ -119,11 +130,13 @@ async function updateFonctionDateFin(
   idFonction: string | number,
   active: boolean,
 ) {
+  const csrfToken = getCookie('XSRF-TOKEN')
   const response = await fetch(`${baseUrl}/fonction/${idFonction}/dateFin`, {
     method: 'PUT',
     body: JSON.stringify(active),
     headers: {
       'content-type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
   })
   await throwIfNotOk(response, `${baseUrl}/fonction/${idFonction}/dateFin`)
@@ -141,10 +154,12 @@ async function updateAvatar(
 ) {
   const formData = new FormData()
   formData.append('file', file)
+  const csrfToken = getCookie('XSRF-TOKEN')
   const response = await fetch(`${baseUrl}/avatar`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
     body: formData,
   })
@@ -156,11 +171,13 @@ async function verifyEmail(
   baseUrl: string,
   code: string,
 ) {
+  const csrfToken = getCookie('XSRF-TOKEN')
   const response = await fetch(`${baseUrl}/verify-email`, {
     method: 'POST',
     body: JSON.stringify({ code }),
     headers: {
       'content-type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
   })
   await throwIfNotOk(response, `${baseUrl}/verify-email`)
@@ -190,11 +207,13 @@ async function getPreferences(url: string, preferencesData: any, userInfoApiUrl:
 
 async function postPreferences(url: string, preferencesData: any, userInfoApiUrl: string) {
   const token = await getToken(userInfoApiUrl)
+  const csrfToken = getCookie('XSRF-TOKEN')
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'content-type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
     body: JSON.stringify(preferencesData),
   })
