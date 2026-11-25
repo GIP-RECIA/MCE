@@ -41,10 +41,6 @@ public class ConfirmationMailSender {
         sendEmailWithTemplate(to, user, code, mailProperties.getTemplates().getVerification(), "Erreur lors de l'envoi de l'email de vérification à {} : {}");
     }
 
-    public void sendResetEmail(String to, String code) {
-        sendEmailWithTemplate(to, "TODO", code, mailProperties.getTemplates().getReset(), "Erreur lors de l'envoi du code de réinitialisation à {} : {}");
-    }
-
     private void sendEmailWithTemplate(String to, String user, String code, MailProperties.EmailTemplates.Template template, String errorMessage) {
         String expiryHours = String.valueOf(mailProperties.getVerification().getExpiryHours());
         SimpleMailMessage message = new SimpleMailMessage();

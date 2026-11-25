@@ -53,6 +53,7 @@ public class ServiceProperties {
         private String lienEdu;
         private String lienPassEtab;
         private String domaineEtabRecia;
+        // TODO : qui est encore en ssha ?
         private String regexGroupsWithSshaPass;
         private String regexGroupsWithSambaNt;
     }

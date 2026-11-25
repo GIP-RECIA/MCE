@@ -42,12 +42,10 @@ public class LdapStructDaoImpl {
     public List<LdapStructureDto> loadAllStructure() {
         OrFilter filter = new OrFilter();
         filter.or(new PresentFilter(ConstLDAP.STRUCT_UAI));
-        // TODO : string en dur
-        filter.or(new EqualsFilter(ConstLDAP.STRUCT_TYPE, "COLLECTIVITE LOCALE"));
-
-        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.STRUCTURE_BRANCH).filter(filter);
+        filter.or(new EqualsFilter(ConstLDAP.STRUCT_TYPE, ConstLDAP.COLLECTIVITE_LOCALE));
+        final LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.STRUCTURE_BRANCH).filter(filter);
         try {
-            List<LdapStructureDto> structs = ldapTemplate.search(query, ldapStructureContextMapper);
+            final List<LdapStructureDto> structs = ldapTemplate.search(query, ldapStructureContextMapper);
             log.debug("Recherche LDAP réussie : {} structures trouvées avec le filtre [{}]", structs.size(), filter);
             return structs;
         } catch (Exception e) {

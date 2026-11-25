@@ -33,10 +33,8 @@ import fr.recia.manager.ldap.LdapUserDto;
 import fr.recia.manager.ldap.repository.LdapUserDaoImpl;
 import fr.recia.manager.services.beans.RelationEleveContact;
 import fr.recia.manager.services.exception.InvalidAvatarException;
-import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.relations.RelationEleveService;
 import fr.recia.manager.services.structure.StructureService;
-import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -77,6 +75,7 @@ public class PersonneService {
     private final CerbereConfirmationRepository cerbereConfirmationRepository;
     private final DatabaseUserService databaseUserService;
     private final Pattern patternDomainSource;
+    private final Pattern patternNetworkPassword;
 
     public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties,
                            LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao, APersonneRepository aPersonneRepository,
@@ -94,6 +93,7 @@ public class PersonneService {
         this.cerbereConfirmationRepository = cerbereConfirmationRepository;
         this.databaseUserService = databaseUserService;
         this.patternDomainSource = Pattern.compile(domaineProperties.getDomainSourceRegex());
+        this.patternNetworkPassword = Pattern.compile(mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt());
     }
 
     /**
@@ -194,13 +194,9 @@ public class PersonneService {
      * Attention certains passent par l'auth locale et d'autres non
      */
     private boolean hasNetworkPass(UserDto userDto) {
-        // mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()
-        // TODO : regex
-        final String regex = "^coll:Applications:ESCOLAN:GCR:.*$";
-        final Pattern pattern = Pattern.compile(regex);
         for(String group : userDto.getLdapUserDto().getAttribute(ConstLDAP.IS_MEMBER_OF)){
-            Matcher m = pattern.matcher(group);
-            if (m.matches()) {
+            final Matcher matcher = patternNetworkPassword.matcher(group);
+            if (matcher.matches()) {
                 return true;
             }
         }
@@ -208,7 +204,7 @@ public class PersonneService {
     }
 
     /**
-     * Indique si un utilisateur à un mot de passe réseau qu'il peut changer sans avoir à fournir d'ancien mot de passe
+     * Indique si un utilisateur a un mot de passe réseau qu'il peut changer sans avoir à fournir d'ancien mot de passe
      * Il faut qu'il ait un mot de passe réseau et jamais saisi de mot de passe
      */
     private boolean canChangeNetworkPasswordWithoutOldPassword(UserDto user) {

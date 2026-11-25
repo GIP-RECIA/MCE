@@ -27,7 +27,6 @@ import fr.recia.manager.services.exception.ErrorResponse;
 import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.factories.UserDTOFactory;
 import fr.recia.manager.web.dto.EmailUpdateRequestDTO;
-import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.manager.web.dto.PasswordChangeRequestDTO;
 import fr.recia.manager.web.dto.UserForDisplayDTO;
 import fr.recia.manager.web.dto.VerifyEmailRequestDTO;

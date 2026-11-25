@@ -16,10 +16,8 @@
 
 package fr.recia.manager.services;
 
-import fr.recia.manager.ldap.ConstLDAP;
 import fr.recia.manager.services.exception.WeakPasswordException;
 import fr.recia.manager.services.logging.Loggers;
-import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.manager.web.dto.PasswordChangeRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;

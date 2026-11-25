@@ -32,18 +32,14 @@ public final class ConstLDAP {
     public static final String SAMBA_LM_PASSWORD = "sambaLMPassword";
     public static final String SAMBA_NT_PASSWORD = "sambaNTPassword";
     /* Spécifiques élève */
-    public static final String ELEVE_TUTEUR_ENTR = "ENTEleveEntrTutStage";
     public static final String ELEVE_RELATION = "ENTElevePersRelEleve";
     public static final String ELEVE_ENSEIGNEMENTS = "ENTEleveEnseignements";
     public static final String ELEVE_CLASSES = "ENTEleveClasses";
     public static final String ELEVE_GROUPES = "ENTEleveGroupes";
     /* Spécifiques enseignants */
-    public static final String ENS_CLASSES = "ENTAuxEnsClasses";
     public static final String ENS_CLASSES_MATIERES = "ENTAuxEnsClassesMatieres";
     public static final String ENS_CLASSES_MATIERES_ETAB = "ESCOAuxEnsCodeMatiereEnseignEtab";
-    public static final String ENS_GROUPES = "ENTAuxEnsGroupes";
     public static final String ENS_GROUPES_MATIERES = "ENTAuxEnsGroupesMatieres";
-    public static final String ENS_MATIERE_ETAB = "ENTAuxEnsMatiereEnseignEtab";
     /* Spécifiques tuteurs */
     public static final String TUTEUR_ELVES = "ENTAuxTuteurStageEleves";
     /* Structures */
@@ -71,6 +67,8 @@ public final class ConstLDAP {
     public static final String SOURCE_RREUNION = "COLL-RREUNION";
     /* Password */
     public static final String ACTIVE_WITHOUT_PASSWORD = "{SSHA}Active" + "=".repeat(50);
+    /* Type de structure */
+    public static final String COLLECTIVITE_LOCALE = "COLLECTIVITE LOCALE";
 
 
 }
