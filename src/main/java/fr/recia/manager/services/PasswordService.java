@@ -598,12 +598,9 @@ public class PasswordService {
     }
 
     private void updatePasswordInLdap(DatabaseUserDto person, PasswordResult result) {
-        String uid = person.getUid() != null ? person.getUid() : "unknown";
+        final String uid = person.getUid();
         try {
-            // L'état est relu en base (source de vérité) au moment de l'écriture LDAP : le hash réel n'est
-            // écrit que si le compte est Valide, sinon la sentinelle {SCRIPT}LOCK (verrouillage LDAP).
-            final String etat = aPersonneRepository.findById(person.getId()).map(APersonne::getEtat).orElse(person.getEtat());
-            externalUserDao.modifEtatLdapPassword(uid, result.ldapHash, etat, result.sambaLm, result.sambaNt);
+            externalUserDao.modifEtatLdapPassword(uid, result.ldapHash, result.sambaLm, result.sambaNt);
         } catch (Exception e) {
             specialLog.error("Audit [UPDATE_LDAP] : ABANDONNÉ pour l'utilisateur [{}] - Raison : L'opération de mise à jour LDAP a échoué | Détail : {}", uid, e.getMessage());
             throw e;

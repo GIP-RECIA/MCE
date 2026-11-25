@@ -16,6 +16,7 @@
 
 package fr.recia.manager.services;
 
+import fr.recia.manager.ldap.ConstLDAP;
 import fr.recia.manager.services.exception.WeakPasswordException;
 import fr.recia.manager.services.logging.Loggers;
 import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
@@ -33,8 +34,6 @@ public class ChangePasswordService {
     private final PersonneService personneService;
     private final PasswordService passwordService;
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
-    // TODO : Marqueur actif complet pour les comptes valides SANS mot de passe local : "{SSHA}Active" + 50 "="
-    public static final String ACTIVE_WITHOUT_PASSWORD = "{SSHA}Active" + "=".repeat(50);
 
     public ChangePasswordService(PersonneService personneService, PasswordService passwordService){
         this.personneService = personneService;
@@ -51,8 +50,8 @@ public class ChangePasswordService {
         if (!editable) {
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre mot de passe");
         }
-        // TODO : vérifier qu'on a pas déjà tapé un mot de passe, car si c'est le cas pour le changer on va quand même demander l'ancien
-        final boolean noOldPass = false;
+        // Vérifier si on a le droit de modifier le mot de passe même sans avoir un ancien
+        final boolean noOldPass = canChangeNetworkPasswordWithoutOldPassword(user).isEligible();
 
         try {
             validateRequest(request, noOldPass);
@@ -82,16 +81,17 @@ public class ChangePasswordService {
 
     /**
      * Indique si un utilisateur à un mot de passe réseau qu'il peut changer sans avoir à fournir d'ancien mot de passe
+     * Il faut qu'il ait un mot de passe réseau et jamais saisi de mot de passe
      */
     public NetworkPasswordResetStatusDTO canChangeNetworkPasswordWithoutOldPassword(UserDto user) {
-        return new NetworkPasswordResetStatusDTO(user.isPasswordNetwork() && hasOldPassword(user));
+        return new NetworkPasswordResetStatusDTO(user.isPasswordNetwork() && !hasOldPassword(user));
     }
 
     /**
      * Indique si l'utilisateur a un ancien mot de passe ou non
      */
     private boolean hasOldPassword(UserDto user){
-        return user.getDatabaseUserDto().getPassword().equals(ACTIVE_WITHOUT_PASSWORD);
+        return user.getDatabaseUserDto().getPassword().equals(ConstLDAP.ACTIVE_WITHOUT_PASSWORD);
     }
 
     /**

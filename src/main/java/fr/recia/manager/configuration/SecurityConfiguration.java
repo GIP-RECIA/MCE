@@ -290,8 +290,7 @@ public class SecurityConfiguration {
     public Filter csrfCookieFilter() {
         return new OncePerRequestFilter() {
             @Override
-            protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-                                            @NonNull FilterChain filterChain) throws ServletException, IOException {
+            protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
                 CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
                 if (csrfToken != null) {
                     csrfToken.getToken();

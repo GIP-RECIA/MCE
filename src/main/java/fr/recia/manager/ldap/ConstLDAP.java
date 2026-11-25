@@ -27,8 +27,10 @@ public final class ConstLDAP {
     public static final String PHOTO = "ESCOPersonPhoto";
     public static final String PROFILS = "ENTPersonProfils";
     public static final String ETAT_COMPTE = "ESCOPersonEtatCompte";
-    public static final String VALIDATION_CHARTE = "ESCOPersonValidationCharte";
     public static final String ESCOUAI = "ESCOUAI";
+    public static final String USER_PASSWORD = "userPassword";
+    public static final String SAMBA_LM_PASSWORD = "sambaLMPassword";
+    public static final String SAMBA_NT_PASSWORD = "sambaNTPassword";
     /* Spécifiques élève */
     public static final String ELEVE_TUTEUR_ENTR = "ENTEleveEntrTutStage";
     public static final String ELEVE_RELATION = "ENTElevePersRelEleve";
@@ -67,5 +69,8 @@ public final class ConstLDAP {
     public static final String SOURCE_CVDL = "COLL-CVDL";
     public static final String SOURCE_CD28 = "COLL-CD28";
     public static final String SOURCE_RREUNION = "COLL-RREUNION";
+    /* Password */
+    public static final String ACTIVE_WITHOUT_PASSWORD = "{SSHA}Active" + "=".repeat(50);
+
 
 }

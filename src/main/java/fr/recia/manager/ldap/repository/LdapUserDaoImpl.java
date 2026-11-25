@@ -18,7 +18,6 @@ package fr.recia.manager.ldap.repository;
 import fr.recia.manager.configuration.cache.CacheNames;
 import fr.recia.manager.ldap.ConstLDAP;
 import fr.recia.manager.ldap.LdapUserDto;
-import fr.recia.manager.services.AccountState;
 import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.logging.Loggers;
 import lombok.extern.slf4j.Slf4j;
@@ -28,16 +27,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.ldap.core.ContextMapper;
-import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.filter.AndFilter;
 import org.springframework.ldap.filter.EqualsFilter;
 import org.springframework.ldap.filter.OrFilter;
 import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
+import org.springframework.ldap.support.LdapNameBuilder;
 import org.springframework.stereotype.Repository;
 
+import javax.naming.Name;
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
@@ -62,7 +61,6 @@ public class LdapUserDaoImpl {
     private CacheManager cacheManager;
 
     private static final Logger specialLog = LoggerFactory.getLogger(Loggers.AUDIT);
-    private static final String SCRIPT_LOCK = "{SCRIPT}LOCK";
 
     /**
      * Charge un utilisateur depuis le LDAP
@@ -92,6 +90,9 @@ public class LdapUserDaoImpl {
         return userLdap;
     }
 
+    /**
+     * Charge un liste d'utilisateurs à partir de leurs uids
+     */
     private LdapUserDto getUserByUid(String uid) {
         final AndFilter filter = new AndFilter();
         filter.append(new EqualsFilter(ConstLDAP.UID, uid));
@@ -108,6 +109,9 @@ public class LdapUserDaoImpl {
         }
     }
 
+    /**
+     * Charge une liste d'utilisateurs à partir de leurs uids
+     */
     public List<LdapUserDto> getByUids(Collection<String> uids) {
         if (uids == null || uids.isEmpty()) {
             return Collections.emptyList();
@@ -126,91 +130,34 @@ public class LdapUserDaoImpl {
         }
     }
 
-    public void modifEtatLdapPassword(String uid, String ldapHash, String etatCompte, String sambaLm, String sambaNt) {
-
-        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
-
-        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
-
-        // userPassword : hash réel si l'état du compte est Valide, sinon sentinelle {SCRIPT}LOCK (verrouillage)
-        String userPasswordValue = AccountState.VALIDE.equals(etatCompte) ? ldapHash : SCRIPT_LOCK;
-
+    /**
+     * Met à jour les différents mots de passe (normal et réseau) dans le LDAP
+     */
+    public void modifEtatLdapPassword(String uid, String ldapHash, String sambaLm, String sambaNt) {
         List<ModificationItem> mods = new ArrayList<>();
-        mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("userPassword", userPasswordValue.getBytes(StandardCharsets.UTF_8))));
-        mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.ETAT_COMPTE, etatCompte.toUpperCase())));
-
+        mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.USER_PASSWORD, ldapHash.getBytes(StandardCharsets.UTF_8))));
         // samba : écrits uniquement si les deux hashes sont fournis (cohérence pair LM/NT, équivalent legacy)
         if (sambaLm != null && sambaNt != null) {
-            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("sambaLMPassword", sambaLm)));
-            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("sambaNTPassword", sambaNt)));
+            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.SAMBA_LM_PASSWORD, sambaLm)));
+            mods.add(new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.SAMBA_NT_PASSWORD, sambaNt)));
         }
-
-        ContextMapper<String> dnMapper = ctx -> {
-            DirContextAdapter adapter = (DirContextAdapter) ctx;
-            return adapter.getDn().toString();
-        };
-
-        List<String> dns;
         try {
-            dns = ldapTemplate.search(query, dnMapper);
+            final Name dn = LdapNameBuilder.newInstance(ConstLDAP.PEOPLE_BRANCH).add(ConstLDAP.UID, uid).build();
+            ldapTemplate.modifyAttributes(dn, mods.toArray(ModificationItem[]::new));
+            specialLog.info("Audit [MODIF_ETAT_LDAP_PASSWORD] : SUCCÈS pour l'utilisateur [{}]", uid);
         } catch (Exception e) {
-            specialLog.error("Audit [MODIF_ETAT_LDAP_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}",
-                    uid, e.getMessage());
-            throw new RuntimeException("LDAP password/etat update failed: " + e.getMessage());
-        }
-
-        if (dns == null || dns.isEmpty()) {
-            specialLog.error(
-                    "Audit [MODIF_ETAT_LDAP_PASSWORD] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP lors de la tentative de mise à jour",
-                    uid);
-            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
-        }
-
-        String dn = dns.get(0);
-        log.debug("DN résolu pour uid={} : {}", uid, dn);
-
-        try {
-            ldapTemplate.modifyAttributes(dn, mods.toArray(new ModificationItem[0]));
-            specialLog.info("Audit [MODIF_ETAT_LDAP_PASSWORD] : SUCCÈS pour l'utilisateur [{}] - état={} (userPassword={})", uid, etatCompte,
-                    AccountState.VALIDE.equals(etatCompte) ? "hash réel" : SCRIPT_LOCK);
-        } catch (Exception e) {
-            specialLog.error("Audit [MODIF_ETAT_LDAP_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}",
-                    uid, e.getMessage());
+            specialLog.error("Audit [MODIF_ETAT_LDAP_PASSWORD] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
             throw new RuntimeException("LDAP password/etat update failed: " + e.getMessage());
         }
     }
 
+    /**
+     * Met à jour l'url de l'avatar dans le LDAP
+     */
     public void updateAvatarLDAP(String uid, String newAvatarUrl) {
-        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
-        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
-        ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.PHOTO, newAvatarUrl))
-        };
-
-        ContextMapper<String> dnMapper = ctx -> {
-            DirContextAdapter adapter = (DirContextAdapter) ctx;
-            return adapter.getDn().toString();
-        };
-
-        List<String> dns;
+        ModificationItem[] mods = new ModificationItem[]{ new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.PHOTO, newAvatarUrl)) };
         try {
-            dns = ldapTemplate.search(query, dnMapper);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_AVATAR] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}", uid, e.getMessage());
-            throw new RuntimeException("LDAP avatar update failed: " + e.getMessage());
-        }
-
-        if (dns == null || dns.isEmpty()) {
-            log.error("Audit [UPDATE_AVATAR] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
-            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
-        }
-
-        String dn = dns.get(0);
-        log.debug("DN résolu pour uid={} : {}", uid, dn);
-
-        try {
+            final Name dn = LdapNameBuilder.newInstance(ConstLDAP.PEOPLE_BRANCH).add(ConstLDAP.UID, uid).build();
             ldapTemplate.modifyAttributes(dn, mods);
             log.debug("Attribut LDAP {} mis à jour pour uid={} au DN={} avec la valeur={}", ConstLDAP.PHOTO, uid, dn, newAvatarUrl);
         } catch (Exception e) {
@@ -219,95 +166,4 @@ public class LdapUserDaoImpl {
         }
     }
 
-    public void updateEtatCompte(String uid, String etat) {
-        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
-
-        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
-
-        ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute(ConstLDAP.ETAT_COMPTE, etat))
-        };
-
-        ContextMapper<String> dnMapper = ctx -> {
-            DirContextAdapter adapter = (DirContextAdapter) ctx;
-            return adapter.getDn().toString();
-        };
-
-        List<String> dns;
-        try {
-            dns = ldapTemplate.search(query, dnMapper);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_ETAT_COMPTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}", uid, e.getMessage());
-            throw new RuntimeException("LDAP etat compte update failed: " + e.getMessage());
-        }
-
-        if (dns == null || dns.isEmpty()) {
-            log.error("Audit [UPDATE_ETAT_COMPTE] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
-            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
-        }
-
-        String dn = dns.get(0);
-        log.debug("DN résolu pour uid={} : {}", uid, dn);
-
-        try {
-            ldapTemplate.modifyAttributes(dn, mods);
-            log.info("Audit [UPDATE_ETAT_COMPTE] : SUCCÈS pour l'utilisateur [{}] - état={}", uid, etat);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_ETAT_COMPTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
-            throw new RuntimeException("LDAP etat compte update failed: " + e.getMessage());
-        }
-    }
-
-    public void updateValidationsCharteService(String uid, List<String> values) {
-        AndFilter filter = new AndFilter();
-        filter.append(new EqualsFilter(ConstLDAP.UID, uid));
-
-        LdapQuery query = LdapQueryBuilder.query().base(ConstLDAP.PEOPLE_BRANCH).filter(filter);
-
-        List<String> safeValues = values == null ? Collections.emptyList() : values;
-        String attributeName = ConstLDAP.VALIDATION_CHARTE;
-        if (attributeName == null || attributeName.isBlank()) {
-            throw new IllegalStateException("Attribut LDAP de validation de charte non configuré");
-        }
-        BasicAttribute attribute = new BasicAttribute(attributeName);
-        for (String value : safeValues) {
-            attribute.add(value);
-        }
-
-        ModificationItem[] mods = new ModificationItem[]{
-                new ModificationItem(safeValues.isEmpty() ? DirContext.REMOVE_ATTRIBUTE : DirContext.REPLACE_ATTRIBUTE,
-                        attribute)
-        };
-
-        ContextMapper<String> dnMapper = ctx -> {
-            DirContextAdapter adapter = (DirContextAdapter) ctx;
-            return adapter.getDn().toString();
-        };
-
-        List<String> dns;
-        try {
-            dns = ldapTemplate.search(query, dnMapper);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_VALIDATION_CHARTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la recherche LDAP | Détail : {}", uid, e.getMessage());
-            throw new RuntimeException("LDAP validation charte update failed: " + e.getMessage());
-        }
-
-        if (dns == null || dns.isEmpty()) {
-            log.error("Audit [UPDATE_VALIDATION_CHARTE] : ÉCHEC pour l'utilisateur [{}] - Raison : Utilisateur introuvable dans l'annuaire LDAP", uid);
-            throw new PersonneNotFoundException("Utilisateur LDAP introuvable : " + uid);
-        }
-
-        String dn = dns.get(0);
-        log.info("[UPDATE_VALIDATION_CHARTE] uid={} attribut={} DN={} valeurs={}", uid, attributeName, dn, safeValues);
-
-        try {
-            ldapTemplate.modifyAttributes(dn, mods);
-            log.info("Audit [UPDATE_VALIDATION_CHARTE] : SUCCÈS pour l'utilisateur [{}] - validationsCharteService={}", uid,
-                    safeValues);
-        } catch (Exception e) {
-            log.error("Audit [UPDATE_VALIDATION_CHARTE] : REFUSÉ pour l'utilisateur [{}] - Raison : Échec de la modification de l'attribut LDAP | Détail : {}", uid, e.getMessage());
-            throw new RuntimeException("LDAP validation charte update failed: " + e.getMessage());
-        }
-    }
 }
