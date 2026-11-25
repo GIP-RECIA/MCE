@@ -81,7 +81,8 @@ public class UserDTOFactory {
             showGeneralInfo(userDto.getLdapUserDto(), databaseUser),
             respEleves,
             eleves,
-            apprentisList
+            apprentisList,
+            userDto.isCanChangeNetworkPasswordWithoutOldPassword()
         );
     }
 

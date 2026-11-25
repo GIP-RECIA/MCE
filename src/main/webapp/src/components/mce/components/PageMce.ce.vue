@@ -67,6 +67,7 @@ const nom = computed<string>(() => mce.value.sn ?? '')
 const prenom = computed<string>(() => mce.value.givenName ?? '')
 const categorie = computed<string>(() => mce.value.categorie ?? '')
 const userMailPerso = computed<string>(() => mce.value.emailPersonnel ?? '')
+const noOldPassword = computed<string>(() => mce.value.noOldPassword ?? '')
 
 onMounted(async () => {
   try {
@@ -207,6 +208,7 @@ function handleAvatarUpdated() {
           :nom="nom"
           :prenom="prenom"
           :categorie="categorie"
+          :no-old-password="noOldPassword"
         />
       </div>
     </div>

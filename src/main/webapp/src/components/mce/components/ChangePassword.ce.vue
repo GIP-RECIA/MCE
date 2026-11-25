@@ -17,16 +17,16 @@
 <script setup lang="ts">
 import { dnmaService } from '@mce/services/dnmaService'
 import {
-  getNetworkPasswordStatus,
   postPassword,
 } from '@mce/services/serviceMce.ts'
-import { inject, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { I18nInjectionKey } from 'vue-i18n'
 
 defineOptions({ name: 'ChangePassword' })
 
 const props = defineProps<{
   mceApi: string
+  noOldPassword: boolean
 }>()
 
 const TRAILING_SLASH = /\/$/
@@ -40,7 +40,9 @@ function tPwd(key: string): string {
 // sans mot de passe local — conforme à l'ancienne application, sans code email).
 type FlowMode = 'standard' | 'network'
 
-const mode = ref<FlowMode>('standard')
+const mode = computed<FlowMode>(() =>
+  props.noOldPassword ? 'network' : 'standard'
+)
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -57,20 +59,6 @@ const messageId = 'change-password-message'
 watch([currentPassword, newPassword, confirmPassword], () => {
   if (currentPassword.value || newPassword.value || confirmPassword.value)
     message.value = ''
-})
-
-// L'éligibilité au parcours « mot de passe réseau » est décidée côté serveur (groupes LDAP).
-onMounted(async () => {
-  try {
-    const baseUrl = props.mceApi.replace(TRAILING_SLASH, '')
-    const { data } = await getNetworkPasswordStatus(baseUrl)
-    if (data?.eligible)
-      mode.value = 'network'
-  }
-  catch (error) {
-    // Statut indisponible : repli silencieux sur le flux classique.
-    console.error('Impossible de récupérer le statut du mot de passe réseau.', error)
-  }
 })
 
 function setMessage(text: string, type: 'success' | 'error') {

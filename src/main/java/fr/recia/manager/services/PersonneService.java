@@ -36,6 +36,7 @@ import fr.recia.manager.services.exception.InvalidAvatarException;
 import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.relations.RelationEleveService;
 import fr.recia.manager.services.structure.StructureService;
+import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -136,6 +137,7 @@ public class PersonneService {
         personne.setEduconnect(personne.getEnumPublic().isEduconnect());
         personne.setPasswordEtab(hasEtabPass(personne));
         personne.setPasswordNetwork(hasNetworkPass(personne));
+        personne.setCanChangeNetworkPasswordWithoutOldPassword(canChangeNetworkPasswordWithoutOldPassword(personne));
         if (cache != null) {
             cache.putIfAbsent(uid, personne);
         }
@@ -193,6 +195,7 @@ public class PersonneService {
      */
     private boolean hasNetworkPass(UserDto userDto) {
         // mceProperties.getService().getCustomParams().getRegexGroupsWithSambaNt()
+        // TODO : regex
         final String regex = "^coll:Applications:ESCOLAN:GCR:.*$";
         final Pattern pattern = Pattern.compile(regex);
         for(String group : userDto.getLdapUserDto().getAttribute(ConstLDAP.IS_MEMBER_OF)){
@@ -202,6 +205,14 @@ public class PersonneService {
             }
         }
         return false;
+    }
+
+    /**
+     * Indique si un utilisateur à un mot de passe réseau qu'il peut changer sans avoir à fournir d'ancien mot de passe
+     * Il faut qu'il ait un mot de passe réseau et jamais saisi de mot de passe
+     */
+    private boolean canChangeNetworkPasswordWithoutOldPassword(UserDto user) {
+        return user.isPasswordNetwork() && !user.getDatabaseUserDto().getPassword().equals(ConstLDAP.ACTIVE_WITHOUT_PASSWORD);
     }
 
     /**

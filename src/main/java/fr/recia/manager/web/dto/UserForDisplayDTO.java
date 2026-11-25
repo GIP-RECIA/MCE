@@ -51,14 +51,12 @@ public class UserForDisplayDTO {
     private List<RelationEleveContact> relationEleve;
     /* Apprentis du tuteur */
     private List<RelationEleveContact> apprentis;
+    private Boolean noOldPassword;
 
     public UserForDisplayDTO(Long id, String uid, String userName, String givenName, String sn, String civilite, String categorie, Boolean canEditEmail,
-                             String identifiant, String etab, String email, String emailPersonnel, Date bod,
-                             String avatar, String etat, Boolean mdp, List<String> userPublic,
-                             InfoGeneralDTO fonctionClassesGroupe,
-                             List<RelationEleveContact> parentEleve,
-                             List<RelationEleveContact> relationEleve,
-                             List<RelationEleveContact> apprentis) {
+                             String identifiant, String etab, String email, String emailPersonnel, Date bod, String avatar, String etat, Boolean mdp,
+                             List<String> userPublic, InfoGeneralDTO fonctionClassesGroupe, List<RelationEleveContact> parentEleve,
+                             List<RelationEleveContact> relationEleve, List<RelationEleveContact> apprentis, Boolean noOldPassword) {
 
         this.id = id;
         this.uid = uid;
@@ -81,6 +79,7 @@ public class UserForDisplayDTO {
         this.parentEleve = parentEleve;
         this.relationEleve = relationEleve;
         this.apprentis = apprentis;
+        this.noOldPassword = noOldPassword;
     }
 
 }

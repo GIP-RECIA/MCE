@@ -51,7 +51,7 @@ public class ChangePasswordService {
             throw new AccessDeniedException("Vous ne pouvez pas modifier votre mot de passe");
         }
         // Vérifier si on a le droit de modifier le mot de passe même sans avoir un ancien
-        final boolean noOldPass = canChangeNetworkPasswordWithoutOldPassword(user).isEligible();
+        final boolean noOldPass = user.isCanChangeNetworkPasswordWithoutOldPassword();
 
         try {
             validateRequest(request, noOldPass);
@@ -77,21 +77,6 @@ public class ChangePasswordService {
             passwordService.updatePassword(user, request.getNewPass(), "CHANGE_PASSWORD");
         }
         personneService.clearUserCaches(uid);
-    }
-
-    /**
-     * Indique si un utilisateur à un mot de passe réseau qu'il peut changer sans avoir à fournir d'ancien mot de passe
-     * Il faut qu'il ait un mot de passe réseau et jamais saisi de mot de passe
-     */
-    public NetworkPasswordResetStatusDTO canChangeNetworkPasswordWithoutOldPassword(UserDto user) {
-        return new NetworkPasswordResetStatusDTO(user.isPasswordNetwork() && !hasOldPassword(user));
-    }
-
-    /**
-     * Indique si l'utilisateur a un ancien mot de passe ou non
-     */
-    private boolean hasOldPassword(UserDto user){
-        return user.getDatabaseUserDto().getPassword().equals(ConstLDAP.ACTIVE_WITHOUT_PASSWORD);
     }
 
     /**

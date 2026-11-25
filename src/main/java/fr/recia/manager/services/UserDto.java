@@ -45,6 +45,7 @@ public class UserDto {
     private boolean educonnect;
     private boolean passwordEtab;
     private boolean passwordNetwork;
+    private boolean canChangeNetworkPasswordWithoutOldPassword;
 
     public UserDto(DatabaseUserDto databaseUserDto, LdapUserDto ldapUserDto, String uid, EnumPublic enumPublic,
                    List<RelationEleveContact> apprentisList, List<RelationEleveContact> respEleves, List<RelationEleveContact> eleves) {

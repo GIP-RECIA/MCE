@@ -168,16 +168,6 @@ public class MCEController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/network-password/status")
-    // TODO : ça ne devrait pas être une route mais une info donnée dans l'utilisateur
-    public ResponseEntity<NetworkPasswordResetStatusDTO> networkPasswordStatus(@AuthenticationPrincipal AppUser principal) {
-        final String uid = principal.getUid();
-        final UserDto userDto = personneService.getUser(uid);
-        final NetworkPasswordResetStatusDTO status = changePasswordService.canChangeNetworkPasswordWithoutOldPassword(userDto);
-        log.info("[NETWORK_PASSWORD_RESET] Statut uid={} eligible={}", uid, status.isEligible());
-        return ResponseEntity.ok(status);
-    }
-
     /**
      * Indique si un utilisateur à le droit d'accéder aux informations d'un autre utilisateur
      */

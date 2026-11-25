@@ -92,21 +92,6 @@ async function postPassword(
   return { data: await response.json().catch(() => null) }
 }
 
-export interface NetworkPasswordResetStatus {
-  eligible: boolean
-}
-
-/**
- * Statut du parcours « mot de passe réseau » (compte CVDL ntPass sans mot de passe local).
- * L'éligibilité étant calculée côté serveur (groupes LDAP), ce GET détermine l'écran à afficher.
- */
-async function getNetworkPasswordStatus(
-  baseUrl: string,
-): Promise<{ data: NetworkPasswordResetStatus }> {
-  const url = `${baseUrl}/network-password/status`
-  return getMCE(url)
-}
-
 async function updateEmail(
   baseUrl: string,
   email: string,
@@ -228,4 +213,4 @@ async function postPreferences(url: string, preferencesData: any, userInfoApiUrl
   }
 }
 
-export { getDetailEnfant, getMCE, getNetworkPasswordStatus, getPreferences, getServicesEnt, postPassword, postPreferences, updateAvatar, updateEmail, updateFonctionDateFin, verifyEmail }
+export { getDetailEnfant, getMCE, getPreferences, getServicesEnt, postPassword, postPreferences, updateAvatar, updateEmail, updateFonctionDateFin, verifyEmail }

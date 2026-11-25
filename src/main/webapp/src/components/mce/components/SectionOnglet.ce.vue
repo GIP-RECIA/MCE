@@ -46,6 +46,7 @@ const props = defineProps<{
   prenom?: string
   categorie?: string
   userPublic?: string[]
+  noOldPassword: boolean
 }>()
 </script>
 
@@ -92,6 +93,7 @@ const props = defineProps<{
       <ChangePassword
         :key="`pwd-${props.currentTab}`"
         :mce-api="props.mceApi"
+        :no-old-password="props.noOldPassword"
       />
     </div>
 
