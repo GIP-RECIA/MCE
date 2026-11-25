@@ -15,6 +15,20 @@
  */
 package fr.recia.manager.services.relations;
 
+import fr.recia.manager.configuration.MCEProperties;
+import fr.recia.manager.configuration.bean.ServiceProperties.RelationProperties;
+import fr.recia.manager.db.dto.DatabaseUserDto;
+import fr.recia.manager.db.repositories.APersonneRepository;
+import fr.recia.manager.db.services.DatabaseUserService;
+import fr.recia.manager.ldap.ConstLDAP;
+import fr.recia.manager.ldap.LdapUserDto;
+import fr.recia.manager.ldap.repository.LdapUserDaoImpl;
+import fr.recia.manager.services.beans.RelationEleveContact;
+import fr.recia.manager.services.beans.RelationEleveContact.SensRel;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,21 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import fr.recia.manager.db.services.DatabaseUserService;
-import fr.recia.manager.ldap.ConstLDAP;
-import fr.recia.manager.ldap.repository.LdapUserDaoImpl;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import fr.recia.manager.configuration.MCEProperties;
-import fr.recia.manager.configuration.bean.ServiceProperties.RelationProperties;
-import fr.recia.manager.db.dto.DatabaseUserDto;
-import fr.recia.manager.db.repositories.APersonneRepository;
-import fr.recia.manager.ldap.LdapUserDto;
-import fr.recia.manager.services.beans.RelationEleveContact;
-import fr.recia.manager.services.beans.RelationEleveContact.SensRel;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service de gestion des relations entre élèves et contacts.

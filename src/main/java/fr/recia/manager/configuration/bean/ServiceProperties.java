@@ -15,9 +15,8 @@
  */
 package fr.recia.manager.configuration.bean;
 
-import org.springframework.validation.annotation.Validated;
-
 import lombok.Data;
+import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated

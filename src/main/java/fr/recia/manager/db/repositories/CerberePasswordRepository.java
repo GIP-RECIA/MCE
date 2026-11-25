@@ -15,12 +15,13 @@
  */
 package fr.recia.manager.db.repositories;
 
-import java.util.List;
+import fr.recia.manager.db.entities.CerberePassword;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import fr.recia.manager.db.entities.CerberePassword;
+
+import java.util.List;
 
 @Repository
 public interface CerberePasswordRepository extends AbstractRepository<CerberePassword, Long> {

@@ -20,7 +20,6 @@ import fr.recia.manager.configuration.bean.CorsProperties;
 import fr.recia.manager.configuration.bean.SecurityProperties;
 import fr.recia.manager.configuration.bean.ServiceProperties;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;

@@ -15,27 +15,25 @@
  */
 package fr.recia.manager.services.factories;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import fr.recia.manager.services.UserDto;
-import fr.recia.manager.services.classegroupe.ClasseGroupeService;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import fr.recia.manager.configuration.MCEProperties;
-import fr.recia.manager.db.dto.FonctionDTO;
 import fr.recia.manager.db.dto.DatabaseUserDto;
+import fr.recia.manager.db.dto.FonctionDTO;
 import fr.recia.manager.ldap.LdapUserDto;
 import fr.recia.manager.services.FonctionService;
+import fr.recia.manager.services.UserDto;
 import fr.recia.manager.services.beans.RelationEleveContact;
 import fr.recia.manager.services.classegroupe.ClasseGroupeDTO;
+import fr.recia.manager.services.classegroupe.ClasseGroupeService;
 import fr.recia.manager.web.dto.InfoGeneralDTO;
 import fr.recia.manager.web.dto.UserForDisplayDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service

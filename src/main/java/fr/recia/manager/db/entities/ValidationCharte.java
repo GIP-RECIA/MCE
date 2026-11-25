@@ -15,17 +15,16 @@
  */
 package fr.recia.manager.db.entities;
 
-import java.io.Serializable;
-import java.util.Date;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-
 import lombok.Data;
+
+import java.io.Serializable;
+import java.util.Date;
 
 /**
  * Validation de la charte d'un utilisateur pour un service donné.

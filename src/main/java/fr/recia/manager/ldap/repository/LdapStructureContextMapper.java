@@ -19,7 +19,6 @@ import fr.recia.manager.ldap.ConstLDAP;
 import fr.recia.manager.ldap.LdapStructureDto;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
-
 import org.springframework.stereotype.Service;
 
 import javax.naming.NamingException;

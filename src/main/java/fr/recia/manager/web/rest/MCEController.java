@@ -27,11 +27,11 @@ import fr.recia.manager.services.exception.ErrorResponse;
 import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.factories.UserDTOFactory;
 import fr.recia.manager.web.dto.EmailUpdateRequestDTO;
-import fr.recia.manager.web.dto.NetworkPasswordResetRequestDTO;
 import fr.recia.manager.web.dto.NetworkPasswordResetStatusDTO;
 import fr.recia.manager.web.dto.PasswordChangeRequestDTO;
 import fr.recia.manager.web.dto.UserForDisplayDTO;
 import fr.recia.manager.web.dto.VerifyEmailRequestDTO;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,8 +46,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import jakarta.validation.Valid;
 
 @Slf4j
 @RestController

@@ -15,8 +15,7 @@
  */
 package fr.recia.manager.db.entities;
 
-import java.util.Date;
-
+import fr.recia.manager.db.enums.ConfirmationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -27,9 +26,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
-
-import fr.recia.manager.db.enums.ConfirmationType;
 import lombok.Data;
+
+import java.util.Date;
 
 @Entity
 @Table(name = "cerbere_confirmation")

@@ -15,9 +15,6 @@
  */
 package fr.recia.manager.db.entities;
 
-import java.io.Serializable;
-import java.util.Date;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -29,8 +26,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
-
 import lombok.Data;
+
+import java.io.Serializable;
+import java.util.Date;
 
 @Entity
 @Table(name = "login", uniqueConstraints = {@UniqueConstraint(columnNames = "apersonne_alias"),

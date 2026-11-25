@@ -15,9 +15,9 @@
  */
 package fr.recia.manager.services.exception;
 
-import java.util.List;
-
 import lombok.Getter;
+
+import java.util.List;
 
 @Getter
 public class ErrorResponse {

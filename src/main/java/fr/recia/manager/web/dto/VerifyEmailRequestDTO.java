@@ -15,10 +15,9 @@
  */
 package fr.recia.manager.web.dto;
 
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.Data;
 
 @Data
 public class VerifyEmailRequestDTO {

@@ -15,12 +15,12 @@
  */
 package fr.recia.manager.db.repositories;
 
-import java.io.Serializable;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.data.repository.NoRepositoryBean;
+
+import java.io.Serializable;
 
 @SuppressWarnings("java:S119")
 @NoRepositoryBean

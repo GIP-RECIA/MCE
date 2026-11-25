@@ -15,19 +15,8 @@
  */
 package fr.recia.manager.services.classegroupe;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import fr.recia.manager.ldap.ConstLDAP;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import fr.recia.manager.configuration.MCEProperties;
+import fr.recia.manager.ldap.ConstLDAP;
 import fr.recia.manager.ldap.LdapUserDto;
 import fr.recia.manager.services.beans.ClasseGroupe;
 import fr.recia.manager.services.beans.EnseignementProf;
@@ -37,6 +26,16 @@ import fr.recia.manager.services.structure.StructureService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Getter

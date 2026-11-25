@@ -19,7 +19,6 @@ import fr.recia.manager.configuration.MCEProperties;
 import fr.recia.manager.configuration.bean.MailProperties;
 import fr.recia.manager.db.dto.DatabaseUserDto;
 import fr.recia.manager.db.entities.CerbereConfirmation;
-import fr.recia.manager.services.exception.InvalidCodeException;
 import fr.recia.manager.services.exception.ResendCooldownActiveException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

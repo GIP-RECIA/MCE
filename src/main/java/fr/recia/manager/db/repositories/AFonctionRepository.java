@@ -15,9 +15,8 @@
  */
 package fr.recia.manager.db.repositories;
 
-import org.springframework.stereotype.Repository;
-
 import fr.recia.manager.db.entities.AFonction;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AFonctionRepository extends AbstractRepository<AFonction, Long> {

@@ -15,18 +15,17 @@
  */
 package fr.recia.manager.services.structure;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import fr.recia.manager.ldap.LdapStructureDto;
-import org.springframework.cache.CacheManager;
-import org.springframework.stereotype.Service;
-
 import fr.recia.manager.configuration.bean.DomaineProperties;
+import fr.recia.manager.ldap.LdapStructureDto;
 import fr.recia.manager.ldap.repository.LdapStructDaoImpl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Getter

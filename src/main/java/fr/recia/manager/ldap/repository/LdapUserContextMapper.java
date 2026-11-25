@@ -15,22 +15,20 @@
  */
 package fr.recia.manager.ldap.repository;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import fr.recia.manager.ldap.ConstLDAP;
+import fr.recia.manager.ldap.LdapUserDto;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
-
-import fr.recia.manager.ldap.LdapUserDto;
 import org.springframework.stereotype.Service;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class LdapUserContextMapper implements ContextMapper<LdapUserDto> {

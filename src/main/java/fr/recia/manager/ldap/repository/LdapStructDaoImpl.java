@@ -15,9 +15,9 @@
  */
 package fr.recia.manager.ldap.repository;
 
-import java.util.List;
-
 import fr.recia.manager.ldap.ConstLDAP;
+import fr.recia.manager.ldap.LdapStructureDto;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.filter.EqualsFilter;
@@ -27,8 +27,7 @@ import org.springframework.ldap.query.LdapQuery;
 import org.springframework.ldap.query.LdapQueryBuilder;
 import org.springframework.stereotype.Repository;
 
-import fr.recia.manager.ldap.LdapStructureDto;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
 
 @Slf4j
 @Repository

@@ -15,14 +15,13 @@
  */
 package fr.recia.manager.db.repositories;
 
-import java.util.List;
-
+import fr.recia.manager.db.entities.ValidationCharte;
+import fr.recia.manager.db.entities.ValidationCharteId;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import fr.recia.manager.db.entities.ValidationCharte;
-import fr.recia.manager.db.entities.ValidationCharteId;
+import java.util.List;
 
 @Repository
 public interface ValidationCharteRepository extends AbstractRepository<ValidationCharte, ValidationCharteId> {

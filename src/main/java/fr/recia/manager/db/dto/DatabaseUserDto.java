@@ -15,15 +15,13 @@
  */
 package fr.recia.manager.db.dto;
 
-import java.util.Date;
-
-import lombok.Data;
-
 import fr.recia.manager.db.entities.APersonne;
 import fr.recia.manager.db.entities.AStructure;
 import fr.recia.manager.db.entities.CerbereEnfant;
 import fr.recia.manager.db.entities.Login;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Data;
+
+import java.util.Date;
 
 @Data
 public class DatabaseUserDto {

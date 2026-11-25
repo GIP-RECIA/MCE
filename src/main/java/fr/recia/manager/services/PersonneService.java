@@ -19,8 +19,8 @@ import fr.recia.manager.configuration.MCEProperties;
 import fr.recia.manager.configuration.bean.DomaineProperties;
 import fr.recia.manager.configuration.bean.MailProperties;
 import fr.recia.manager.configuration.cache.CacheNames;
-import fr.recia.manager.db.entities.APersonne;
 import fr.recia.manager.db.dto.DatabaseUserDto;
+import fr.recia.manager.db.entities.APersonne;
 import fr.recia.manager.db.enums.DomSource;
 import fr.recia.manager.db.enums.EnumCategorie;
 import fr.recia.manager.db.enums.EnumPublic;
@@ -37,7 +37,6 @@ import fr.recia.manager.services.exception.InvalidAvatarException;
 import fr.recia.manager.services.exception.PersonneNotFoundException;
 import fr.recia.manager.services.relations.RelationEleveService;
 import fr.recia.manager.services.structure.StructureService;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -51,14 +50,13 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 

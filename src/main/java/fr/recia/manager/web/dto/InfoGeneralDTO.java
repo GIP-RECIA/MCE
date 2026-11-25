@@ -15,12 +15,12 @@
  */
 package fr.recia.manager.web.dto;
 
-import java.util.List;
-
 import fr.recia.manager.db.dto.FonctionDTO;
 import fr.recia.manager.services.classegroupe.ClasseGroupeDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 @AllArgsConstructor

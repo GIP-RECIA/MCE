@@ -15,11 +15,11 @@
  */
 package fr.recia.manager.services.beans;
 
-import java.util.List;
-import java.util.Map;
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
