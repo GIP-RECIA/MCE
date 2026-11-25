@@ -16,42 +16,20 @@
 package fr.recia.manager.configuration;
 
 import fr.recia.manager.configuration.bean.CorsProperties;
-import fr.recia.manager.configuration.interceptor.RateLimitInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    private final RateLimitInterceptor rateLimitInterceptor;
     private final MCEProperties mceProperties;
 
-    public WebConfig(RateLimitInterceptor rateLimitInterceptor, MCEProperties mceProperties) {
-        this.rateLimitInterceptor = rateLimitInterceptor;
+    public WebConfig(MCEProperties mceProperties) {
         this.mceProperties = mceProperties;
-    }
-
-    @Override
-    // TODO : il faut se resservir de la liste statique des excluded path qui avait été faite
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(rateLimitInterceptor)
-                .addPathPatterns(
-                        "/api/personne/mce/recover-uid",
-                        "/api/personne/mce/forgot-password",
-                        "/api/personne/mce/reset-password",
-                        "/api/personne/mce/verify-email",
-                        "/api/personne/mce/activation/connexion",
-                        "/api/personne/mce/activation/password",
-                        "/api/personne/mce/activation/self",
-                        "/api/personne/mce/change-password",
-                        "/api/personne/mce/update-email",
-                        "/api/personne/mce/avatar");
     }
 
     @Bean
@@ -72,19 +50,4 @@ public class WebConfig implements WebMvcConfigurer {
         return source;
     }
 
-    @Override
-    // TODO : pourquoi c'est nécéssaire ????
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Réactive le service des ressources statiques (spécifiquement pour les pages
-        // publiques servies par la SPA Vue/TS) alors que spring.web.resources.add-mappings=false.
-        // Elles restent protégées par la liste blanche PUBLIC_PAGES (voir SecurityConfiguration).
-        registry.addResourceHandler("/", "/index.html")
-                .addResourceLocations("classpath:/static/");
-        registry.addResourceHandler("/assets/**")
-                .addResourceLocations("classpath:/static/assets/");
-        registry.addResourceHandler("/css/**")
-                .addResourceLocations("classpath:/static/css/");
-        registry.addResourceHandler("/js/**")
-                .addResourceLocations("classpath:/static/js/");
-    }
 }

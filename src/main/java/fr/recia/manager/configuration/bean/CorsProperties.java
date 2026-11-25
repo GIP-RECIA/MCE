@@ -22,10 +22,6 @@ import lombok.Data;
 @Data
 public class CorsProperties {
 
-    private static final String JSON_DELIMITER = "\", \"";
-    private static final String JSON_PREFIX = "[ \"";
-    private static final String JSON_SUFFIX = "\" ]";
-
     private boolean enable;
     private boolean allowCredentials;
     private List<String> allowedOrigins;

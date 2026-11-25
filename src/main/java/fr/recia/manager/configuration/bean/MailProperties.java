@@ -28,16 +28,13 @@ public class MailProperties {
     private String regexsDomainesExclus;
     private String domainesConfiance;
     private String acMailPattern;
-
     private String fromEmail;
     private String fromName;
-
     private Verification verification = new Verification();
     private EmailTemplates templates = new EmailTemplates();
 
     @Data
     public static class Verification {
-        private String frontendUrl;
         private int codeLength = 6;
         private long expiryHours = 24;
     }

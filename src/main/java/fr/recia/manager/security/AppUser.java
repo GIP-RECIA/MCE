@@ -26,12 +26,10 @@ import java.util.Collection;
 public class AppUser extends User {
 
     private final String uid;
-    private final String domaine;
 
-    public AppUser(String username, String password, Collection<? extends GrantedAuthority> authorities, String uid, String domaine) {
+    public AppUser(String username, String password, Collection<? extends GrantedAuthority> authorities, String uid) {
         super(username, password, authorities);
         this.uid = uid;
-        this.domaine = domaine;
     }
 
 }

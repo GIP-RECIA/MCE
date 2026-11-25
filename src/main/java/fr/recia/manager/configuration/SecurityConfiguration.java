@@ -70,16 +70,6 @@ public class SecurityConfiguration {
         this.customCasSuccessHandler = customCasSuccessHandler;
     }
 
-    // Swagger ne doit être accessible qu'hors production (documentation complète des
-    // endpoints, DTOs et schémas). En prod, l'UI et /v3/api-docs restent interdits
-    // (tombent sur denyAll()).
-    private static final String[] SWAGGER_WHITELIST = {
-            "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/v3/api-docs/**",
-            "/webjars/**"
-    };
-
     /**
      * Propriétés du service CAS, avec notamment serviceID associé côté CAS
      */
@@ -135,13 +125,9 @@ public class SecurityConfiguration {
     public AuthenticationUserDetailsService<CasAssertionAuthenticationToken> customUserDetailsService() {
         return (CasAssertionAuthenticationToken token) -> {
             final Assertion assertion = token.getAssertion();
-            final Map<String, Object> attributes = assertion.getPrincipal().getAttributes();
-            // TODO : attributs en dur pour tester
             final String uid = assertion.getPrincipal().getName();
-            final String domaine = "TODO";
-            final String username = assertion.getPrincipal().getName();
-            log.debug("User {} logged in with rights {} and {}", username, uid, domaine);
-            return new AppUser(username, "", new ArrayList<>(), uid, "");
+            log.debug("User {} logged in}", uid);
+            return new AppUser(uid, "", new ArrayList<>(), uid);
         };
     }
 

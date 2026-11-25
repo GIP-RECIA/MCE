@@ -29,7 +29,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app", ignoreUnknownFields = false)
 @Data
 @Validated
-@Slf4j
 public class MCEProperties {
     private CorsProperties cors = new CorsProperties();
     private AvatarProperties avatar = new AvatarProperties();
