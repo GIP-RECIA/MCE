@@ -158,7 +158,6 @@ async function updateAvatar(
   const response = await fetch(`${baseUrl}/avatar`, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
       'X-XSRF-TOKEN': csrfToken,
     },
     body: formData,
