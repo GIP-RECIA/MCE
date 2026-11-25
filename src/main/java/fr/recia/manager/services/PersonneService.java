@@ -208,9 +208,6 @@ public class PersonneService {
      * Produit un hash opaque (hexadécimal) à partir de l'uid réel.
      */
     private String getHashFromUid(String uid) {
-        if (uid == null || uid.length() < 2) {
-            return uid;
-        }
         char[] tab = uid.toCharArray();
         int res = 0;
         for (char c : tab) {
@@ -221,26 +218,27 @@ public class PersonneService {
 
     /**
      * Met à jour l'avatar de l'utilisateur : effectue une rotation des fichiers (0/1), enregistre la nouvelle image,
-     * met à jour la base de données et synchronise le LDAP.
+     * Met à jour la base de données et synchronise le LDAP.
      */
     @Transactional
     public void updateAvatar(String uid, byte[] fileContent) {
         log.info("Mise à jour de la photo pour l'utilisateur [uid={}]", uid);
 
-        // 0. Validation de sécurité
+        // 0. Validations de sécurité
+        // Taille
         if (fileContent.length > mceProperties.getAvatar().getMaxSize()) {
             throw new InvalidAvatarException("Taille de l'avatar trop élevée (max " + mceProperties.getAvatar().getMaxSize() / 1024 + " Ko)");
         }
 
+        // Format
         try (ByteArrayInputStream is = new ByteArrayInputStream(fileContent)) {
-            ImageInputStream iis = ImageIO.createImageInputStream(is);
+            final ImageInputStream iis = ImageIO.createImageInputStream(is);
             Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
             if (!readers.hasNext()) {
                 throw new InvalidAvatarException("Format d'image non valide");
             }
-
-            ImageReader reader = readers.next();
-            String format = reader.getFormatName().toLowerCase();
+            final ImageReader reader = readers.next();
+            final String format = reader.getFormatName().toLowerCase();
             boolean formatAllowed = false;
             for (String allowed : mceProperties.getAvatar().getAllowedTypes()) {
                 if (allowed.contains(format)) {
@@ -248,7 +246,6 @@ public class PersonneService {
                     break;
                 }
             }
-
             if (!formatAllowed) {
                 throw new InvalidAvatarException("Type d'image non autorisé : " + format);
             }
@@ -256,17 +253,14 @@ public class PersonneService {
             throw new InvalidAvatarException("Erreur lors de la lecture de l'image");
         }
 
+        // 1. Sauvegarde du fichier sur le disque
         APersonne entity = aPersonneRepository.findByUid(uid);
-        if (entity == null) {
-            throw new PersonneNotFoundException("Utilisateur introuvable en base : " + uid);
-        }
+        final String hash = getHashFromUid(uid);
+        final String groupDir = hash.substring(0, 2);
+        final String userDir = hash.substring(2);
+        final Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), groupDir, userDir);
 
-        // 1. Sauvegarde du fichier
-        String hash = getHashFromUid(uid);
-        String groupDir = hash.substring(0, 2);
-        String userDir = hash.substring(2);
-        Path storageDir = Paths.get(mceProperties.getAvatar().getStoragePath(), groupDir, userDir);
-
+        // Création du dossier s'il n'existe pas encore
         if (!Files.exists(storageDir)) {
             try {
                 Files.createDirectories(storageDir);
@@ -278,7 +272,7 @@ public class PersonneService {
 
         // Lecture version actuelle dans la BDD
         int nextVersion = 1;
-        String currentPhoto = entity.getPhoto();
+        final String currentPhoto = entity.getPhoto();
         if (currentPhoto != null && currentPhoto.contains("v=")) {
             try {
                 nextVersion = Integer.parseInt(currentPhoto.substring(currentPhoto.lastIndexOf("v=") + 2)) + 1;
@@ -287,10 +281,10 @@ public class PersonneService {
             }
         }
 
-        String filename = mceProperties.getAvatar().getFilename();
-        String filenameBackup = mceProperties.getAvatar().getFilenameBackup();
-        Path path0 = storageDir.resolve(filename);
-        Path path1 = storageDir.resolve(filenameBackup);
+        final String filename0 = mceProperties.getAvatar().getFilename();
+        final String filename1 = mceProperties.getAvatar().getFilenameBackup();
+        final Path path0 = storageDir.resolve(filename0);
+        final Path path1 = storageDir.resolve(filename1);
 
         // Rotation cyclique
         try {
@@ -305,17 +299,15 @@ public class PersonneService {
             throw new RuntimeException("Erreur lors de l'enregistrement", e);
         }
 
-        // Chemin relatif avec version globale
-        String relativePath = mceProperties.getAvatar().getBaseUrl() + hash + "/" + filename + "?v=" + nextVersion;
-
-        // 2. Mise à jour de l'entité
-        entity.setPhoto(relativePath);
+        // 2. Mise à jour BDD
+        final String avatarPath = mceProperties.getAvatar().getBaseUrl() + "/" + groupDir + "/" + userDir + "/" + filename0 + "?v=" + nextVersion;
+        entity.setPhoto(avatarPath);
         entity.setDateModification(new Date());
         aPersonneRepository.saveAndFlush(entity);
 
         // 3. Mise à jour LDAP
         try {
-            getExtDao().updateAvatarLDAP(uid, relativePath);
+            getExtDao().updateAvatarLDAP(uid, avatarPath);
         } catch (Exception e) {
             log.warn("Impossible de mettre à jour LDAP pour l'UID [{}]: {}", uid, e.getMessage());
         }
