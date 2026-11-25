@@ -20,15 +20,8 @@ import lombok.Data;
 @Data
 public class SecurityProperties {
 
-    private RateLimit rateLimit = new RateLimit();
     private ResetPolicy resetPolicy = new ResetPolicy();
     private PasswordPolicy passwordPolicy = new PasswordPolicy();
-
-    @Data
-    public static class RateLimit {
-        private double permitsPerSecond = 0.167;
-        private int maxEntries = 10_000;
-    }
 
     @Data
     public static class ResetPolicy {

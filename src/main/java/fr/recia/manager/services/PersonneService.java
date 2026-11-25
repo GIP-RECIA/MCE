@@ -26,7 +26,6 @@ import fr.recia.manager.db.enums.EnumCategorie;
 import fr.recia.manager.db.enums.EnumPublic;
 import fr.recia.manager.db.repositories.APersonneRepository;
 import fr.recia.manager.db.repositories.CerbereConfirmationRepository;
-import fr.recia.manager.db.repositories.ValidationCharteRepository;
 import fr.recia.manager.db.services.DatabaseUserService;
 import fr.recia.manager.ldap.ConstLDAP;
 import fr.recia.manager.ldap.LdapStructureDto;
@@ -68,7 +67,6 @@ public class PersonneService {
     private final MCEProperties mceProperties;
     private final DomaineProperties domaineProperties;
     private final APersonneRepository aPersonneRepository;
-    private final ValidationCharteRepository validationCharteRepository;
     private final LdapUserDaoImpl userLdapDao;
     private final CacheManager cacheManager;
     private final LdapUserDaoImpl extDao;
@@ -79,15 +77,15 @@ public class PersonneService {
     private final DatabaseUserService databaseUserService;
     private final Pattern patternDomainSource;
 
-    public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties, LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao,
-                           ValidationCharteRepository validationCharteRepository, APersonneRepository aPersonneRepository, CacheManager cacheManager,
-                           StructureService structureService, RelationEleveService relationEleveService, CerbereConfirmationRepository cerbereConfirmationRepository, DatabaseUserService databaseUserService) {
+    public PersonneService(MCEProperties mceProperties, DomaineProperties domaineProperties, MailProperties mailProperties,
+                           LdapUserDaoImpl extDao, LdapUserDaoImpl userLdapDao, APersonneRepository aPersonneRepository,
+                           CacheManager cacheManager, StructureService structureService, RelationEleveService relationEleveService,
+                           CerbereConfirmationRepository cerbereConfirmationRepository, DatabaseUserService databaseUserService) {
         this.mceProperties = mceProperties;
         this.domaineProperties = domaineProperties;
         this.mailProperties = mailProperties;
         this.extDao = extDao;
         this.userLdapDao = userLdapDao;
-        this.validationCharteRepository = validationCharteRepository;
         this.aPersonneRepository = aPersonneRepository;
         this.cacheManager = cacheManager;
         this.structureService = structureService;
